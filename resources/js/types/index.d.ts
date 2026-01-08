@@ -40,6 +40,8 @@ export interface User {
     created_at: string;
     updated_at: string;
     profile?: Profile;
+    level?: number;
+    points?: number;
     [key: string]: unknown; // This allows for additional properties...
 }
 
