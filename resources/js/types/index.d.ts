@@ -39,5 +39,18 @@ export interface User {
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
+    profile?: Profile;
     [key: string]: unknown; // This allows for additional properties...
+}
+
+export type UserRole = 'admin' | 'trainer' | 'user';
+
+export interface Profile {
+    user_id: number;
+    email: string;
+    full_name: string | null;
+    role: UserRole;
+    employee_id: string | null;
+    region: string | null;
+    created_at: string;
 }

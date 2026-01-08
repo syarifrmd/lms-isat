@@ -15,10 +15,11 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id')->primary();
             $table->string('email')->unique();
             $table->string('full_name')->nullable();
-            $table->enum('role', ['admin', 'instructor', 'user'])->default('user');
+            $table->enum('role', ['admin', 'trainer', 'user'])->default('user');
             $table->string('employee_id')->unique()->nullable();
             $table->string('region')->nullable();
             $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent();
             
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
