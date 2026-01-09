@@ -13,10 +13,10 @@ export const DashboardSection = ({ title, children, action, delay = 0 }: Dashboa
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay }}
-        className="bg-white rounded-xl p-6 shadow-sm"
+        className="bg-white dark:bg-zinc-800 rounded-xl p-6 shadow-sm"
     >
         <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-800">{title}</h3>
+            <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{title}</h3>
             {action}
         </div>
         {children}

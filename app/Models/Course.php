@@ -28,9 +28,9 @@ class Course extends Model
     {
         return $this->hasMany(Enrollment::class);
     }
-
+    
     public function modules()
     {
-        return $this->hasMany(Module::class);
+        return $this->hasMany(Module::class)->orderBy('order_sequence');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
@@ -12,6 +13,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $role = $user->profile?->role;
+        $youtubeConnected = Storage::disk('local')->exists('google-token.json');
 
         // Data untuk Trainer Dashboard
         if ($role === 'trainer') {
@@ -56,10 +58,13 @@ class DashboardController extends Controller
                     'stats' => $stats,
                     'recent_courses' => $recentCourses,
                 ],
+                'youtube_connected' => $youtubeConnected
             ]);
         }
 
         // Default dashboard untuk role lain
-        return Inertia::render('dashboard');
+        return Inertia::render('dashboard', [
+            'youtube_connected' => $youtubeConnected
+        ]);
     }
 }

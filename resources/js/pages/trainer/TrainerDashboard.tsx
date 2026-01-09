@@ -3,25 +3,26 @@ import { StatCard } from '@/components/shared/StatCard';
 import { DashboardSection } from '@/components/shared/DashboardSection';
 import { CourseListItem } from '@/components/shared/CourseListItem';
 import { QuickAction } from '@/components/shared/QuickAction';
-import { Video, FileText, Award, BookOpen, Users, CheckCircle } from 'lucide-react';
+import { Video, FileText, Award, BookOpen, Users, CheckCircle, Youtube } from 'lucide-react';
 import { TrainerDashboardData } from '@/types';
 
 interface TrainerDashboardProps {
     data?: TrainerDashboardData;
+    youtube_connected: boolean;
 }
 
-export default function TrainerDashboard({ data }: TrainerDashboardProps) {
+export default function TrainerDashboard({ data, youtube_connected }: TrainerDashboardProps) {
     // Use data from props if available, otherwise use default/empty data
     const stats = data?.stats ? [
-        { label: 'Total Courses', value: data.stats.total_courses, icon: BookOpen, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-        { label: 'Total Students', value: data.stats.total_students, icon: Users, iconBg: 'bg-green-100', iconColor: 'text-green-600' },
-        { label: 'Completed', value: data.stats.completed_courses, icon: CheckCircle, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
-        { label: 'Avg Rating', value: data.stats.average_rating, icon: Award, iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600' },
+        { label: 'Total Courses', value: data.stats.total_courses, icon: BookOpen, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400' },
+        { label: 'Total Students', value: data.stats.total_students, icon: Users, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400' },
+        { label: 'Completed', value: data.stats.completed_courses, icon: CheckCircle, iconBg: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
+        { label: 'Avg Rating', value: data.stats.average_rating, icon: Award, iconBg: 'bg-yellow-100 dark:bg-yellow-900/30', iconColor: 'text-yellow-600 dark:text-yellow-400' },
     ] : [
-        { label: 'Total Courses', value: 0, icon: BookOpen, iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
-        { label: 'Total Students', value: 0, icon: Users, iconBg: 'bg-green-100', iconColor: 'text-green-600' },
-        { label: 'Completed', value: 0, icon: CheckCircle, iconBg: 'bg-purple-100', iconColor: 'text-purple-600' },
-        { label: 'Avg Rating', value: '0.0', icon: Award, iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600' },
+        { label: 'Total Courses', value: 0, icon: BookOpen, iconBg: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600 dark:text-blue-400' },
+        { label: 'Total Students', value: 0, icon: Users, iconBg: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600 dark:text-green-400' },
+        { label: 'Completed', value: 0, icon: CheckCircle, iconBg: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600 dark:text-purple-400' },
+        { label: 'Avg Rating', value: '0.0', icon: Award, iconBg: 'bg-yellow-100 dark:bg-yellow-900/30', iconColor: 'text-yellow-600 dark:text-yellow-400' },
     ];
 
     const courses = data?.recent_courses || [];
@@ -30,7 +31,23 @@ export default function TrainerDashboard({ data }: TrainerDashboardProps) {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-bold">Trainer Dashboard</h1>
-                <button className="bg-[#DC1F2E] text-white px-6 py-2 rounded-lg">Create Course</button>
+                <div className="flex gap-2">
+                    {youtube_connected ? (
+                        <div className="flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg border border-green-200 dark:border-green-800">
+                            <CheckCircle className="w-4 h-4" />
+                            <span className="text-sm font-medium">YouTube Connected</span>
+                        </div>
+                    ) : (
+                        <a 
+                            href="/auth/google" 
+                            className="flex items-center gap-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
+                        >
+                            <Youtube className="w-4 h-4 text-red-600" />
+                            <span className="text-sm font-medium">Connect YouTube</span>
+                        </a>
+                    )}
+                    <button className="bg-[#DC1F2E] text-white px-6 py-2 rounded-lg">Create Course</button>
+                </div>
             </div>
 
             {/* Stats */}

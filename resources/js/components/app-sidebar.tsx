@@ -11,7 +11,6 @@ import {
     Award,
     BarChart3,
     BookOpen,
-    FileText,
     GraduationCap,
     LayoutDashboard,
     LogOut,
@@ -38,22 +37,21 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'Manage Users', href: '/dashboard/users', icon: Users },
-                    { title: 'Courses', href: '/dashboard/courses', icon: BookOpen },
+                    { title: 'Courses', href: '/courses', icon: BookOpen },
                     { title: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
                     { title: 'Settings', href: '/dashboard/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'My Courses', href: '/dashboard/courses', icon: BookOpen },
-                    { title: 'Create Module', href: '/dashboard/create', icon: FileText },
+                    { title: 'My Courses', href: '/courses', icon: BookOpen },
                     { title: 'Assessments', href: '/dashboard/assessments', icon: Award },
                     { title: 'Students', href: '/dashboard/students', icon: Users },
                 ];
             case 'user': // Previously 'dse'
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'My Learning', href: '/dashboard/learning', icon: BookOpen },
+                    { title: 'My Learning', href: '/courses', icon: BookOpen },
                     { title: 'Certificates', href: '/dashboard/certificates', icon: GraduationCap },
                     { title: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
                     { title: 'My Badges', href: '/dashboard/badges', icon: Award },
@@ -68,24 +66,24 @@ export function AppSidebar() {
     const navItems = getNavItems();
 
     return (
-        <Sidebar collapsible="icon" className="border-r-0 bg-[#1a1a1a] text-white">
-            <SidebarHeader className="border-b border-gray-700 p-6 bg-[#1a1a1a]" >
+        <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+            <SidebarHeader className="border-b border-sidebar-border p-6 bg-sidebar" >
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600">
                         <GraduationCap className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                        <div className="font-bold text-white">Indosat LMS</div>
-                        <div className="text-xs capitalize text-gray-400">
+                        <div className="font-bold text-sidebar-foreground">Indosat LMS</div>
+                        <div className="text-xs capitalize text-muted-foreground">
                             {role || 'User'} Portal
                         </div>
                     </div>
                 </div>
             </SidebarHeader>
 
-            <SidebarContent className="bg-[#1a1a1a]">
+            <SidebarContent className="bg-sidebar">
                 {/* User Profile Section */}
-                <div className="border-b border-gray-700 p-6">
+                <div className="border-b border-sidebar-border p-6">
                     <div className="flex items-center gap-3">
                         <img
                             src={
@@ -96,10 +94,10 @@ export function AppSidebar() {
                             className="h-12 w-12 rounded-full border-2 border-yellow-400 bg-gray-600"
                         />
                         <div className="flex-1 overflow-hidden">
-                            <div className="truncate font-medium text-white">
+                            <div className="truncate font-medium text-sidebar-foreground">
                                 {user.name}
                             </div>
-                            <div className="truncate text-sm text-gray-400">
+                            <div className="truncate text-sm text-muted-foreground">
                                 {user.email}
                             </div>
                             {role === 'user' && ( // role was 'dse' in previous app

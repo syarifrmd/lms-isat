@@ -8,6 +8,7 @@ import TrainerDashboard from './trainer/TrainerDashboard';
 
 interface DashboardPageProps extends SharedData {
     dashboardData?: TrainerDashboardData;
+    youtube_connected: boolean;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -17,7 +18,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ youtube_connected }: { youtube_connected: boolean }) {
     const { auth, dashboardData } = usePage<DashboardPageProps>().props;
     const role = auth.user.profile?.role?.toUpperCase();
 
@@ -25,7 +26,7 @@ export default function Dashboard() {
     const renderDashboardContent = () => {
         switch (role) {
             case 'TRAINER':
-                return <TrainerDashboard data={dashboardData} />;
+                return <TrainerDashboard data={dashboardData} youtube_connected={youtube_connected} />;
             
             case 'EMPLOYEE':
                 // return <EmployeeDashboard />; // Uncomment when EmployeeDashboard is created

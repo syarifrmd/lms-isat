@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('order_sequence')->unsigned();
             $table->decimal('duration_minutes', 10, 2)->nullable();
             $table->bigInteger('xp_amounts')->nullable();
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
             
             // Check constraint is not supported in all databases via Blueprint but widely supported in raw SQL
             // MySQL 8.0.16+ supports CHECK constraints.
