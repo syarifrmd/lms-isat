@@ -56,3 +56,28 @@ export interface Profile {
     region: string | null;
     created_at: string;
 }
+
+export interface Course {
+    id: number;
+    title: string;
+    description?: string;
+    trainer_id: number;
+    students_count?: number;
+    progress?: number;
+    rating?: number;
+    status?: 'draft' | 'published' | 'archived';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TrainerDashboardStats {
+    total_courses: number;
+    total_students: number;
+    completed_courses: number;
+    average_rating: string;
+}
+
+export interface TrainerDashboardData {
+    stats: TrainerDashboardStats;
+    recent_courses: Course[];
+}
