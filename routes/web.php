@@ -10,6 +10,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\AssessmentsController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\ModuleProgressController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -21,6 +22,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
     Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -42,6 +44,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/quiz/{quiz}', [QuizController::class, 'show'])->name('quiz.show');
     Route::post('/quiz/{quiz}/submit', [QuizController::class, 'submit'])->name('quiz.submit');
     Route::get('/quiz-result/{attempt}', [QuizController::class, 'result'])->name('quiz.result');
+
+    // Module Progress
+    Route::post('/modules/{module}/progress/text', [ModuleProgressController::class, 'markTextRead'])->name('modules.progress.text');
 });
 
 // Trainer Only Routes - Modules & Assessments
