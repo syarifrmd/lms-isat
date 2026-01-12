@@ -16,6 +16,7 @@ interface Module {
     is_completed?: boolean;
     is_locked?: boolean;
     is_text_read?: boolean;
+    is_video_watched?: boolean;
 }
 
 interface Course {
@@ -37,9 +38,10 @@ interface CourseCreator {
 
 interface ShowProps {
     course: Course;
+    userProgress?: number; // optional karena trainer tidak punya progress
 }
 
-export default function CourseShow({ course }: ShowProps) {
+export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const isTrainer = auth.user.profile?.role === 'trainer' || auth.user.profile?.role === 'admin';
     const isCreator = course.created_by === auth.user.id;
@@ -60,6 +62,12 @@ export default function CourseShow({ course }: ShowProps) {
                 // Ideally this would be handled by Inertia reloading props, 
                 // but we can also show a toast here if we had one.
             }
+        });
+    };
+
+    const handleMarkVideoWatched = (moduleId: number) => {
+        router.post(`/modules/${moduleId}/progress/video`, {}, {
+            preserveScroll: true,
         });
     };
 
@@ -145,17 +153,35 @@ export default function CourseShow({ course }: ShowProps) {
                                             </AccordionTrigger>
                                             <AccordionContent className="px-6 py-4 bg-muted/20">
                                                 {module.video_url && (
-                                                    <div className="mb-4 rounded-lg overflow-hidden bg-black aspect-video relative">
-                                                        <iframe 
-                                                            width="100%" 
-                                                            height="100%" 
-                                                            src={`https://www.youtube.com/embed/${module.video_url}`} 
-                                                            title={module.title} 
-                                                            frameBorder="0" 
-                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                                            allowFullScreen
-                                                            className="absolute top-0 left-0 w-full h-full"
-                                                        ></iframe>
+                                                    <div className="mb-4">
+                                                        <div className="rounded-lg overflow-hidden bg-black aspect-video relative">
+                                                            <iframe 
+                                                                width="100%" 
+                                                                height="100%" 
+                                                                src={`https://www.youtube.com/embed/${module.video_url}`} 
+                                                                title={module.title} 
+                                                                frameBorder="0" 
+                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                                allowFullScreen
+                                                                className="absolute top-0 left-0 w-full h-full"
+                                                            ></iframe>
+                                                        </div>
+                                                        {!module.is_video_watched && !isTrainer && (
+                                                            <div className="mt-2 flex justify-end">
+                                                                <Button size="sm" onClick={() => handleMarkVideoWatched(module.id)}>
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Mark Video as Watched
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                        {module.is_video_watched && !isTrainer && (
+                                                            <div className="mt-2 flex justify-end">
+                                                                <span className="text-sm text-green-600 flex items-center font-medium">
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Video Watched
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                                 
@@ -272,20 +298,34 @@ export default function CourseShow({ course }: ShowProps) {
 
                 {/* Sidebar - Right Column */}
                 <div className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Course Progress</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <div className="flex items-center gap-2 mb-2">
-                                <div className="h-2 grow bg-secondary rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary w-[0%]"></div>
+                    {/* START PROGRESS CARD */}
+                    {!isTrainer && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">Your Progress</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm font-medium">
+                                        <span>Course Completion</span>
+                                        <span>{userProgress}%</span>
+                                    </div>
+                                    <div className="w-full bg-secondary rounded-full h-2.5">
+                                        <div 
+                                            className="bg-primary h-2.5 rounded-full transition-all duration-500" 
+                                            style={{ width: `${userProgress}%` }}
+                                        ></div>
+                                    </div>
+                                    {userProgress === 100 && (
+                                        <p className="text-sm text-green-600 mt-2 font-semibold">
+                                            Course Completed!
+                                        </p>
+                                    )}
                                 </div>
-                                <span className="text-sm font-medium">0%</span>
-                             </div>
-                             <p className="text-xs text-muted-foreground">Start watching modules to track your progress.</p>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                     )}
+                     {/* END PROGRESS CARD */}
 
                     <Card>
                          <CardHeader>

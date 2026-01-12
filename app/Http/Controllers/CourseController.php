@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Module;
-use App\Services\YouTubeService;
+use App\Models\Enrollment; // Pastikan import ini ada
+use App\Models\ModuleProgress; // Pastikan import ini ada
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 
@@ -65,66 +65,58 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        $course = Course::with([
-            'modules' => function ($query) {
-                $query->orderBy('order_sequence');
-            }, 
-            'creator',
-            'creator.profile',
-            'quizzes' => function ($query) {
-                $query->withCount('questions');
-            }
-        ])->findOrFail($id);
-
-        $user = Auth::user();
-        if ($user) {
-            $isTrainerOrAdmin = $course->created_by === $user->id || 
-                                ($user->profile?->role && in_array($user->profile->role, ['admin', 'trainer']));
-            
-            if ($isTrainerOrAdmin) {
-                 foreach ($course->modules as $module) {
-                    $module->is_completed = true;
-                    $module->is_locked = false;
-                    $module->is_text_read = true;
-                 }
-            } else {
-                 $enrollment = \App\Models\Enrollment::where('user_id', $user->id)
-                    ->where('course_id', $course->id)
-                    ->with('moduleProgress')
-                    ->first();
-
-                 $previousCompleted = true; // First module is always unlocked
-                 
-                 foreach ($course->modules as $module) {
-                     $progress = $enrollment ? $enrollment->moduleProgress->where('module_id', $module->id)->first() : null;
-                     
-                     $isTextRead = $progress ? (bool)$progress->is_text_read : false;
-                     $isVideoWatched = $progress ? (bool)$progress->is_video_watched : false;
-
-                     // Determine if this module is fully completed
-                     // Logic: If it has content, it must be read/watched.
-                     // If it has NO content of that type, it's "done" for that type.
-                     // Simplification: just trust the progress flags or checked if content exists?
-                     // Let's implement robust check:
-                     $textDone = !$module->content_text || $isTextRead;
-                     $videoDone = !$module->video_url || $isVideoWatched;
-                     
-                     $isCompleted = $textDone && $videoDone;
-
-                     $module->is_completed = $isCompleted;
-                     $module->is_locked = !$previousCompleted;
-                     $module->is_text_read = $isTextRead;
-                     $module->is_video_watched = $isVideoWatched;
-
-                     if (!$isCompleted) {
-                         $previousCompleted = false;
-                     }
-                 }
-            }
-        }
+        // Load course dengan modul yang urut berdasarkan sequence
+        $course = Course::with(['modules' => function($query) {
+            $query->orderBy('order_sequence', 'asc'); // Pastikan urut
+        }, 'creator'])->findOrFail($id);
         
+        $enrollment = null;
+        if (Auth::check()) {
+            $enrollment = Enrollment::where('user_id', Auth::id())
+                ->where('course_id', $id)
+                ->first();
+        }
+
+        // LOGIKA LOCKING MODULE
+        $previousModuleCompleted = true; // Modul pertama selalu terbuka (seolah modul sebelumnya "selesai")
+
+        foreach ($course->modules as $module) {
+            $progress = null;
+            
+            if ($enrollment) {
+                $progress = ModuleProgress::where('enrollment_id', $enrollment->id)
+                    ->where('module_id', $module->id)
+                    ->first();
+            }
+
+            // 1. Cek User Progress untuk modul ini
+            // Kriteria Selesai: Text sudah dibaca (tambah logika video di sini jika perlu)
+            $isTextRead = $progress ? $progress->is_text_read : false;
+            $isVideoWatched = $progress ? $progress->is_video_watched : false;
+            
+            // Logika "Completed": Modul selesai jika SEMUA konten yang ada sudah diselesaikan
+            $textRequirementMet = empty($module->content_text) || $isTextRead;
+            $videoRequirementMet = empty($module->video_url) || $isVideoWatched;
+
+            $isCompleted = $textRequirementMet && $videoRequirementMet;
+
+            // 2. Set Status untuk Frontend
+            $module->is_completed = $isCompleted;
+            $module->is_text_read = $isTextRead;
+            $module->is_video_watched = $isVideoWatched;
+            
+            // 3. Set Lock Status
+            // Modul ini terkunci KECUALI modul sebelumnya sudah selesai
+            $module->is_locked = !$previousModuleCompleted;
+
+            // Update tracker looping: status modul ini menjadi penentu modul berikutnya
+            $previousModuleCompleted = $isCompleted;
+        }
+
         return Inertia::render('Courses/Show', [
-            'course' => $course
+            'course' => $course,
+            'userProgress' => $enrollment ? $enrollment->progress_percentage : 0,
+            'isEnrolled' => $enrollment ? true : false,
         ]);
     }
 

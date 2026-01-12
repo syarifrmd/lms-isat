@@ -47,6 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Module Progress
     Route::post('/modules/{module}/progress/text', [ModuleProgressController::class, 'markTextRead'])->name('modules.progress.text');
+    Route::post('/modules/{module}/progress/video', [ModuleProgressController::class, 'markVideoWatched'])->name('modules.progress.video');
 });
 
 // Trainer Only Routes - Modules & Assessments

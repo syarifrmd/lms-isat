@@ -111,29 +111,34 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                                         <ClockIcon className="mr-1 h-3 w-3" />
                                         <span>{formatDistanceToNow(new Date(course.created_at), { addSuffix: true })}</span>
                                     </div>
-                                    {canCreateCourse ? (
-                                        
-                                    {canCreateCourse && (
-                                        <button 
-                                            onClick={() => setCourseToDelete(course.id)}
-                                            className="group flex items-center gap-1 cursor-pointer border border-red-600 px-3 py-1 rounded-[10px] text-red-600 hover:bg-red-600 hover:text-white transition-all duration-200"
-                                        >
-                                            <Trash className="h-6 w-7 group-hover:text-white transition-colors" />
-                                            <span className="text-xs font-medium">Remove</span>
-                                        </button>
-                                    )}
+                                    
+                                    {/* PERBAIKAN DI SINI */}
+                                    <div className="flex items-center gap-2">
+                                        {canCreateCourse ? (
+                                            <>
+                                                <button 
+                                                    onClick={() => setCourseToDelete(course.id)}
+                                                    className="group flex items-center gap-1 cursor-pointer border border-red-600 px-3 py-1 rounded-[10px] text-red-600 hover:bg-red-600 hover:text-white transition-all duration-200"
+                                                >
+                                                    <Trash className="h-4 w-4 group-hover:text-white transition-colors" />
+                                                    <span className="text-xs font-medium">Remove</span>
+                                                </button>
 
-                                    <Button asChild size="sm" variant="outline">
-                                            <Link href={`/courses/${course.id}`}>View Course</Link>
-                                        </Button>
-                                    ) : (
-                                        <Button 
-                                            size="sm"
-                                            onClick={() => handleEnrollClick(course)}
-                                        >
-                                            Daftar Kursus
-                                        </Button>
-                                    )}
+                                                <Button asChild size="sm" variant="outline">
+                                                    <Link href={`/courses/${course.id}`}>View Course</Link>
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <Button 
+                                                size="sm"
+                                                onClick={() => handleEnrollClick(course)}
+                                            >
+                                                Daftar Kursus
+                                            </Button>
+                                        )}
+                                    </div>
+                                    {/* AKHIR PERBAIKAN */}
+
                                 </div>
                             </CardFooter>
                         </Card>
