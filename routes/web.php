@@ -9,6 +9,7 @@ use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\AssessmentsController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\EnrollmentController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
     Route::get('/courses/{id}', [CourseController::class, 'show'])->name('courses.show');
+    
+    // Enrollment (Users can enroll/unenroll from courses)
+    Route::post('/courses/{id}/enroll', [EnrollmentController::class, 'store'])->name('courses.enroll');
+    Route::delete('/courses/{id}/unenroll', [EnrollmentController::class, 'destroy'])->name('courses.unenroll');
     
     // Google Auth
     Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google');

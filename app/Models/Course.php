@@ -13,10 +13,16 @@ class Course extends Model
         'title',
         'description',
         'category',
-        'duration',
+        'start_date',
+        'end_date',
         'created_by',
         'status',
         'cover_url',
+    ];
+
+    protected $casts = [
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
     ];
 
     public function creator()

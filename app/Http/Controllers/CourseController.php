@@ -39,6 +39,8 @@ class CourseController extends Controller
             'category' => 'nullable|string',
             'status' => 'required|in:draft,published,archived',
             'cover_image' => 'nullable|image|max:2048', // 2MB max
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
 
         $coverUrl = null;
@@ -54,6 +56,8 @@ class CourseController extends Controller
             'status' => $request->status,
             'cover_url' => $coverUrl,
             'created_by' => Auth::id(), 
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
         ]);
 
         return redirect()->route('courses.show', $course->id)->with('success', 'Course created successfully.');

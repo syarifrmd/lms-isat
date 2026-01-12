@@ -14,6 +14,8 @@ export default function CreateCourse() {
         description: '',
         category: '',
         status: 'draft',
+        start_date: '',
+        end_date: '',
         cover_image: null as File | null,
     });
 
@@ -63,6 +65,36 @@ export default function CreateCourse() {
                                     rows={5}
                                 />
                                 <InputError message={errors.description} />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Waktu Kursus</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="start_date" className="text-sm text-muted-foreground">Waktu Mulai</Label>
+                                        <Input
+                                            id="start_date"
+                                            type="datetime-local"
+                                            value={data.start_date}
+                                            onChange={(e) => setData('start_date', e.target.value)}
+                                        />
+                                        <InputError message={errors.start_date} />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="end_date" className="text-sm text-muted-foreground">Waktu Deadline</Label>
+                                        <Input
+                                            id="end_date"
+                                            type="datetime-local"
+                                            value={data.end_date}
+                                            onChange={(e) => setData('end_date', e.target.value)}
+                                        />
+                                        <InputError message={errors.end_date} />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Tentukan periode waktu kursus berlangsung
+                                </p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

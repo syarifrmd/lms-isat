@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { ClockIcon, PlusCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { SharedData } from '@/types';
+import { useState } from 'react';
+import { EnrollmentModal } from '@/components/EnrollmentModal';
 
 interface Course {
     id: number;
@@ -15,6 +17,9 @@ interface Course {
     category: string;
     status: string;
     created_at: string;
+    start_date?: string;
+    end_date?: string;
+    modules?: Array<any>;
     creator: {
         name: string;
     };
@@ -23,6 +28,13 @@ interface Course {
 export default function CoursesIndex({ courses }: { courses: Course[] }) {
     const { auth } = usePage<SharedData>().props;
     const canCreateCourse = auth.user.profile?.role === 'trainer' || auth.user.profile?.role === 'admin';
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+    const [showEnrollModal, setShowEnrollModal] = useState(false);
+
+    const handleEnrollClick = (course: Course) => {
+        setSelectedCourse(course);
+        setShowEnrollModal(true);
+    };
 
     console.log(courses);
     return (
@@ -81,9 +93,18 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                                         <ClockIcon className="mr-1 h-3 w-3" />
                                         <span>{formatDistanceToNow(new Date(course.created_at), { addSuffix: true })}</span>
                                     </div>
-                                    <Button asChild size="sm">
-                                        <Link href={`/courses/${course.id}`}>View Course</Link>
-                                    </Button>
+                                    {canCreateCourse ? (
+                                        <Button asChild size="sm" variant="outline">
+                                            <Link href={`/courses/${course.id}`}>View Course</Link>
+                                        </Button>
+                                    ) : (
+                                        <Button 
+                                            size="sm"
+                                            onClick={() => handleEnrollClick(course)}
+                                        >
+                                            Daftar Kursus
+                                        </Button>
+                                    )}
                                 </div>
                             </CardFooter>
                         </Card>
@@ -96,6 +117,17 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                         </div>
                     )}
             </div>
+
+            {selectedCourse && (
+                <EnrollmentModal
+                    open={showEnrollModal}
+                    onOpenChange={setShowEnrollModal}
+                    course={selectedCourse}
+                    onConfirm={() => {
+                        window.location.href = `/courses/${selectedCourse.id}`;
+                    }}
+                />
+            )}
             
         </AppLayout>
     );
