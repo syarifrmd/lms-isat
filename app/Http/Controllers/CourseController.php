@@ -75,4 +75,15 @@ class CourseController extends Controller
             'course' => $course
         ]);
     }
+
+    public function destroy(Course $course)
+    {
+        if ($course->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $course->delete();
+
+        return redirect()->route('courses.index')->with('success', 'Course deleted successfully.');
+    }
 }

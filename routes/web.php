@@ -20,6 +20,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
     Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
