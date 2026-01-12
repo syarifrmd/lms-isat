@@ -64,9 +64,15 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        $course = Course::with(['modules' => function ($query) {
-            $query->orderBy('order_sequence');
-        }, 'creator'])->findOrFail($id);
+        $course = Course::with([
+            'modules' => function ($query) {
+                $query->orderBy('order_sequence');
+            }, 
+            'creator',
+            'quizzes' => function ($query) {
+                $query->withCount('questions');
+            }
+        ])->findOrFail($id);
         
         return Inertia::render('Courses/Show', [
             'course' => $course

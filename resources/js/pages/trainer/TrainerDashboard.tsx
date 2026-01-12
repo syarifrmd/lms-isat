@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from '@inertiajs/react';
 import { StatCard } from '@/components/shared/StatCard';
 import { DashboardSection } from '@/components/shared/DashboardSection';
 import { CourseListItem } from '@/components/shared/CourseListItem';
@@ -46,7 +47,12 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                             <span className="text-sm font-medium">Connect YouTube</span>
                         </a>
                     )}
-                    <button className="bg-[#DC1F2E] text-white px-6 py-2 rounded-lg">Create Course</button>
+                    <Link 
+                        href="/courses/create" 
+                        className="bg-[#DC1F2E] text-white px-6 py-2 rounded-lg hover:bg-[#B51826] transition-colors"
+                    >
+                        Create Course
+                    </Link>
                 </div>
             </div>
 

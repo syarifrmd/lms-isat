@@ -1,9 +1,10 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle } from 'lucide-react';
+import { Quiz, SharedData } from '@/types';
 
 interface Module {
     id: number;
@@ -19,9 +20,19 @@ interface Course {
     title: string;
     description: string;
     modules: Module[];
+    quizzes?: Quiz[];
+    created_by: number;
 }
 
-export default function CourseShow({ course }: { course: Course }) {
+interface ShowProps {
+    course: Course;
+}
+
+export default function CourseShow({ course }: ShowProps) {
+    const { auth } = usePage<SharedData>().props;
+    const isTrainer = auth.user.profile?.role === 'trainer' || auth.user.profile?.role === 'admin';
+    const isCreator = course.created_by === auth.user.id;
+
     return (
         <AppLayout 
             breadcrumbs={[
@@ -43,12 +54,14 @@ export default function CourseShow({ course }: { course: Course }) {
 
                     <div className="flex items-center justify-between">
                          <h2 className="text-xl font-bold">Course Modules</h2>
-                         <Button asChild>
-                            <Link href={`/courses/${course.id}/modules/create`}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Module
-                            </Link>
-                         </Button>
+                         {isTrainer && isCreator && (
+                             <Button asChild>
+                                <Link href={`/courses/${course.id}/modules/create`}>
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add Module
+                                </Link>
+                             </Button>
+                         )}
                     </div>
 
                     <Card>
@@ -138,6 +151,61 @@ export default function CourseShow({ course }: { course: Course }) {
                             </Accordion>
                         </CardContent>
                     </Card>
+
+                    {/* Assessments Section */}
+                    {course.quizzes && course.quizzes.length > 0 && (
+                        <>
+                            <div className="flex items-center justify-between mt-8">
+                                <h2 className="text-xl font-bold">Assessments</h2>
+                            </div>
+
+                            <Card>
+                                <CardContent className="p-6">
+                                    <div className="space-y-3">
+                                        {course.quizzes.map((quiz) => (
+                                            <div
+                                                key={quiz.id}
+                                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex-1">
+                                                    <h3 className="font-semibold text-base mb-1">{quiz.title}</h3>
+                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                                        <span className="flex items-center gap-1">
+                                                            <FileQuestion className="h-3.5 w-3.5" />
+                                                            {quiz.questions_count || 0} Questions
+                                                        </span>
+                                                        {quiz.passing_score && (
+                                                            <span className="flex items-center gap-1">
+                                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                                Passing: {quiz.passing_score}%
+                                                            </span>
+                                                        )}
+                                                        {quiz.is_timed && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Clock className="h-3.5 w-3.5" />
+                                                                {Math.floor((quiz.time_limit_second || 0) / 60)} min
+                                                            </span>
+                                                        )}
+                                                        {quiz.xp_bonus && (
+                                                            <span className="flex items-center gap-1">
+                                                                <Award className="h-3.5 w-3.5" />
+                                                                +{quiz.xp_bonus} XP
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <Button asChild>
+                                                    <Link href={`/quiz/${quiz.id}`}>
+                                                        Take Quiz
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </>
+                    )}
                 </div>
 
                 {/* Sidebar - Right Column */}

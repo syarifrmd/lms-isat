@@ -81,3 +81,63 @@ export interface TrainerDashboardData {
     stats: TrainerDashboardStats;
     recent_courses: Course[];
 }
+
+export interface Answer {
+    id: number;
+    question_id: number;
+    answer_text: string;
+    is_correct: boolean;
+}
+
+export interface Question {
+    id: number;
+    quiz_id: number;
+    question_text: string;
+    explanation: string | null;
+    point: number;
+    answers: Answer[];
+}
+
+export interface Quiz {
+    id: number;
+    course_id: number;
+    module_id: number | null;
+    title: string;
+    min_score: number;
+    passing_score: number | null;
+    is_timed: boolean;
+    time_limit_second: number | null;
+    xp_bonus: number | null;
+    questions?: Question[];
+    questions_count?: number;
+    course?: Course;
+    module?: {
+        id: number;
+        title: string;
+    };
+}
+
+export interface UserQuizAttempt {
+    id: number;
+    user_id: number;
+    quiz_id: number;
+    course_id: number;
+    score: number;
+    is_passed: boolean;
+    submitted_at: string;
+    created_at: string;
+    updated_at: string;
+    quiz?: Quiz;
+    course?: Course;
+    user_answers?: UserAnswer[];
+}
+
+export interface UserAnswer {
+    id: number;
+    attempt_id: number;
+    question_id: number;
+    answer_id: number;
+    is_correct: boolean;
+    question?: Question;
+    answer?: Answer;
+}

@@ -33,4 +33,9 @@ class Course extends Model
     {
         return $this->hasMany(Module::class)->orderBy('order_sequence');
     }
+
+    public function quizzes()
+    {
+        return $this->hasMany(Quiz::class);
+    }
 }
