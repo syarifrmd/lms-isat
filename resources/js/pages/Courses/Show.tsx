@@ -1,9 +1,9 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle } from 'lucide-react';
 import { Quiz, SharedData } from '@/types';
 
 interface Module {
@@ -13,6 +13,9 @@ interface Module {
     doc_url: string;
     content_text: string;
     order_sequence: number;
+    is_completed?: boolean;
+    is_locked?: boolean;
+    is_text_read?: boolean;
 }
 
 interface Course {
@@ -22,6 +25,14 @@ interface Course {
     modules: Module[];
     quizzes?: Quiz[];
     created_by: number;
+    creator?: CourseCreator;
+}
+
+interface CourseCreator {
+    name: string;
+    profile?: {
+        employee_id: string;
+    };
 }
 
 interface ShowProps {
@@ -32,6 +43,26 @@ export default function CourseShow({ course }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const isTrainer = auth.user.profile?.role === 'trainer' || auth.user.profile?.role === 'admin';
     const isCreator = course.created_by === auth.user.id;
+    const trainerName = course?.creator?.name || 'Instructor';
+    const trainerId = course?.creator?.profile?.employee_id || 'N/A';
+
+    const trainerInitials = trainerName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+
+    const handleMarkTextRead = (moduleId: number) => {
+        router.post(`/modules/${moduleId}/progress/text`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                // Ideally this would be handled by Inertia reloading props, 
+                // but we can also show a toast here if we had one.
+            }
+        });
+    };
+
 
     return (
         <AppLayout 
@@ -69,14 +100,22 @@ export default function CourseShow({ course }: ShowProps) {
                             <Accordion type="single" collapsible className="w-full">
                                 {course.modules.length > 0 ? (
                                     course.modules.map((module, index) => (
-                                        <AccordionItem key={module.id} value={`item-${module.id}`}>
-                                            <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/50">
-                                                <div className="flex items-center gap-4 text-left">
-                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                                                        {index + 1}
+                                        <AccordionItem key={module.id} value={`item-${module.id}`} disabled={module.is_locked}>
+                                            <AccordionTrigger className={`px-6 py-4 hover:no-underline hover:bg-muted/50 ${module.is_locked ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                <div className="flex items-center gap-4 text-left w-full">
+                                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold shrink-0 ${
+                                                        module.is_completed ? 'bg-green-100 text-green-600' : 
+                                                        module.is_locked ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary'
+                                                    }`}>
+                                                        {module.is_completed ? <CheckCircle className="w-5 h-5" /> : 
+                                                         module.is_locked ? <Lock className="w-4 h-4" /> : 
+                                                         index + 1}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <div className="font-semibold text-base">{module.title}</div>
+                                                        <div className="font-semibold text-base flex items-center gap-2">
+                                                            {module.title}
+                                                            {module.is_locked && <span className="text-xs font-normal text-muted-foreground">(Locked)</span>}
+                                                        </div>
                                                         <div className="text-sm text-muted-foreground flex items-center gap-3 mt-1">
                                                             {module.video_url && (
                                                                 <span className="flex items-center gap-1">
@@ -84,7 +123,7 @@ export default function CourseShow({ course }: ShowProps) {
                                                                 </span>
                                                             )}
                                                             {module.doc_url && (
-                                                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-blue-500">
+                                                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-blue-500" onClick={e => e.stopPropagation()}>
                                                                     <FileIcon className="w-3 h-3" /> Document
                                                                 </a>
                                                             )}
@@ -95,11 +134,13 @@ export default function CourseShow({ course }: ShowProps) {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
-                                                        <Link href={`/courses/${course.id}/modules/${module.id}/edit`}>
-                                                            <Edit className="w-4 h-4" />
-                                                        </Link>
-                                                    </Button>
+                                                    {isTrainer && isCreator && (
+                                                        <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
+                                                            <Link href={`/courses/${course.id}/modules/${module.id}/edit`}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Link>
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </AccordionTrigger>
                                             <AccordionContent className="px-6 py-4 bg-muted/20">
@@ -138,7 +179,28 @@ export default function CourseShow({ course }: ShowProps) {
                                                 )}
 
                                                 {module.content_text && (
-                                                    <div className="prose prose-sm dark:prose-invert max-w-none rich-text-content" dangerouslySetInnerHTML={{ __html: module.content_text }} />
+                                                    <div className="mt-4">
+                                                        <div className="prose prose-sm dark:prose-invert max-w-none rich-text-content" dangerouslySetInnerHTML={{ __html: module.content_text }} />
+                                                        {!module.is_text_read && !isTrainer && (
+                                                            <div className="mt-4 flex justify-end">
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    onClick={() => handleMarkTextRead(module.id)}
+                                                                >
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Mark as Read
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                        {module.is_text_read && !isTrainer && (
+                                                             <div className="mt-4 flex justify-end">
+                                                                <span className="text-sm text-green-600 flex items-center font-medium">
+                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                    Read
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </AccordionContent>
                                         </AccordionItem>
@@ -233,11 +295,16 @@ export default function CourseShow({ course }: ShowProps) {
                             <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
                                     {/* Placeholder avatar */}
-                                    <span className="font-bold">VP</span>
+                                    <span className="font-bold">{trainerInitials}</span>
                                 </div>
                                 <div>
-                                    <div className="font-medium">Video Producer</div>
+                                    <div className="font-medium">
+                                        <span>{trainerName}</span>
+                                    </div>
                                     <div className="text-xs text-muted-foreground">Course Creator</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        <span>ID : {trainerId}</span>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>

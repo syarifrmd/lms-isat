@@ -21,7 +21,7 @@ class Course extends Model
 
     public function creator()
     {
-        return $this->belongsTo(Profile::class, 'created_by', 'user_id');
+        return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
     public function enrollments()

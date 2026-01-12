@@ -9,6 +9,7 @@ use App\Http\Controllers\ModuleController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\AssessmentsController;
 use App\Http\Controllers\QuizController;
+use App\Http\Controllers\ModuleProgressController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -38,6 +39,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/quiz/{quiz}', [QuizController::class, 'show'])->name('quiz.show');
     Route::post('/quiz/{quiz}/submit', [QuizController::class, 'submit'])->name('quiz.submit');
     Route::get('/quiz-result/{attempt}', [QuizController::class, 'result'])->name('quiz.result');
+
+    // Module Progress
+    Route::post('/modules/{module}/progress/text', [ModuleProgressController::class, 'markTextRead'])->name('modules.progress.text');
 });
 
 // Trainer Only Routes - Modules & Assessments

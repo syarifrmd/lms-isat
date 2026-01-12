@@ -35,4 +35,9 @@ class Enrollment extends Model
     {
         return $this->belongsTo(Course::class);
     }
+
+    public function moduleProgress()
+    {
+        return $this->hasMany(ModuleProgress::class);
+    }
 }
