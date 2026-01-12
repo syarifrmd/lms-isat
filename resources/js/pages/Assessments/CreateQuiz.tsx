@@ -53,7 +53,7 @@ interface CreateQuizProps {
 }
 
 export default function CreateQuiz({ course, modules }: CreateQuizProps) {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
         title: '',
         module_id: 'none', // Use 'none' instead of empty string
         passing_score: 70,
@@ -122,13 +122,13 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
         
-        // Convert 'none' to empty string for backend
-        const submitData = {
+        // Convert 'none' to null for backend
+        transform((data) => ({
             ...data,
-            module_id: data.module_id === 'none' ? '' : data.module_id,
-        };
+            module_id: data.module_id === 'none' ? null : data.module_id,
+        }));
         
-        post(`/dashboard/assessments/${course.id}/quizzes`, submitData);
+        post(`/assessments/${course.id}/quizzes`);
     };
 
     const answerLabels = ['A', 'B', 'C', 'D'];
@@ -136,8 +136,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
     return (
         <AppLayout 
             breadcrumbs={[
-                { title: 'Assessments', href: '/dashboard/assessments' },
-                { title: course.title, href: `/dashboard/assessments/${course.id}/quizzes` },
+                { title: 'Assessments', href: '/assessments' },
+                { title: course.title, href: `/assessments/${course.id}/quizzes` },
                 { title: 'Create Quiz', href: '#' }
             ]}
         >
@@ -146,7 +146,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
             <div className="container px-4 mx-auto py-8 max-w-4xl">
                 <div className="flex items-center gap-4 mb-8">
                     <Button asChild variant="ghost" size="sm">
-                        <Link href={`/dashboard/assessments/${course.id}/quizzes`}>
+                        <Link href={`/assessments/${course.id}/quizzes`}>
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
@@ -371,7 +371,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                     {/* Submit */}
                     <div className="flex justify-end gap-4">
                         <Button type="button" variant="outline" asChild>
-                            <Link href={`/dashboard/assessments/${course.id}/quizzes`}>
+                            <Link href={`/assessments/${course.id}/quizzes`}>
                                 Cancel
                             </Link>
                         </Button>

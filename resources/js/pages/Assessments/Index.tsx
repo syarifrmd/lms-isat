@@ -19,7 +19,7 @@ interface Course {
 
 export default function AssessmentsIndex({ courses }: { courses: Course[] }) {
     return (
-        <AppLayout breadcrumbs={[{ title: 'Assessments', href: '/dashboard/assessments' }]}>
+        <AppLayout breadcrumbs={[{ title: 'Assessments', href: '/assessments' }]}>
             <Head title="Assessments Management" />
 
             <div className="container px-4 mx-auto py-8">
@@ -93,7 +93,7 @@ export default function AssessmentsIndex({ courses }: { courses: Course[] }) {
 
                                 <CardFooter className="flex flex-col gap-2">
                                     <Button asChild className="w-full">
-                                        <Link href={`/dashboard/assessments/${course.id}/quizzes`}>
+                                        <Link href={`/assessments/${course.id}/quizzes`}>
                                             Manage Assessments
                                         </Link>
                                     </Button>

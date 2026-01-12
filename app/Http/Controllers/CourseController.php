@@ -53,10 +53,7 @@ class CourseController extends Controller
             'category' => $request->category,
             'status' => $request->status,
             'cover_url' => $coverUrl,
-            'created_by' => Auth::id(), // Assuming User ID. The foreign key is pointing to user_id in profiles, but typically created_by references users table or profile user_id.
-            // If created_by refers to Profile's user_id which is typically User's ID, this works.
-            // If it refers to Profile's ID, we need Auth::user()->profile->id.
-            // Checking migration: nullable() -> references('user_id')->on('profiles') (Wait, profiles usually have user_id. Let's assume it references the user_id that owns the profile)
+            'created_by' => Auth::id(), 
         ]);
 
         return redirect()->route('courses.show', $course->id)->with('success', 'Course created successfully.');

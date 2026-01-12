@@ -48,11 +48,16 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::put('/courses/{course}/modules/{module}', [ModuleController::class, 'update'])->name('modules.update');
 
     // Assessments Management
-    Route::prefix('dashboard/assessments')->name('assessments.')->group(function () {
+    Route::prefix('/assessments')->name('assessments.')->group(function () {
         Route::get('/', [AssessmentsController::class, 'index'])->name('index');
-        Route::get('/{course}/quizzes', [AssessmentsController::class, 'quizzes'])->name('quizzes');
-        Route::get('/{course}/quizzes/create', [AssessmentsController::class, 'create'])->name('create');
-        Route::post('/{course}/quizzes', [AssessmentsController::class, 'store'])->name('store');
+        
+        // Specific routes first
+        Route::whereNumber('course')->group(function () {
+            Route::get('/{course}/quizzes/create', [AssessmentsController::class, 'create'])->name('create');
+            Route::post('/{course}/quizzes', [AssessmentsController::class, 'store'])->name('store');
+            Route::get('/{course}/quizzes', [AssessmentsController::class, 'quizzes'])->name('quizzes');
+        });
+            
         Route::get('/quiz/{quiz}/edit', [AssessmentsController::class, 'edit'])->name('edit');
         Route::put('/quiz/{quiz}', [AssessmentsController::class, 'update'])->name('update');
         Route::delete('/quiz/{quiz}', [AssessmentsController::class, 'destroy'])->name('destroy');

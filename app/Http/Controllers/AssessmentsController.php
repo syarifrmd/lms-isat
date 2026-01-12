@@ -36,8 +36,18 @@ class AssessmentsController extends Controller
     /**
      * Display quizzes for a specific course.
      */
-    public function quizzes(Course $course)
+    public function quizzes($courseId)
     {
+        // Debugging 404 issue
+        \Log::info("AssessmentsController@quizzes hit with ID: " . $courseId);
+
+        $course = Course::find($courseId);
+
+        if (!$course) {
+            \Log::error("Course not found in DB: " . $courseId);
+            abort(404, 'Course not found in DB with ID: ' . $courseId);
+        }
+
         // Verify trainer owns this course
         if ($course->created_by !== Auth::id()) {
             abort(403, 'Unauthorized action.');
@@ -57,10 +67,20 @@ class AssessmentsController extends Controller
     /**
      * Show the form for creating a new quiz.
      */
-    public function create(Course $course)
+    public function create($courseId)
     {
+        \Log::info("AssessmentsController@create HIT. ID: {$courseId}");
+
+        $course = Course::find($courseId);
+        if (!$course) {
+            \Log::error("AssessmentsController@create - Course not found: {$courseId}");
+            abort(404, 'Course not found in DB');
+        }
+
         // Verify trainer owns this course
+        \Log::info("Checking ownership. User: " . Auth::id() . ", Creator: " . $course->created_by);
         if ($course->created_by !== Auth::id()) {
+            \Log::warning("Unauthorized access to create quiz. User: " . Auth::id());
             abort(403, 'Unauthorized action.');
         }
 
@@ -76,8 +96,13 @@ class AssessmentsController extends Controller
     /**
      * Store a newly created quiz with questions and answers.
      */
-    public function store(Request $request, Course $course)
+    public function store(Request $request, $courseId)
     {
+        $course = Course::find($courseId);
+        if (!$course) {
+            abort(404, 'Course not found');
+        }
+
         // Verify trainer owns this course
         if ($course->created_by !== Auth::id()) {
             abort(403, 'Unauthorized action.');
@@ -153,7 +178,7 @@ class AssessmentsController extends Controller
             DB::commit();
 
             return redirect()
-                ->route('assessments.quizzes', $course->id)
+                ->route('assessments.quizzes', ['course' => $course->id])
                 ->with('success', 'Quiz created successfully!');
 
         } catch (\Exception $e) {

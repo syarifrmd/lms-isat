@@ -45,7 +45,7 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Courses', href: '/courses', icon: BookOpen },
-                    { title: 'Assessments', href: '/dashboard/assessments', icon: Award },
+                    { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Students', href: '/dashboard/students', icon: Users },
                 ];
             case 'user': // Previously 'dse'

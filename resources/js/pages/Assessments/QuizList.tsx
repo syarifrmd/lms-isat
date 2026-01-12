@@ -38,7 +38,7 @@ interface QuizListProps {
 
 export default function QuizList({ course, quizzes }: QuizListProps) {
     const handleDelete = (quizId: number) => {
-        router.delete(`/dashboard/assessments/quiz/${quizId}`, {
+        router.delete(`/assessments/quiz/${quizId}`, {
             onSuccess: () => {
                 // Success message will be shown via flash
             },
@@ -48,8 +48,8 @@ export default function QuizList({ course, quizzes }: QuizListProps) {
     return (
         <AppLayout 
             breadcrumbs={[
-                { title: 'Assessments', href: '/dashboard/assessments' },
-                { title: course.title, href: `/dashboard/assessments/${course.id}/quizzes` }
+                { title: 'Assessments', href: '/assessments' },
+                { title: course.title, href: `/assessments/${course.id}/quizzes` }
             ]}
         >
             <Head title={`${course.title} - Assessments`} />
@@ -63,7 +63,7 @@ export default function QuizList({ course, quizzes }: QuizListProps) {
                         </p>
                     </div>
                     <Button asChild>
-                        <Link href={`/dashboard/assessments/${course.id}/quizzes/create`}>
+                        <Link href={`/assessments/${course.id}/quizzes/create`}>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Create Quiz
                         </Link>
@@ -78,7 +78,7 @@ export default function QuizList({ course, quizzes }: QuizListProps) {
                             Create your first quiz to assess your students
                         </p>
                         <Button asChild>
-                            <Link href={`/dashboard/assessments/${course.id}/quizzes/create`}>
+                            <Link href={`/assessments/${course.id}/quizzes/create`}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Create Quiz
                             </Link>
@@ -106,7 +106,7 @@ export default function QuizList({ course, quizzes }: QuizListProps) {
                                                 variant="outline" 
                                                 size="sm"
                                             >
-                                                <Link href={`/dashboard/assessments/quiz/${quiz.id}/edit`}>
+                                                <Link href={`/assessments/quiz/${quiz.id}/edit`}>
                                                     <Pencil className="h-4 w-4" />
                                                 </Link>
                                             </Button>
