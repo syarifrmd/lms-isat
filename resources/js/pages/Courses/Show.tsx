@@ -17,6 +17,7 @@ interface Module {
     is_locked?: boolean;
     is_text_read?: boolean;
     is_video_watched?: boolean;
+    quizzes?: Quiz[];
 }
 
 interface Course {
@@ -140,6 +141,12 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                                                                     <FileText className="w-3 h-3" /> Text
                                                                 </span>
                                                             )}
+
+                                                            {(module.quizzes?.length ?? 0) > 0 && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <FileQuestion className="w-3 h-3" /> Quiz
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     {isTrainer && isCreator && (
@@ -228,6 +235,49 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                                                         )}
                                                     </div>
                                                 )}
+
+                                                {(module.quizzes?.length ?? 0) > 0 && (
+                                                    <div className="mt-6 space-y-2 border-t pt-4">
+                                                        <div className="text-sm font-semibold flex items-center gap-2">
+                                                            <FileQuestion className="w-4 h-4" /> Module Assessments
+                                                        </div>
+                                                        <div className="space-y-3">
+                                                            {module.quizzes!.map((quiz) => (
+                                                                <div
+                                                                    key={quiz.id}
+                                                                    className="flex items-center justify-between p-3 border rounded-lg bg-background hover:bg-muted/50 transition-colors"
+                                                                >
+                                                                    <div className="flex-1 min-w-0 mr-4">
+                                                                        <h3 className="font-medium text-sm mb-1 truncate">{quiz.title}</h3>
+                                                                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                                                                            <span className="flex items-center gap-1">
+                                                                                <FileQuestion className="h-3 w-3" />
+                                                                                {quiz.questions_count || 0} Qs
+                                                                            </span>
+                                                                            {quiz.passing_score && (
+                                                                                <span className="flex items-center gap-1">
+                                                                                    <AlertCircle className="h-3 w-3" />
+                                                                                    Pass: {quiz.passing_score}%
+                                                                                </span>
+                                                                            )}
+                                                                            {quiz.is_timed && (
+                                                                                <span className="flex items-center gap-1">
+                                                                                    <Clock className="h-3 w-3" />
+                                                                                    {Math.floor((quiz.time_limit_second || 0) / 60)}m
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <Button asChild size="sm" variant="secondary">
+                                                                        <Link href={`/quiz/${quiz.id}`}>
+                                                                            Start Quiz
+                                                                        </Link>
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </AccordionContent>
                                         </AccordionItem>
                                     ))
@@ -239,61 +289,6 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                             </Accordion>
                         </CardContent>
                     </Card>
-
-                    {/* Assessments Section */}
-                    {course.quizzes && course.quizzes.length > 0 && (
-                        <>
-                            <div className="flex items-center justify-between mt-8">
-                                <h2 className="text-xl font-bold">Assessments</h2>
-                            </div>
-
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="space-y-3">
-                                        {course.quizzes.map((quiz) => (
-                                            <div
-                                                key={quiz.id}
-                                                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                                            >
-                                                <div className="flex-1">
-                                                    <h3 className="font-semibold text-base mb-1">{quiz.title}</h3>
-                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                                        <span className="flex items-center gap-1">
-                                                            <FileQuestion className="h-3.5 w-3.5" />
-                                                            {quiz.questions_count || 0} Questions
-                                                        </span>
-                                                        {quiz.passing_score && (
-                                                            <span className="flex items-center gap-1">
-                                                                <AlertCircle className="h-3.5 w-3.5" />
-                                                                Passing: {quiz.passing_score}%
-                                                            </span>
-                                                        )}
-                                                        {quiz.is_timed && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Clock className="h-3.5 w-3.5" />
-                                                                {Math.floor((quiz.time_limit_second || 0) / 60)} min
-                                                            </span>
-                                                        )}
-                                                        {quiz.xp_bonus && (
-                                                            <span className="flex items-center gap-1">
-                                                                <Award className="h-3.5 w-3.5" />
-                                                                +{quiz.xp_bonus} XP
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <Button asChild>
-                                                    <Link href={`/quiz/${quiz.id}`}>
-                                                        Take Quiz
-                                                    </Link>
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    )}
                 </div>
 
                 {/* Sidebar - Right Column */}

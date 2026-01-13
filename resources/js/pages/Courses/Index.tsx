@@ -33,6 +33,7 @@ interface Course {
     creator: {
         name: string;
     };
+    is_enrolled?: boolean;
 }
 
 export default function CoursesIndex({ courses }: { courses: Course[] }) {
@@ -112,8 +113,7 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                                         <span>{formatDistanceToNow(new Date(course.created_at), { addSuffix: true })}</span>
                                     </div>
                                     
-                                    {/* PERBAIKAN DI SINI */}
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2">
                                         {canCreateCourse ? (
                                             <>
                                                 <button 
@@ -129,12 +129,21 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                                                 </Button>
                                             </>
                                         ) : (
-                                            <Button 
-                                                size="sm"
-                                                onClick={() => handleEnrollClick(course)}
-                                            >
-                                                Daftar Kursus
-                                            </Button>
+                                            // Cek status enrollment di sini
+                                            course.is_enrolled ? (
+                                                <Button asChild size="sm" variant="secondary">
+                                                    <Link href={`/courses/${course.id}`}>
+                                                        Lanjutkan Belajar
+                                                    </Link>
+                                                </Button>
+                                            ) : (
+                                                <Button 
+                                                    size="sm"
+                                                    onClick={() => handleEnrollClick(course)}
+                                                >
+                                                    Daftar Kursus
+                                                </Button>
+                                            )
                                         )}
                                     </div>
                                     {/* AKHIR PERBAIKAN */}

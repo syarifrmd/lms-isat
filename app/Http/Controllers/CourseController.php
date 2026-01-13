@@ -17,8 +17,13 @@ class CourseController extends Controller
     {
         // For admin/trainer showing all or created courses could be logic here.
         // For now showing all published courses + courses created by user if logged in (for trainer view)
-        $courses = Course::with('creator')
+        $courses = Course::with('creator.profile')
+            ->withExists(['enrollments as is_enrolled' => function ($query) {
+                $query->where('user_id', Auth::id());
+            }])
+            ->where('status', 'published')
             ->orderBy('created_at', 'desc')
+            ->latest()
             ->get(); 
             
         return Inertia::render('Courses/Index', [
@@ -66,9 +71,16 @@ class CourseController extends Controller
     public function show($id)
     {
         // Load course dengan modul yang urut berdasarkan sequence
-        $course = Course::with(['modules' => function($query) {
-            $query->orderBy('order_sequence', 'asc'); // Pastikan urut
-        }, 'creator'])->findOrFail($id);
+        $course = Course::with([
+            'creator.profile',
+            'modules' => function ($query) {
+                $query->orderBy('order_sequence', 'asc')
+                      // Pastikan baris ini ada agar data quiz masuk ke modul
+                      ->with(['quizzes' => function($q) {
+                          $q->withCount('questions');
+                      }]);
+            },
+        ])->findOrFail($id);
         
         $enrollment = null;
         if (Auth::check()) {
@@ -76,6 +88,8 @@ class CourseController extends Controller
                 ->where('course_id', $id)
                 ->first();
         }
+
+        
 
         // LOGIKA LOCKING MODULE
         $previousModuleCompleted = true; // Modul pertama selalu terbuka (seolah modul sebelumnya "selesai")
