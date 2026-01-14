@@ -183,7 +183,11 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
                                         {question.answers?.map((answer, aIndex) => (
                                             <div
                                                 key={answer.id}
-                                                className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                                                className={`relative flex items-center space-x-3 p-4 border rounded-lg transition-colors ${
+                                                    selectedAnswers[question.id] === answer.id 
+                                                        ? 'bg-accent border-primary' 
+                                                        : 'hover:bg-muted/50'
+                                                }`}
                                             >
                                                 <RadioGroupItem
                                                     value={answer.id.toString()}
@@ -191,7 +195,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
                                                 />
                                                 <Label
                                                     htmlFor={`q${question.id}-a${answer.id}`}
-                                                    className="flex items-center gap-3 cursor-pointer flex-1"
+                                                    className="flex items-center gap-3 cursor-pointer flex-1 after:absolute after:inset-0"
                                                 >
                                                     <span className="font-semibold min-w-[24px]">
                                                         {answerLabels[aIndex]}
