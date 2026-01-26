@@ -89,8 +89,20 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-3xl">{course.title}</CardTitle>
-                            <CardDescription className="text-lg mt-2">{course.description}</CardDescription>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-3xl">{course.title}</CardTitle>
+                                    <CardDescription className="text-lg mt-2">{course.description}</CardDescription>
+                                </div>
+                                {isTrainer && isCreator && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link href={`/courses/${course.id}/edit`}>
+                                            <Edit className="w-4 h-4 mr-2" />
+                                            Edit Details
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
                         </CardHeader>
                     </Card>
 

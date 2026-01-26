@@ -61,7 +61,12 @@ export interface Course {
     id: number;
     title: string;
     description?: string;
-    trainer_id: number;
+    category?: string;
+    cover_url?: string;
+    start_date?: string;
+    end_date?: string;
+    created_by?: number;
+    trainer_id?: number;
     students_count?: number;
     progress?: number;
     rating?: number;

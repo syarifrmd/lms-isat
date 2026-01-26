@@ -21,7 +21,12 @@ class CourseController extends Controller
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id());
             }])
-            ->where('status', 'published')
+            ->where(function ($query) {
+                $query->where('status', 'published');
+                if (Auth::check()) {
+                    $query->orWhere('created_by', Auth::id());
+                }
+            })
             ->orderBy('created_at', 'desc')
             ->latest()
             ->get(); 
@@ -134,6 +139,52 @@ class CourseController extends Controller
             'userProgress' => $enrollment ? $enrollment->progress_percentage : 0,
             'isEnrolled' => $enrollment ? true : false,
         ]);
+    }
+
+    public function edit(Course $course)
+    {
+        if ($course->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return Inertia::render('Courses/Edit', [
+            'course' => $course
+        ]);
+    }
+
+    public function update(Request $request, Course $course)
+    {
+        if ($course->created_by !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string',
+            'status' => 'required|in:draft,published,archived',
+            'cover_image' => 'nullable|image|max:2048', // 2MB max
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $coverUrl = $course->cover_url;
+        if ($request->hasFile('cover_image')) {
+            $path = $request->file('cover_image')->store('covers', 'public');
+            $coverUrl = Storage::url($path);
+        }
+
+        $course->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'category' => $request->category,
+            'status' => $request->status,
+            'cover_url' => $coverUrl,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+        ]);
+
+        return redirect()->route('courses.index')->with('success', 'Course updated successfully.');
     }
 
     public function destroy(Course $course)
