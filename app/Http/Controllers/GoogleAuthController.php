@@ -68,4 +68,13 @@ class GoogleAuthController extends Controller
             return redirect()->route('dashboard')->withErrors(['error' => 'Failed to connect YouTube: ' . $e->getMessage()]);
         }
     }
+
+    public function disconnect()
+    {
+        if (Storage::disk('local')->exists('google-token.json')) {
+            Storage::disk('local')->delete('google-token.json');
+        }
+
+        return redirect()->back()->with('success', 'YouTube account disconnected successfully.');
+    }
 }

@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Google Auth
     Route::get('/auth/google', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google');
     Route::get('/auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback']);
+    Route::post('/auth/google/disconnect', [GoogleAuthController::class, 'disconnect'])->name('auth.google.disconnect');
 
     // Quiz (User can take quiz and view results)
     Route::get('/quiz/{quiz}', [QuizController::class, 'show'])->name('quiz.show');

@@ -21,7 +21,6 @@ class CourseController extends Controller
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id());
             }])
-            ->where('status', 'published')
             ->orderBy('created_at', 'desc')
             ->latest()
             ->get(); 
