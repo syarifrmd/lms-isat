@@ -110,7 +110,7 @@ class AssessmentsController extends Controller
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
-            'module_id' => 'nullable|exists:modules,id',
+            'module_id' => '|exists:modules,id',
             'passing_score' => 'required|integer|min:0|max:100',
             'min_score' => 'integer|min:0|max:100',
             'is_timed' => 'boolean',
@@ -123,7 +123,23 @@ class AssessmentsController extends Controller
             'questions.*.answers' => 'required|array|min:2|max:4',
             'questions.*.answers.*.answer_text' => 'required|string',
             'questions.*.answers.*.is_correct' => 'required|boolean',
+         ], [
+            'module_id.required' => 'Modul harus dipilih.',
+            'module_id.exists' => 'Modul yang dipilih tidak valid.',
+            'title.required' => 'Judul kuis wajib diisi.',
+            'passing_score.required' => 'Nilai kelulusan wajib diisi.',
+            'questions.required' => 'Setidaknya satu pertanyaan harus ditambahkan.',
+            'questions.min' => 'Setidaknya satu pertanyaan harus ditambahkan.',
+            'questions.*.question_text.required' => 'Teks pertanyaan wajib diisi.',
+            'questions.*.point.required' => 'Poin pertanyaan wajib diisi.',
+            'questions.*.answers.required' => 'Setiap pertanyaan harus memiliki pilihan jawaban.',
+            'questions.*.answers.min' => 'Setiap pertanyaan harus memiliki minimal 2 pilihan jawaban.',
+            'questions.*.answers.max' => 'Setiap pertanyaan maksimal memiliki 4 pilihan jawaban.',
+            'questions.*.answers.*.answer_text.required' => 'Teks pilihan jawaban wajib diisi.',
+            'questions.*.answers.*.is_correct.required' => 'Status jawaban benar wajib ditentukan.',
+            
         ]);
+
 
         // Validate module belongs to course if provided
         if (!empty($request->module_id)) {

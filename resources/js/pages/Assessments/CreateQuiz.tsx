@@ -185,7 +185,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                         <SelectValue placeholder="Select a module (optional)" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="none">No Module (Course-level)</SelectItem>
+                                        <SelectItem value="none">No Module </SelectItem>
                                         {modules.map((module) => (
                                             <SelectItem key={module.id} value={module.id.toString()}>
                                                 {module.title}

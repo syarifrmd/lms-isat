@@ -10,7 +10,7 @@ import {
     Award, 
     Pencil, 
     Trash2,
-    AlertCircle
+     AlertCircle
 } from 'lucide-react';
 import {
     AlertDialog,
