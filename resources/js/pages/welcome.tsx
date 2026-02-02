@@ -1,44 +1,207 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { GraduationCap, Award, TrendingUp, Users, ChevronRight, Play, BookOpen, Trophy, Zap, Target } from 'lucide-react';
+import { GraduationCap, Award, TrendingUp, Users, ChevronRight, Play, BookOpen, Trophy, Zap, Target, Languages } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Head, router } from '@inertiajs/react';
 import { register } from '@/routes';
 
+// Definisi type bahasa
+type Language = 'id' | 'en';
+
+// Kamus terjemahan
+const translations = {
+  id: {
+    nav: {
+      subtitle: 'Sistem Manajemen Pembelajaran',
+      getStarted: 'Mulai Sekarang',
+    },
+    hero: {
+      badge: 'Memberdayakan Keunggulan Penjualan Langsung',
+      titleLine1: 'Kuasai Keahlian,',
+      titleLine2: 'Tingkatkan Karir',
+      description: 'Bergabunglah dengan platform pembelajaran komprehensif Indosat Ooredoo Hutchison yang dirancang khusus untuk Eksekutif Penjualan Langsung (DSE). Belajar sesuai kecepatanmu, raih sertifikasi, dan jadilah juara penjualan.',
+      ctaPrimary: 'Mulai Belajar',
+      ctaSecondary: 'Tonton Demo',
+      stats: [
+        { value: '500+', label: 'Pelajar Aktif' },
+        { value: '50+', label: 'Modul Pelatihan' },
+        { value: '95%', label: 'Tingkat Penyelesaian' },
+        { value: '4.8/5', label: 'Rata-rata Rating' },
+      ]
+    },
+    floating: {
+      badgeTitle: 'Lencana Baru!',
+      badgeDesc: 'Juara Penjualan',
+      progressTitle: 'Progres',
+      progressDesc: '85% Selesai'
+    },
+    features: {
+      title: 'Mengapa Memilih Indosat LMS?',
+      subtitle: 'Segala yang Anda butuhkan untuk unggul sebagai Eksekutif Penjualan Langsung, semua dalam satu platform',
+      items: [
+        {
+          title: 'Pembelajaran Komprehensif',
+          description: 'Akses kursus terstruktur yang dirancang khusus untuk Eksekutif Penjualan Langsung',
+        },
+        {
+          title: 'Gamifikasi & Hadiah',
+          description: 'Raih lencana, panjat papan peringkat, dan dapatkan sertifikasi seiring kemajuan Anda',
+        },
+        {
+          title: 'Pelatihan Interaktif',
+          description: 'Video tutorial, kuis, dan latihan praktis untuk pembelajaran yang lebih baik',
+        },
+        {
+          title: 'Pantau Progres Anda',
+          description: 'Monitor perjalanan belajar Anda dengan analitik dan wawasan mendetail',
+        },
+      ]
+    },
+    howItWorks: {
+      title: 'Cara Kerja',
+      subtitle: 'Mulai perjalanan belajar Anda dalam tiga langkah sederhana',
+      steps: [
+        {
+          title: 'Daftar & Jelajahi',
+          description: 'Buat akun Anda dan telusuri katalog kursus komprehensif kami yang disesuaikan untuk profesional DSE.',
+        },
+        {
+          title: 'Belajar & Berlatih',
+          description: 'Tonton video tutorial, selesaikan modul interaktif, dan ikuti kuis untuk memperkuat pengetahuan Anda.',
+        },
+        {
+          title: 'Raih & Capai',
+          description: 'Dapatkan sertifikasi, raih lencana, bersaing di papan peringkat, dan majukan karir Anda dengan keterampilan terbukti.',
+        },
+      ]
+    },
+    cta: {
+      title: 'Siap Mengubah Karir Anda?',
+      subtitle: 'Bergabunglah dengan ratusan Eksekutif Penjualan Langsung yang sudah memajukan karir mereka dengan Indosat LMS',
+      button: 'Mulai Gratis Sekarang'
+    },
+    footer: {
+      about: 'Tentang',
+      resources: 'Sumber Daya',
+      legal: 'Hukum',
+      connect: 'Hubungan',
+      rights: 'Hak cipta dilindungi undang-undang.'
+    }
+  },
+  en: {
+    nav: {
+      subtitle: 'Learning Management System',
+      getStarted: 'Get Started',
+    },
+    hero: {
+      badge: 'Empowering Direct Sales Excellence',
+      titleLine1: 'Master Your Skills,',
+      titleLine2: 'Elevate Your Career',
+      description: 'Join Indosat Ooredoo Hutchison\'s comprehensive learning platform designed exclusively for Direct Sales Executives. Learn at your own pace, earn certifications, and become a sales champion.',
+      ctaPrimary: 'Start Learning Now',
+      ctaSecondary: 'Watch Demo',
+      stats: [
+        { value: '500+', label: 'Active Learners' },
+        { value: '50+', label: 'Training Modules' },
+        { value: '95%', label: 'Completion Rate' },
+        { value: '4.8/5', label: 'Average Rating' },
+      ]
+    },
+    floating: {
+      badgeTitle: 'New Badge!',
+      badgeDesc: 'Sales Champion',
+      progressTitle: 'Progress',
+      progressDesc: '85% Complete'
+    },
+    features: {
+      title: 'Why Choose Indosat LMS?',
+      subtitle: 'Everything you need to excel as a Direct Sales Executive, all in one platform',
+      items: [
+        {
+          title: 'Comprehensive Learning',
+          description: 'Access to structured courses designed specifically for Direct Sales Executives',
+        },
+        {
+          title: 'Gamification & Rewards',
+          description: 'Earn badges, climb leaderboards, and get certified as you progress',
+        },
+        {
+          title: 'Interactive Training',
+          description: 'Video tutorials, quizzes, and hands-on exercises for better learning',
+        },
+        {
+          title: 'Track Your Progress',
+          description: 'Monitor your learning journey with detailed analytics and insights',
+        },
+      ]
+    },
+    howItWorks: {
+      title: 'How It Works',
+      subtitle: 'Start your learning journey in three simple steps',
+      steps: [
+        {
+          title: 'Sign Up & Explore',
+          description: 'Create your account and browse through our comprehensive course catalog tailored for DSE professionals.',
+        },
+        {
+          title: 'Learn & Practice',
+          description: 'Watch video tutorials, complete interactive modules, and take quizzes to reinforce your knowledge.',
+        },
+        {
+          title: 'Earn & Achieve',
+          description: 'Get certified, earn badges, compete on leaderboards, and advance your career with proven skills.',
+        },
+      ]
+    },
+    cta: {
+      title: 'Ready to Transform Your Career?',
+      subtitle: 'Join hundreds of Direct Sales Executives who are already advancing their careers with Indosat LMS',
+      button: 'Get Started for Free'
+    },
+    footer: {
+      about: 'About',
+      resources: 'Resources',
+      legal: 'Legal',
+      connect: 'Connect',
+      rights: 'All rights reserved.'
+    }
+  }
+};
+
 interface LandingPageProps {
   onGetStarted: () => void;
+  lang: Language;
+  toggleLang: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
-  const features = [
-    {
-      icon: <BookOpen className="w-8 h-8" />,
-      title: 'Comprehensive Learning',
-      description: 'Access to structured courses designed specifically for Direct Sales Executives',
-    },
-    {
-      icon: <Trophy className="w-8 h-8" />,
-      title: 'Gamification & Rewards',
-      description: 'Earn badges, climb leaderboards, and get certified as you progress',
-    },
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: 'Interactive Training',
-      description: 'Video tutorials, quizzes, and hands-on exercises for better learning',
-    },
-    {
-      icon: <Target className="w-8 h-8" />,
-      title: 'Track Your Progress',
-      description: 'Monitor your learning journey with detailed analytics and insights',
-    },
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLang }) => {
+  const t = translations[lang];
+
+  // Feature icons mapping remains static
+  const featureIcons = [
+    <BookOpen className="w-8 h-8" />,
+    <Trophy className="w-8 h-8" />,
+    <Zap className="w-8 h-8" />,
+    <Target className="w-8 h-8" />,
   ];
 
-  const stats = [
-    { value: '500+', label: 'Active Learners' },
-    { value: '50+', label: 'Training Modules' },
-    { value: '95%', label: 'Completion Rate' },
-    { value: '4.8/5', label: 'Average Rating' },
+  // How it works icons mapping
+  const workflowIcons = [
+    <Users className="w-8 h-8" />,
+    <BookOpen className="w-8 h-8" />,
+    <Award className="w-8 h-8" />,
   ];
+
+  const features = t.features.items.map((item, index) => ({
+    ...item,
+    icon: featureIcons[index]
+  }));
+  
+  const workflowSteps = t.howItWorks.steps.map((item, index) => ({
+    ...item,
+    step: `0${index + 1}`,
+    icon: workflowIcons[index]
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-yellow-50 to-red-50">
@@ -56,21 +219,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
               <div>
                 <h1 className="font-bold text-lg sm:text-xl text-gray-800">Indosat LMS</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">Learning Management System</p>
+                <p className="text-xs text-gray-600 hidden sm:block">{t.nav.subtitle}</p>
               </div>
             </motion.div>
 
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onGetStarted}
-              className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
-            >
-              <span className="text-sm sm:text-base">Get Started</span>
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-            </motion.button>
+            <div className="flex items-center space-x-3">
+              {/* Language Switcher */}
+              <button 
+                onClick={toggleLang}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors flex items-center space-x-1 text-gray-600 font-medium text-sm"
+              >
+                <Languages className="w-4 h-4" />
+                <span>{lang === 'id' ? 'ID' : 'EN'}</span>
+              </button>
+
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onGetStarted}
+                className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+              >
+                <span className="text-sm sm:text-base">{t.nav.getStarted}</span>
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </motion.button>
+            </div>
           </div>
         </div>
       </nav>
@@ -92,22 +266,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 className="inline-block bg-gradient-to-r from-yellow-100 to-red-100 px-4 py-2 rounded-full mb-6"
               >
                 <p className="text-sm sm:text-base font-semibold text-red-600">
-                  🚀 Empowering Direct Sales Excellence
+                  {t.hero.badge}
                 </p>
               </motion.div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                Master Your Skills,
+                {t.hero.titleLine1}
                 <br />
                 <span className="bg-gradient-to-r from-yellow-500 to-red-500 bg-clip-text text-transparent">
-                  Elevate Your Career
+                  {t.hero.titleLine2}
                 </span>
               </h1>
 
               <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
-                Join Indosat Ooredoo Hutchison's comprehensive learning platform designed exclusively
-                for Direct Sales Executives. Learn at your own pace, earn certifications, and become
-                a sales champion.
+                {t.hero.description}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4">
@@ -117,7 +289,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   onClick={onGetStarted}
                   className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center space-x-2"
                 >
-                  <span>Start Learning Now</span>
+                  <span>{t.hero.ctaPrimary}</span>
                   <ChevronRight className="w-5 h-5" />
                 </motion.button>
 
@@ -127,13 +299,13 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   className="bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:border-yellow-400 transition-all duration-300 flex items-center justify-center space-x-2"
                 >
                   <Play className="w-5 h-5" />
-                  <span>Watch Demo</span>
+                  <span>{t.hero.ctaSecondary}</span>
                 </motion.button>
               </div>
 
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mt-12">
-                {stats.map((stat, index) => (
+                {t.hero.stats.map((stat, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
@@ -177,8 +349,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">New Badge!</p>
-                    <p className="text-xs text-gray-600">Sales Champion</p>
+                    <p className="text-sm font-semibold text-gray-800">{t.floating.badgeTitle}</p>
+                    <p className="text-xs text-gray-600">{t.floating.badgeDesc}</p>
                   </div>
                 </div>
               </motion.div>
@@ -193,8 +365,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                     <TrendingUp className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-800">Progress</p>
-                    <p className="text-xs text-gray-600">85% Complete</p>
+                    <p className="text-sm font-semibold text-gray-800">{t.floating.progressTitle}</p>
+                    <p className="text-xs text-gray-600">{t.floating.progressDesc}</p>
                   </div>
                 </div>
               </motion.div>
@@ -214,10 +386,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             className="text-center mb-12 sm:mb-16"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Why Choose Indosat LMS?
+              {t.features.title}
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to excel as a Direct Sales Executive, all in one platform
+              {t.features.subtitle}
             </p>
           </motion.div>
 
@@ -254,34 +426,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             className="text-center mb-12 sm:mb-16"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              How It Works
+              {t.howItWorks.title}
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Start your learning journey in three simple steps
+               {t.howItWorks.subtitle}
             </p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
-            {[
-              {
-                step: '01',
-                title: 'Sign Up & Explore',
-                description: 'Create your account and browse through our comprehensive course catalog tailored for DSE professionals.',
-                icon: <Users className="w-8 h-8" />,
-              },
-              {
-                step: '02',
-                title: 'Learn & Practice',
-                description: 'Watch video tutorials, complete interactive modules, and take quizzes to reinforce your knowledge.',
-                icon: <BookOpen className="w-8 h-8" />,
-              },
-              {
-                step: '03',
-                title: 'Earn & Achieve',
-                description: 'Get certified, earn badges, compete on leaderboards, and advance your career with proven skills.',
-                icon: <Award className="w-8 h-8" />,
-              },
-            ].map((item, index) => (
+            {workflowSteps.map((item, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
@@ -323,10 +476,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           className="max-w-4xl mx-auto text-center"
         >
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Career?
+            {t.cta.title}
           </h2>
           <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10">
-            Join hundreds of Direct Sales Executives who are already advancing their careers with Indosat LMS
+            {t.cta.subtitle}
           </p>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -334,7 +487,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             onClick={onGetStarted}
             className="bg-white text-red-600 px-8 sm:px-12 py-4 sm:py-5 rounded-xl font-bold text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center space-x-2 mx-auto"
           >
-            <span>Get Started for Free</span>
+            <span>{t.cta.button}</span>
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </motion.button>
         </motion.div>
@@ -345,7 +498,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="max-w-7xl mx-auto">
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="font-bold mb-4">About</h3>
+              <h3 className="font-bold mb-4">{t.footer.about}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">About Us</a></li>
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Careers</a></li>
@@ -353,7 +506,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </ul>
             </div>
             <div>
-              <h3 className="font-bold mb-4">Resources</h3>
+              <h3 className="font-bold mb-4">{t.footer.resources}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Help Center</a></li>
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Documentation</a></li>
@@ -361,7 +514,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </ul>
             </div>
             <div>
-              <h3 className="font-bold mb-4">Legal</h3>
+              <h3 className="font-bold mb-4">{t.footer.legal}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Terms of Service</a></li>
@@ -369,7 +522,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </ul>
             </div>
             <div>
-              <h3 className="font-bold mb-4">Connect</h3>
+              <h3 className="font-bold mb-4">{t.footer.connect}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Facebook</a></li>
                 <li><a href="#" className="hover:text-yellow-400 transition-colors">Twitter</a></li>
@@ -378,7 +531,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 Indosat Ooredoo Hutchison. All rights reserved.</p>
+            <p>&copy; 2024 Indosat Ooredoo Hutchison. {t.footer.rights}</p>
           </div>
         </div>
       </footer>
@@ -387,11 +540,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 };
 
 // Main Welcome component that wraps the LandingPage
-export default function Welcome({ 
-  canRegister = true 
-}: { 
-  canRegister?: boolean 
-}) {
+export default function Welcome() {
+  // Setup state bahasa, default 'id' (Indonesia)
+  const [lang, setLang] = useState<Language>('id');
+
+  const toggleLang = () => {
+    setLang(prev => prev === 'id' ? 'en' : 'id');
+  };
+
   const handleGetStarted = () => {
     router.visit(register.url());
   };
@@ -399,7 +555,11 @@ export default function Welcome({
   return (
     <>
       <Head title="Welcome to Indosat LMS" />
-      <LandingPage onGetStarted={handleGetStarted} />
+      <LandingPage 
+        onGetStarted={handleGetStarted} 
+        lang={lang} 
+        toggleLang={toggleLang}
+      />
     </>
   );
 }
