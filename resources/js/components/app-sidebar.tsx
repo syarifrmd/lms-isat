@@ -105,8 +105,8 @@ export function AppSidebar() {
                                     <span className="text-xs text-yellow-400">
                                         Level {user.level || 1}
                                     </span>
-                                    <span className="text-gray-400">•</span>
-                                    <span className="text-xs text-gray-400">
+                                    <span className="dark:text-white text-gray-900">•</span>
+                                    <span className="text-xs text-gray-900">
                                         {user.points || 0} pts
                                     </span>
                                 </div>
@@ -132,12 +132,12 @@ export function AppSidebar() {
                             >
                                 <Icon
                                     className={`h-5 w-5 ${
-                                        active ? 'text-white' : 'text-[#d1d5db]'
+                                        active ? 'text-white' : 'dark:text-white text-gray-900'
                                     }`}
                                 />
                                 <span
                                     className={
-                                        active ? 'text-white' : 'text-gray-300'
+                                        active ? 'text-white' : 'dark:text-white text-gray-900'
                                     }
                                 >
                                     {item.title}
@@ -148,15 +148,15 @@ export function AppSidebar() {
                 </div>
             </SidebarContent>
 
-            <SidebarFooter className="border-t border-gray-700 bg-[#1a1a1a] p-4 text-white">
+            <SidebarFooter className=" bg-sidebar p-4 text-gray-900">
                 <Link
                     href={logout().url}
                     method="post"
                     as="button"
                     className="flex w-full items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5"
                 >
-                    <LogOut className="h-5 w-5 text-[#d1d5db]" />
-                    <span className="text-gray-300">Logout</span>
+                    <LogOut className="h-5 w-5 dark:text-white text-[#111111]" />
+                    <span className="dark:text-white text-gray-900">Logout</span>
                 </Link>
             </SidebarFooter>
         </Sidebar>
