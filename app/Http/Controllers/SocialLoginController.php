@@ -66,16 +66,58 @@ class SocialLoginController extends Controller
                 return redirect()->route('home')->withErrors(['error' => 'Gagal mengirim email verifikasi.']);
             }
 
-            // Redirect ke halaman "Cek Inbox Anda"
-            return Inertia::render('auth/check-inbox', [
-                'email' => $googleUser->getEmail()
+            // Simpan data google sementara untuk fitur kirim ulang email
+            Session::put('pending_google_login', [
+                'email' => $googleUser->getEmail(),
+                'name' => $googleUser->getName(),
+                'google_id' => $googleUser->getId(),
+                'avatar' => $googleUser->getAvatar(),
             ]);
+
+            // Redirect ke halaman "Cek Inbox Anda"
+            return redirect()->route('register.check-inbox');
 
         } catch (\Exception $e) {
             Log::error('Google Login Error: ' . $e->getMessage());
             return redirect()->route('home')->withErrors([
                 'error' => 'Gagal login dengan Google: ' . $e->getMessage()
             ]);
+        }
+    }
+
+    public function showCheckInbox()
+    {
+        $googleData = Session::get('pending_google_login');
+
+        if (!$googleData) {
+             return redirect()->route('login.google');
+        }
+
+        return Inertia::render('auth/check-inbox', [
+            'email' => $googleData['email']
+        ]);
+    }
+
+    public function resendVerificationLink()
+    {
+        $googleData = Session::get('pending_google_login');
+
+        if (!$googleData) {
+            return redirect()->route('login.google')->withErrors(['error' => 'Sesi habis, silakan login ulang.']);
+        }
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'register.verify-email-entry',
+            now()->addMinutes(30),
+            $googleData
+        );
+
+        try {
+            Mail::to($googleData['email'])->send(new EmployeeVerificationLink($verificationUrl));
+            return back()->with('success', 'Link verifikasi berhasil dikirim ulang ke ' . $googleData['email']);
+        } catch (\Exception $e) {
+            Log::error('Resend Mail Error: ' . $e->getMessage());
+            return back()->withErrors(['mailError' => 'Gagal mengirim ulang email.']);
         }
     }
 

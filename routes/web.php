@@ -30,6 +30,12 @@ Route::controller(SocialLoginController::class)->group(function () {
      // 3. (BARU) Route untuk Link dari Email
     Route::get('/register/verify-email-entry', 'verifyEmailLink')->name('register.verify-email-entry');
 
+    // 3a. Halaman Check Inbox (Dedicated Route)
+    Route::get('/register/check-inbox', 'showCheckInbox')->name('register.check-inbox');
+
+    // 3b. Kirim Ulang Link Verifikasi
+    Route::post('/register/resend-verification', 'resendVerificationLink')->name('register.resend-verification');
+
     // 4. Form Input NIK
     Route::get('/register/verify-nik', 'showVerifyNikForm')->name('register.verify-nik');
     
