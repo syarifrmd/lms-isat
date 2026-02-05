@@ -17,7 +17,7 @@ class CourseController extends Controller
     {
         // For admin/trainer showing all or created courses could be logic here.
         // For now showing all published courses + courses created by user if logged in (for trainer view)
-        $courses = Course::with('creator.profile')
+        $courses = Course::with('creator')
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id());
             }])
@@ -71,7 +71,7 @@ class CourseController extends Controller
     {
         // Load course dengan modul yang urut berdasarkan sequence
         $course = Course::with([
-            'creator.profile',
+            'creator',
             'modules' => function ($query) {
                 $query->orderBy('order_sequence', 'asc')
                       // Pastikan baris ini ada agar data quiz masuk ke modul

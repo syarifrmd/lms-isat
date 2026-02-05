@@ -17,12 +17,12 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->enum('rank', ['bronze', 'silver', 'gold', 'platinum']);
             $table->decimal('criteria_rule', 10, 2);
-            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('user_id')->nullable();
             $table->decimal('xp_total', 10, 2)->nullable();
             $table->enum('source', ['course_completion', 'quiz_achievement', 'streak', 'manual'])->nullable();
             $table->timestamp('created_at')->useCurrent();
             
-            $table->foreign('user_id')->references('user_id')->on('profiles')->onDelete('set null');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
         });
     }
 

@@ -38,7 +38,7 @@ interface Course {
 
 export default function CoursesIndex({ courses }: { courses: Course[] }) {
     const { auth } = usePage<SharedData>().props;
-    const canCreateCourse = auth.user.profile?.role === 'trainer' || auth.user.profile?.role === 'admin';
+    const canCreateCourse = auth.user.role === 'trainer' || auth.user.role === 'admin';
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
 

@@ -17,13 +17,13 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('category')->nullable();
             $table->integer('duration')->nullable();
-            $table->unsignedBigInteger('created_by');
+            $table->string('created_by');
             $table->enum('status', ['draft', 'published', 'archived'])->default('draft');
             $table->string('cover_url')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent();
             
-            $table->foreign('created_by')->references('user_id')->on('profiles')->onDelete('cascade');
+            $table->foreign('created_by')->references('id')->on('users')->onDelete('cascade');
         });
     }
 

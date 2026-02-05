@@ -11,12 +11,32 @@ use App\Http\Controllers\AssessmentsController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ModuleProgressController;
+use App\Http\Controllers\SocialLoginController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
         'canRegister' => Features::enabled(Features::registration()),
     ]);
 })->name('home');
+
+// --- GOOGLE LOGIN & REGISTER FLOW (BARU) ---
+Route::controller(SocialLoginController::class)->group(function () {
+    // 1. Tombol Login Google
+    Route::get('/login/google', 'redirectToGoogle')->name('login.google');
+    
+    // 2. Callback dari Google
+    Route::get('/login/google/callback', 'handleGoogleCallback')->name('login.google.callback');
+
+     // 3. (BARU) Route untuk Link dari Email
+    Route::get('/register/verify-email-entry', 'verifyEmailLink')->name('register.verify-email-entry');
+
+    // 4. Form Input NIK
+    Route::get('/register/verify-nik', 'showVerifyNikForm')->name('register.verify-nik');
+    
+    // 5. Submit NIK
+    Route::post('/register/verify-nik', 'verifyNik')->name('register.verify-nik.submit');
+});
+
 
 // Trainer Only Routes - Course Create (Must be before /courses/{id})
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {

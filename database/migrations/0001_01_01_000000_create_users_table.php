@@ -6,17 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
+            $table->string('id')->primary(); // NIK sebagai ID
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email')->unique()->nullable(); // Nullable dulu karena belum login
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
+            $table->string('password')->nullable();
+            $table->string('google_id')->nullable();
+            $table->string('avatar')->nullable();
+            $table->enum('role', ['admin', 'trainer', 'user'])->default('user');
+            $table->string('region')->nullable();
+            $table->boolean('is_registered')->default(false); // TAMBAHKAN INI
             $table->rememberToken();
             $table->timestamps();
         });
@@ -29,7 +31,7 @@ return new class extends Migration
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->string('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -37,9 +39,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');

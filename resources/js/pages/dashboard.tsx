@@ -20,7 +20,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function Dashboard({ youtube_connected }: { youtube_connected: boolean }) {
     const { auth, dashboardData } = usePage<DashboardPageProps>().props;
-    const role = auth.user.profile?.role?.toUpperCase();
+    const role = auth.user.role?.toUpperCase();
 
     // Render dashboard berdasarkan role
     const renderDashboardContent = () => {
@@ -28,7 +28,7 @@ export default function Dashboard({ youtube_connected }: { youtube_connected: bo
             case 'TRAINER':
                 return <TrainerDashboard data={dashboardData} youtube_connected={youtube_connected} />;
             
-            case 'EMPLOYEE':
+            case 'USER':
                 // return <EmployeeDashboard />; // Uncomment when EmployeeDashboard is created
                 return (
                     <div className="flex flex-col items-center justify-center min-h-[400px]">

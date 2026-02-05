@@ -19,9 +19,9 @@ class RoleMiddleware
             return redirect('/login');
         }
 
-        $userRole = auth()->user()->profile->role ?? null;
+        $userRole = auth()->user()->users->role ?? null;
 
-        if ($userRole !== $role && $role !== 'admin') {
+        if ($userRole !== $role && $role !== 'trainer' && $userRole !== 'admin') {
             abort(403, 'Unauthorized action.');
         }
 

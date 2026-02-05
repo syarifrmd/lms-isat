@@ -25,7 +25,7 @@ import {
 export function AppSidebar() {
     const { props, url } = usePage<SharedData>();
     const { auth } = props;
-    const role = auth.user.profile?.role;
+    const role = auth.user.role?.toLowerCase();
     const user = auth.user;
 
     // Helper to check active route

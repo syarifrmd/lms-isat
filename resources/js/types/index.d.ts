@@ -39,7 +39,11 @@ export interface User {
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
-    profile?: Profile;
+    profile?: Profile; // Kept for backward compatibility if needed, but likely null now
+    role?: UserRole;
+    employee_id?: string;
+    region?: string;
+    full_name?: string;
     level?: number;
     points?: number;
     [key: string]: unknown; // This allows for additional properties...
