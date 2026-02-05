@@ -12,6 +12,7 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ModuleProgressController;
 use App\Http\Controllers\SocialLoginController;
+use App\Http\Controllers\UserManagementController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -100,6 +101,16 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
         Route::put('/quiz/{quiz}', [AssessmentsController::class, 'update'])->name('update');
         Route::delete('/quiz/{quiz}', [AssessmentsController::class, 'destroy'])->name('destroy');
     });
+});
+
+// Admin Only Routes - User Management
+Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
+    Route::post('/users/{user}/verify', [UserManagementController::class, 'verify'])->name('users.verify');
+    Route::post('/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
 });
 
 require __DIR__.'/settings.php';
