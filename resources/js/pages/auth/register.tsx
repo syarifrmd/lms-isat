@@ -36,9 +36,9 @@ const translations = {
       label: 'Nama Lengkap *',
       placeholder: 'Masukkan nama lengkap Anda'
     },
-    employeeId: {
-      label: 'ID Karyawan (Opsional)',
-      placeholder: 'Masukkan ID karyawan'
+    nik: {
+      label: 'NIK (Nomor Induk Karyawan) *',
+      placeholder: 'Masukkan NIK Anda'
     },
     email: {
       label: 'Alamat Email *',
@@ -70,9 +70,9 @@ const translations = {
         label: 'Full Name *',
         placeholder: 'Enter your full name'
     },
-    employeeId: {
-        label: 'Employee ID (Optional)',
-        placeholder: 'Enter employee ID'
+    nik: {
+        label: 'NIK (Employee ID) *',
+        placeholder: 'Enter your NIK'
     },
     email: {
         label: 'Email address *',
@@ -201,22 +201,22 @@ export default function Register() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="employee_id" className="text-gray-700 dark:text-gray-300 font-semibold">{t.employeeId.label}</Label>
+                                        <Label htmlFor="nik" className="text-gray-700 dark:text-gray-300 font-semibold">{t.nik.label}</Label>
                                         <div className="relative group">
                                             <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
                                                 <IdCard size={20} />
                                             </div>
                                             <Input
-                                                id="employee_id"
+                                                id="nik"
                                                 type="text"
+                                                required
                                                 tabIndex={2}
-                                                autoComplete="off"
-                                                name="employee_id"
-                                                placeholder={t.employeeId.placeholder}
+                                                name="nik"
+                                                placeholder={t.nik.placeholder}
                                                 className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
                                             />
                                         </div>
-                                        <InputError message={errors.employee_id} className="mt-1" />
+                                        <InputError message={errors.nik} className="mt-1" />
                                     </div>
 
                                     <div className="space-y-2">
