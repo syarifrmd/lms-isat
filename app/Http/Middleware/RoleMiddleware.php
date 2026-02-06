@@ -19,12 +19,23 @@ class RoleMiddleware
             return redirect('/login');
         }
 
-        $userRole = auth()->user()->users->role ?? null;
+        $userRole = auth()->user()->role;
 
-        if ($userRole !== $role && $role !== 'trainer' && $userRole !== 'admin') {
-            abort(403, 'Unauthorized action.');
+        // Admin has access to everything
+        if ($userRole === 'admin') {
+            return $next($request);
         }
 
-        return $next($request);
+        // Check for specific role matches
+        if ($userRole === $role) {
+            return $next($request);
+        }
+        
+        // Additional Logic: Trainer can access 'user' role routes if needed? 
+        // For now, strict match or admin override seems safest based on intent.
+        // However, looking at the previous broken logic: ($role !== 'trainer')
+        // It seemed to imply that if specific role was trainer, the check was skipped? No, that was a bug.
+        
+        abort(403, 'Unauthorized action.');
     }
 }

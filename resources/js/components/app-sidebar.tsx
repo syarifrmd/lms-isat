@@ -36,7 +36,7 @@ export function AppSidebar() {
             case 'admin':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'Manage Users', href: '/dashboard/users', icon: Users },
+                    { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
                     { title: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
                     { title: 'Settings', href: '/dashboard/settings', icon: Settings },

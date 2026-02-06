@@ -31,7 +31,7 @@ export interface SharedData {
 }
 
 export interface User {
-    id: number;
+    id: string; // NIK as primary key
     name: string;
     email: string;
     avatar?: string;
@@ -40,12 +40,14 @@ export interface User {
     created_at: string;
     updated_at: string;
     profile?: Profile; // Kept for backward compatibility if needed, but likely null now
-    role?: UserRole;
+    role: 'admin' | 'trainer' | 'user';
     employee_id?: string;
     region?: string;
     full_name?: string;
     level?: number;
     points?: number;
+    is_registered: boolean;
+    google_id?: string;
     [key: string]: unknown; // This allows for additional properties...
 }
 
