@@ -21,6 +21,7 @@ class CourseController extends Controller
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id());
             }])
+            ->where('status', 'published')
             ->orderBy('created_at', 'desc')
             ->latest()
             ->get(); 
@@ -70,16 +71,18 @@ class CourseController extends Controller
     public function show($id)
     {
         // Load course dengan modul yang urut berdasarkan sequence
-        $course = Course::with([
-            'creator',
-            'modules' => function ($query) {
-                $query->orderBy('order_sequence', 'asc')
-                      // Pastikan baris ini ada agar data quiz masuk ke modul
-                      ->with(['quizzes' => function($q) {
-                          $q->withCount('questions');
-                      }]);
-            },
-        ])->findOrFail($id);
+        $course = Course::with(['creator', 'modules' => function($query) {
+            $query->orderBy('order_sequence', 'asc');
+        }, 'modules.quizzes' => function($query) {
+            // Check if quiz is passed by current user and count attempts
+            $query->withExists(['attempts as is_passed' => function($q) {
+                $q->where('user_id', Auth::id())
+                  ->where('is_passed', true);
+            }])
+            ->withCount(['attempts as attempts_count' => function($q) {
+                $q->where('user_id', Auth::id());
+            }]);
+        }])->findOrFail($id);
         
         $enrollment = null;
         if (Auth::check()) {

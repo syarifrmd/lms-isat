@@ -26,7 +26,7 @@ interface Course {
     description: string;
     modules: Module[];
     quizzes?: Quiz[];
-    created_by: number;
+    created_by: string;
     creator?: CourseCreator;
 }
 
@@ -42,7 +42,7 @@ interface ShowProps {
 
 export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
-    const isTrainer = auth.user.role === 'trainer' || auth.user.role === 'admin';
+    const isTrainer = auth.user.role === 'trainer' || auth.user.role === 'admin'; // Ubah dari profile.role
     const isCreator = course.created_by === auth.user.id;
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
@@ -264,13 +264,50 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                                                                                     {Math.floor((quiz.time_limit_second || 0) / 60)}m
                                                                                 </span>
                                                                             )}
+                                                                             {/* Menampilkan Counter Percobaan '2/3' */}
+                                                                            <span className={`flex items-center gap-1 ${((quiz as any).attempts_count || 0) >= 3 ? 'text-red-600 font-medium' : ''}`}>
+                                                                                <Award className="h-3 w-3" />
+                                                                                Attempt: {(quiz as any).attempts_count || 0}/3
+                                                                            </span>
                                                                         </div>
                                                                     </div>
-                                                                    <Button asChild size="sm" variant="secondary">
+                                                                    {/* <Button asChild size="sm" variant="secondary">
                                                                         <Link href={`/quiz/${quiz.id}`}>
                                                                             Start Quiz
                                                                         </Link>
-                                                                    </Button>
+                                                                    </Button> */}
+
+                                                                    {/* LOGIKA BUTTON START / SELESAI / TIDAK LULUS */}
+                                                                    {(() => {
+                                                                        const q = quiz as any;
+                                                                        const attempts = q.attempts_count || 0;
+                                                                        
+                                                                        if (q.is_passed) {
+                                                                            return (
+                                                                                <Button size="sm" variant="outline" className="text-green-600 border-green-600/20 bg-green-50 hover:bg-green-100 cursor-default">
+                                                                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                                                                    Lulus
+                                                                                </Button>
+                                                                            );
+                                                                        } 
+                                                                        
+                                                                        if (attempts >= 3) {
+                                                                            return (
+                                                                                <Button size="sm" variant="destructive" disabled className="opacity-75 cursor-not-allowed">
+                                                                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                                                                    Tidak lulus
+                                                                                </Button>
+                                                                            );
+                                                                        }
+
+                                                                        return (
+                                                                            <Button asChild size="sm" variant="secondary">
+                                                                                <Link href={`/quiz/${quiz.id}`}>
+                                                                                    Start Quiz
+                                                                                </Link>
+                                                                            </Button>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             ))}
                                                         </div>

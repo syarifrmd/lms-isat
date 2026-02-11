@@ -8,6 +8,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, AlertCircle, Award, CheckCircle } from 'lucide-react';
 import { Quiz, UserQuizAttempt } from '@/types';
 import { FormEvent, useEffect, useState } from 'react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Course {
     id: number;
@@ -18,22 +28,28 @@ interface TakeQuizProps {
     quiz: Quiz;
     course: Course;
     previousAttempt?: UserQuizAttempt | null;
+    attempts_count?: number;
+    has_passed?: boolean;
 }
 
-export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProps) {
+export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count = 0, has_passed = false }: TakeQuizProps) {
+    const MAX_ATTEMPTS = 3; // Maksimal percobaan mengerjakan quiz
+    const isLimitReached = (attempts_count >= MAX_ATTEMPTS) && (!previousAttempt?.is_passed);
     const { data, setData, post, processing, errors } = useForm({
         answers: [] as Array<{ question_id: number; answer_id: number }>,
     });
 
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
     // Initialize timer if quiz is timed
     useEffect(() => {
+        if (isLimitReached) return;
         if (quiz.is_timed && quiz.time_limit_second) {
             setTimeRemaining(quiz.time_limit_second);
         }
-    }, [quiz]);
+    }, [quiz, isLimitReached]);
 
     // Countdown timer
     useEffect(() => {
@@ -54,6 +70,16 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
         return () => clearInterval(timer);
     }, [timeRemaining]);
 
+        // Letakkan ini di level atas komponen (sejajar dengan useState lainnya)
+    useEffect(() => {
+        const answersArray = Object.entries(selectedAnswers).map(([question_id, answer_id]) => ({
+            question_id: parseInt(question_id),
+            answer_id: answer_id,
+        }));
+        
+        setData('answers', answersArray);
+    }, [selectedAnswers]);
+
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -67,27 +93,104 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
         }));
     };
 
-    const handleSubmit = (e?: FormEvent) => {
-        e?.preventDefault();
-
-        // Convert selectedAnswers to array format
-        const answersArray = Object.entries(selectedAnswers).map(([questionId, answerId]) => ({
-            question_id: parseInt(questionId),
-            answer_id: answerId,
-        }));
-
+    const handleSubmitClick = (e: FormEvent) => {
+        e.preventDefault();
+        if (has_passed) {
+            alert('Anda sudah lulus quiz ini, tidak perlu mengulang.');
+            return;
+        }
+        if (isLimitReached)
+        {
+            alert('Anda telah mencapai batas maksimal percobaan mengerjakan quiz ini.');
+            return;
+        }
         // Check if all questions are answered
-        if (answersArray.length < (quiz.questions?.length || 0)) {
-            alert('Please answer all questions before submitting.');
+        if (Object.keys(selectedAnswers).length < (quiz.questions?.length || 0)) {
+            alert('Mohon jawab semua pertanyaan terlebih dahulu!');
             return;
         }
 
-        // Update form data and submit
-        setData('answers', answersArray);
-        post(`/quiz/${quiz.id}/submit`);
+        // Show confirmation dialog
+        setShowConfirmDialog(true);
     };
 
+        const confirmSubmit = () => {
+        post(`/quiz/${quiz.id}/submit`, {
+            onFinish: () => setShowConfirmDialog(false),
+        });
+    };
+
+    const handleSubmit = () => {
+        post(`/quiz/${quiz.id}/submit`);
+    };
     const answerLabels = ['A', 'B', 'C', 'D'];
+
+    if (has_passed) {
+        return (
+            <AppLayout 
+                breadcrumbs={[
+                    { title: 'Courses', href: '/courses' },
+                    { title: course.title, href: `/courses/${course.id}` },
+                    { title: quiz.title, href: '#' }
+                ]}
+            >
+                <Head title={`${quiz.title} - ${course.title}`} />
+                 <div className="container px-4 mx-auto py-8 max-w-4xl">
+                         <Card className="border-green-500/50 bg-green-500/5">
+                            <CardHeader>
+                                <CardTitle className="text-green-600 flex items-center gap-2">
+                                    <CheckCircle className="h-6 w-6" />
+                                    Quiz Selesai (Lulus)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-lg">
+                                    Selamat! Anda telah berhasil menyelesaikan quiz ini dan memenuhi standar kelulusan.
+                                </p>
+                                <Button asChild className="mt-4 bg-green-600 hover:bg-green-700">
+                                    <Link href={`/courses/${course.id}`}>Kembali ke Materi</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </AppLayout>
+            );
+        }
+
+    if (isLimitReached) {
+    return (
+        <AppLayout 
+            breadcrumbs={[
+                { title: 'Courses', href: '/courses' },
+                { title: course.title, href: `/courses/${course.id}` },
+                { title: quiz.title, href: '#' }
+            ]}
+        >
+            <Head title={`${quiz.title} - ${course.title}`} />
+             <div className="container px-4 mx-auto py-8 max-w-4xl">
+                     <Card className="border-destructive/50 bg-destructive/5">
+                        <CardHeader>
+                            <CardTitle className="text-destructive flex items-center gap-2">
+                                <AlertCircle className="h-6 w-6" />
+                                Batas Percobaan Tercapai
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-lg">
+                                Mohon maaf, Anda telah menggunakan <strong>{attempts_count} dari {MAX_ATTEMPTS}</strong> kesempatan percobaan dan belum mencapai nilai kelulusan ({quiz.passing_score}%).
+                            </p>
+                            <p className="text-muted-foreground">
+                                Silakan hubungi instruktur atau pelajari kembali materi course sebelum diizinkan mencoba lagi.
+                            </p>
+                            <Button asChild className="mt-4">
+                                <Link href={`/courses/${course.id}`}>Kembali ke Materi</Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </AppLayout>
+        );
+    }
 
     return (
         <AppLayout 
@@ -98,7 +201,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
             ]}
         >
             <Head title={`${quiz.title} - ${course.title}`} />
-
+            
             <div className="container px-4 mx-auto py-8 max-w-4xl">
                 {/* Quiz Header */}
                 <Card className="mb-6">
@@ -153,14 +256,14 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
                     <Alert className="mb-6">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
-                            You have previously attempted this quiz with a score of {previousAttempt.score}%. 
-                            {previousAttempt.is_passed ? ' You passed!' : ' You can try again.'}
+                            Anda sudah pernah mengerjakan quiz ini dengan skor {previousAttempt.score}%. 
+                            {previousAttempt.is_passed ? ' Anda lulus!' : ' Anda dapat mencoba lagi.'}
                         </AlertDescription>
                     </Alert>
                 )}
 
                 {/* Questions */}
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmitClick} className="space-y-6">
                     {quiz.questions?.map((question, qIndex) => (
                         <Card key={question.id}>
                             <CardHeader>
@@ -215,25 +318,58 @@ export default function TakeQuiz({ quiz, course, previousAttempt }: TakeQuizProp
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-muted-foreground">
-                                    Answered: {Object.keys(selectedAnswers).length} / {quiz.questions?.length || 0}
+                                    Dijawab: {Object.keys(selectedAnswers).length} / {quiz.questions?.length || 0}
                                 </p>
                                 <div className="flex gap-3">
                                     <Button type="button" variant="outline" asChild>
                                         <Link href={`/courses/${course.id}`}>
-                                            Cancel
+                                            Batal
                                         </Link>
                                     </Button>
                                     <Button 
                                         type="submit" 
                                         disabled={processing || Object.keys(selectedAnswers).length < (quiz.questions?.length || 0)}
                                     >
-                                        {processing ? 'Submitting...' : 'Submit Quiz'}
+                                        {processing ? 'Mengumpulkan...' : 'Kumpulkan Quiz'}
                                     </Button>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
                 </form>
+
+                {/* Confirmation Dialog */}
+                <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Konfirmasi Pengumpulan Quiz</AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                                <p>
+                                    Anda telah menjawab <strong>{Object.keys(selectedAnswers).length}</strong> dari{' '}
+                                    <strong>{quiz.questions?.length || 0}</strong> soal.
+                                </p>
+                                <p className="text-yellow-600 dark:text-yellow-500 font-medium">
+                                    ⚠️ Setelah dikumpulkan, Anda tidak dapat mengubah jawaban.
+                                </p>
+                                <p>
+                                    Yakin ingin mengumpulkan quiz ini sekarang?
+                                </p>
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={processing}>
+                                Batal
+                            </AlertDialogCancel>
+                            <AlertDialogAction 
+                                onClick={confirmSubmit}
+                                disabled={processing}
+                                className="bg-primary"
+                            >
+                                {processing ? 'Mengumpulkan...' : 'Ya, Kumpulkan'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </AppLayout>
     );
