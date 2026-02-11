@@ -32,7 +32,7 @@ interface Course {
 
 interface CourseCreator {
     name: string;
-    employee_id?: string;
+    id?: string;
 }
 
 interface ShowProps {
@@ -45,7 +45,7 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
     const isTrainer = auth.user.role === 'trainer' || auth.user.role === 'admin';
     const isCreator = course.created_by === auth.user.id;
     const trainerName = course?.creator?.name || 'Instructor';
-    const trainerId = course?.creator?.employee_id || 'N/A';
+    const trainerId = course?.creator?.id || 'N/A';
 
     const trainerInitials = trainerName
         .split(' ')

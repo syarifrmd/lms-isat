@@ -94,18 +94,23 @@ class CourseController extends Controller
         $previousModuleCompleted = true; // Modul pertama selalu terbuka (seolah modul sebelumnya "selesai")
 
         foreach ($course->modules as $module) {
-            $progress = null;
+            $progresses = collect();
             
             if ($enrollment) {
-                $progress = ModuleProgress::where('enrollment_id', $enrollment->id)
+                $progresses = ModuleProgress::where('enrollment_id', $enrollment->id)
                     ->where('module_id', $module->id)
-                    ->first();
+                    ->get();
             }
 
             // 1. Cek User Progress untuk modul ini
-            // Kriteria Selesai: Text sudah dibaca (tambah logika video di sini jika perlu)
-            $isTextRead = $progress ? $progress->is_text_read : false;
-            $isVideoWatched = $progress ? $progress->is_video_watched : false;
+            // Modified to handle multiple progress rows (checklist items)
+            $isTextRead = $progresses->contains(function ($p) {
+                return $p->is_text_read;
+            });
+            
+            $isVideoWatched = $progresses->contains(function ($p) {
+                return $p->is_video_watched;
+            });
             
             // Logika "Completed": Modul selesai jika SEMUA konten yang ada sudah diselesaikan
             $textRequirementMet = empty($module->content_text) || $isTextRead;

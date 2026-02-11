@@ -29,4 +29,9 @@ class Module extends Model
     {
         return $this->hasMany(Quiz::class);
     }
+
+    public function checklistItems()
+    {
+        return $this->hasMany(ModuleChecklistItem::class)->orderBy('order_sequence');
+    }
 }

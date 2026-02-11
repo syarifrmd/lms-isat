@@ -26,5 +26,11 @@ class DatabaseSeeder extends Seeder
                 'password' => null,
             ]);
         }
+
+        // Seed courses and modules
+        $this->call([
+            CourseSeeder::class,
+            ModuleSeeder::class,
+        ]);
     }
 }

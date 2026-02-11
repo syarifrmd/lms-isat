@@ -3,78 +3,79 @@
 namespace Database\Seeders;
 
 use App\Models\Course;
-use App\Models\Enrollment;
-use App\Models\Profile;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class CourseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Find a trainer profile or create one
-        $trainer = Profile::where('role', 'trainer')->first();
+        // Find a trainer user or create one
+        $trainer = User::where('role', 'trainer')->first();
 
         if (!$trainer) {
-            echo "No trainer found. Please create a trainer user first.\n";
-            return;
+            // Create a trainer user
+            $trainer = User::create([
+                'id' => 'TRAINER01',
+                'name' => 'Trainer Demo',
+                'email' => 'trainer@example.com',
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+                'role' => 'trainer',
+                'is_registered' => true,
+            ]);
         }
 
         // Create sample courses
         $courses = [
             [
                 'title' => 'Introduction to Laravel',
-                'description' => 'Learn the basics of Laravel framework',
+                'description' => 'Learn the basics of Laravel framework, including routing, controllers, Eloquent ORM, and more.',
                 'category' => 'Programming',
-                'duration' => 120,
-                'created_by' => $trainer->user_id,
+                'start_date' => now(),
+                'end_date' => now()->addMonths(3),
+                'created_by' => $trainer->id,
                 'status' => 'published',
+                'cover_url' => 'https://via.placeholder.com/800x400?text=Laravel',
             ],
             [
                 'title' => 'Advanced React Development',
-                'description' => 'Master React and build modern web applications',
+                'description' => 'Master React and build modern web applications with hooks, state management, and more.',
                 'category' => 'Web Development',
-                'duration' => 180,
-                'created_by' => $trainer->user_id,
+                'start_date' => now(),
+                'end_date' => now()->addMonths(4),
+                'created_by' => $trainer->id,
                 'status' => 'published',
+                'cover_url' => 'https://via.placeholder.com/800x400?text=React',
             ],
             [
                 'title' => 'Database Design',
-                'description' => 'Learn how to design efficient databases',
+                'description' => 'Learn how to design efficient databases, normalization, ER diagrams, and SQL optimization.',
                 'category' => 'Database',
-                'duration' => 90,
-                'created_by' => $trainer->user_id,
+                'start_date' => now(),
+                'end_date' => now()->addMonths(2),
+                'created_by' => $trainer->id,
                 'status' => 'published',
+                'cover_url' => 'https://via.placeholder.com/800x400?text=Database',
             ],
             [
-                'title' => 'API Development',
-                'description' => 'Build RESTful APIs with Laravel',
+                'title' => 'API Development with Laravel',
+                'description' => 'Build RESTful APIs with Laravel, including authentication, authorization, and best practices.',
                 'category' => 'Backend',
-                'duration' => 150,
-                'created_by' => $trainer->user_id,
-                'status' => 'draft',
+                'start_date' => now()->addWeek(),
+                'end_date' => now()->addMonths(3),
+                'created_by' => $trainer->id,
+                'status' => 'published',
+                'cover_url' => 'https://via.placeholder.com/800x400?text=API',
             ],
         ];
 
         foreach ($courses as $courseData) {
-            $course = Course::create($courseData);
-
-            // Create some sample enrollments for published courses
-            if ($course->status === 'published') {
-                $students = Profile::where('role', 'user')
-                    ->limit(rand(20, 50))
-                    ->get();
-
-                foreach ($students as $student) {
-                    Enrollment::create([
-                        'user_id' => $student->user_id,
-                        'course_id' => $course->id,
-                        'progress_percentage' => rand(0, 100),
-                        'status' => rand(0, 100) > 80 ? 'completed' : 'in_progress',
-                        'enrollment_at' => now(),
-                        'completed_at' => rand(0, 100) > 80 ? now() : null,
-                    ]);
-                }
-            }
+            Course::firstOrCreate(
+                ['title' => $courseData['title']],
+                $courseData
+            );
         }
 
         echo "Courses seeded successfully!\n";

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Module;
+use App\Models\ModuleChecklistItem;
 use App\Models\ModuleProgress;
 use App\Models\Enrollment;
 use Illuminate\Http\Request;
@@ -13,27 +14,40 @@ class ModuleProgressController extends Controller
     public function markTextRead(Request $request, $moduleId)
     {
         $user = Auth::user();
-        
         $module = Module::findOrFail($moduleId);
         
         $enrollment = Enrollment::where('user_id', $user->id)
             ->where('course_id', $module->course_id)
             ->firstOrFail();
 
-        $progress = ModuleProgress::firstOrCreate(
-            [
-                'enrollment_id' => $enrollment->id,
-                'module_id' => $moduleId
-            ]
-        );
+        // Cari checklist item tipe 'text' untuk modul ini
+        $checklistItem = ModuleChecklistItem::where('module_id', $moduleId)
+            ->where('type', 'text')
+            ->first();
 
-        $progress->is_text_read = true;
-        // Jika modul ini hanya berisi teks, maka modul dianggap complete
-        // Namun, jika punya video, kita harus cek keduanya (ini logika bisa disesuaikan)
-        // Untuk sekarang, kita simpan status text read dulu.
-        $progress->save();
+        if ($checklistItem) {
+            // Update progress checklist specific
+            ModuleProgress::updateOrCreate(
+                [
+                    'enrollment_id' => $enrollment->id,
+                    'module_id' => $moduleId,
+                    'checklist_item_id' => $checklistItem->id
+                ],
+                [
+                    'is_completed' => true,
+                    'is_text_read' => true,
+                    'completed_at' => now(),
+                ]
+            );
+        } else {
+            // Fallback untuk backward compatibility (jika tidak ada checklist item)
+            $progress = ModuleProgress::firstOrCreate(
+                ['enrollment_id' => $enrollment->id, 'module_id' => $moduleId], // cari row general (checklist_item_id null)
+            );
+            $progress->is_text_read = true;
+            $progress->save();
+        }
 
-        // [BARU] Hitung ulang dan update persentase di tabel enrollment
         $this->updateEnrollmentProgress($enrollment);
 
         return back()->with('success', 'Module marked as read');
@@ -42,19 +56,39 @@ class ModuleProgressController extends Controller
     public function markVideoWatched(Request $request, $moduleId)
     {
         $user = Auth::user();
-        
         $module = Module::findOrFail($moduleId);
         
         $enrollment = Enrollment::where('user_id', $user->id)
             ->where('course_id', $module->course_id)
             ->firstOrFail();
 
-        $progress = ModuleProgress::firstOrCreate(
-            [ 'enrollment_id' => $enrollment->id, 'module_id' => $moduleId ]
-        );
+        // Cari checklist item tipe 'video' untuk modul ini
+        $checklistItem = ModuleChecklistItem::where('module_id', $moduleId)
+            ->where('type', 'video')
+            ->first();
 
-        $progress->is_video_watched = true; 
-        $progress->save();
+        if ($checklistItem) {
+            // Update progress checklist specific
+            ModuleProgress::updateOrCreate(
+                [
+                    'enrollment_id' => $enrollment->id,
+                    'module_id' => $moduleId,
+                    'checklist_item_id' => $checklistItem->id
+                ],
+                [
+                    'is_completed' => true,
+                    'is_video_watched' => true,
+                    'completed_at' => now(),
+                ]
+            );
+        } else {
+             // Fallback
+            $progress = ModuleProgress::firstOrCreate(
+                ['enrollment_id' => $enrollment->id, 'module_id' => $moduleId]
+            );
+            $progress->is_video_watched = true;
+            $progress->save();
+        }
 
         $this->updateEnrollmentProgress($enrollment); 
 
@@ -62,50 +96,64 @@ class ModuleProgressController extends Controller
     }
 
     /**
-     * Menghitung ulang total progress (0-100%) dan menyimpannya ke enrollment.
+     * Menghitung ulang total progress berdasarkan CHECKLIST ITEMS.
      */
     private function updateEnrollmentProgress(Enrollment $enrollment)
     {
-        // 1. Ambil semua modul
-        $modules = Module::where('course_id', $enrollment->course_id)->get();
-        $totalModules = $modules->count();
+        // Get all modules in the course
+        $modules = Module::where('course_id', $enrollment->course_id)->with('checklistItems')->get();
+        
+        $totalChecklists = 0;
+        $completedChecklists = 0;
 
-        if ($totalModules === 0) {
-            // Fix: Ganti progress jadi progress_percentage
-            $enrollment->update([
-                'progress_percentage' => 100, 
-                'status' => 'completed', 
-                'completed_at' => now()
-            ]);
-            return;
-        }
-
-        $completedModulesCount = 0;
-
-        foreach ($modules as $mod) {
-            $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
-                        ->where('module_id', $mod->id)
-                        ->first();
-
-            $hasText = !empty($mod->content_text);
-            $hasVideo = !empty($mod->video_url);
-
-            $textDone = !$hasText || ($prog && $prog->is_text_read);
-            $videoDone = !$hasVideo || ($prog && $prog->is_video_watched);
-
-            if ($textDone && $videoDone) {
-                $completedModulesCount++;
+        foreach ($modules as $module) {
+            // Hitung item dari tabel checklist items
+            $checklistItems = $module->checklistItems;
+            $count = $checklistItems->count();
+            
+            if ($count > 0) {
+                $totalChecklists += $count;
+                
+                // Hitung yang completed
+                $completedCount = ModuleProgress::where('enrollment_id', $enrollment->id)
+                    ->whereIn('checklist_item_id', $checklistItems->pluck('id'))
+                    ->where('is_completed', true)
+                    ->count();
+                    
+                $completedChecklists += $completedCount;
+            } else {
+                // FALLBACK: Jika modul tidak punya checklist items (data lama/belum dimigrasi full)
+                // Kita hitung modul itu sendiri sebagai 1 unit progress
+                $totalChecklists++;
+                
+                // Cek progress general (row dengan checklist_item_id = OLD/NULL) atau logic lama
+                $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
+                            ->where('module_id', $module->id)
+                            ->whereNull('checklist_item_id') // Asumsi data lama checklist_item_id NULL
+                            ->first();
+                            
+                $hasText = !empty($module->content_text);
+                $hasVideo = !empty($module->video_url);
+                $textDone = !$hasText || ($prog && $prog->is_text_read);
+                $videoDone = !$hasVideo || ($prog && $prog->is_video_watched);
+                
+                if ($textDone && $videoDone) {
+                    $completedChecklists++;
+                }
             }
         }
 
-        $percent = round(($completedModulesCount / $totalModules) * 100);
+        $percent = $totalChecklists > 0 
+            ? round(($completedChecklists / $totalChecklists) * 100, 2)
+            : 0;
 
-        // Fix: Menggunakan kolom progress_percentage
         $enrollment->progress_percentage = $percent;
         
-        if ($percent == 100 && $enrollment->status !== 'completed') {
+        if ($percent >= 100 && $enrollment->status !== 'completed') {
             $enrollment->status = 'completed';
             $enrollment->completed_at = now();
+        } elseif ($percent > 0 && $percent < 100) {
+             $enrollment->status = 'in_progress';
         }
         
         $enrollment->save();
