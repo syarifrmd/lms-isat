@@ -39,7 +39,6 @@ export interface User {
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
-    profile?: Profile; // Kept for backward compatibility if needed, but likely null now
     role: 'admin' | 'trainer' | 'user';
     employee_id?: string;
     region?: string;

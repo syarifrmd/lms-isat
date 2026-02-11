@@ -17,6 +17,19 @@ class QuizController extends Controller
      */
     public function show(Quiz $quiz)
     {
+
+        $attemptsCount = UserQuizAttempt::where('user_id', auth()->id())
+        ->where('quiz_id', $quiz->id)
+        ->count();
+
+        // Cek apakah user sudah pernah lulus quiz ini
+        $hasPassed = UserQuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $quiz->id)
+            ->where('is_passed', true)
+            ->exists();
+
+        $maxAttempts = 3; // Define the maximum number of allowed attempts
+        $isLimitReached = $attemptsCount >= $maxAttempts;
         // Load questions with answers (but hide correct answer info from users)
         $quiz->load(['questions' => function($query) {
             $query->with(['answers' => function($q) {
@@ -34,7 +47,9 @@ class QuizController extends Controller
             'quiz' => $quiz,
             'course' => $quiz->course,
             'previousAttempt' => $previousAttempt,
-        ]);
+            'attempts_count' => $attemptsCount,
+            'has_passed' => $hasPassed,
+        ]); 
     }
 
     /**
@@ -42,11 +57,32 @@ class QuizController extends Controller
      */
     public function submit(Request $request, Quiz $quiz)
     {
+        // Check max attempts
+        $attemptsCount = UserQuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $quiz->id)
+            ->count();
+
+        $lastAttempt = UserQuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $quiz->id)
+            ->latest()
+            ->first();
+
+        if ($attemptsCount >= 3 && (!$lastAttempt || !$lastAttempt->is_passed)) {
+             return back()->with('error', 'Anda telah mencapai batas maksimal percobaan mengerjakan quiz ini.');
+        }
+
+        // Cek jika sudah lulus
+        if ($lastAttempt && $lastAttempt->is_passed) {
+            return back()->with('error', 'Anda sudah lulus quiz ini, tidak dapat mengerjakan ulang.');
+        }
+
         $validated = $request->validate([
-            'answers' => 'required|array',
+            'answers' => 'array',
             'answers.*.question_id' => 'required|exists:questions,id',
             'answers.*.answer_id' => 'required|exists:answers,id',
         ]);
+
+        $answer = $validated['answers'] ?? [];
 
         // Verify all answers belong to this quiz
         $questionIds = $quiz->questions()->pluck('id')->toArray();
@@ -70,7 +106,7 @@ class QuizController extends Controller
                 'user_id' => Auth::id(),
                 'quiz_id' => $quiz->id,
                 'course_id' => $quiz->course_id,
-                'score' => 0, // Will update after calculation
+                'score' => 0, // Will update after calculation 
                 'is_passed' => false,
                 'submitted_at' => now(),
             ]);

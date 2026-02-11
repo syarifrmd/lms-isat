@@ -12,7 +12,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $role = $user->profile?->role;
+        $role = $user->role;
         $youtubeConnected = Storage::disk('local')->exists('google-token.json');
 
         // Data untuk Trainer Dashboard
