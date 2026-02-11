@@ -95,6 +95,8 @@ class CourseController extends Controller
 
         // LOGIKA LOCKING MODULE
         $previousModuleCompleted = true; // Modul pertama selalu terbuka (seolah modul sebelumnya "selesai")
+        
+        $isTrainer = Auth::check() && in_array(Auth::user()->role, ['trainer', 'admin']);
 
         foreach ($course->modules as $module) {
             $progresses = collect();
@@ -127,8 +129,8 @@ class CourseController extends Controller
             $module->is_video_watched = $isVideoWatched;
             
             // 3. Set Lock Status
-            // Modul ini terkunci KECUALI modul sebelumnya sudah selesai
-            $module->is_locked = !$previousModuleCompleted;
+            // Modul ini terkunci KECUALI modul sebelumnya sudah selesai, atau user adalah trainer
+            $module->is_locked = !$previousModuleCompleted && !$isTrainer;
 
             // Update tracker looping: status modul ini menjadi penentu modul berikutnya
             $previousModuleCompleted = $isCompleted;

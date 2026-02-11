@@ -122,23 +122,28 @@ class ModuleProgressController extends Controller
                     
                 $completedChecklists += $completedCount;
             } else {
-                // FALLBACK: Jika modul tidak punya checklist items (data lama/belum dimigrasi full)
-                // Kita hitung modul itu sendiri sebagai 1 unit progress
-                $totalChecklists++;
+                // FALLBACK: Jika tidak ada explicit checklist items (data lama/migrasi pending)
+                // Kita hitung Text dan Video sebagai "virtual" item terpisah agar progress bar halus
                 
-                // Cek progress general (row dengan checklist_item_id = OLD/NULL) atau logic lama
-                $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
-                            ->where('module_id', $module->id)
-                            ->whereNull('checklist_item_id') // Asumsi data lama checklist_item_id NULL
-                            ->first();
-                            
                 $hasText = !empty($module->content_text);
                 $hasVideo = !empty($module->video_url);
-                $textDone = !$hasText || ($prog && $prog->is_text_read);
-                $videoDone = !$hasVideo || ($prog && $prog->is_video_watched);
-                
-                if ($textDone && $videoDone) {
-                    $completedChecklists++;
+
+                $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
+                            ->where('module_id', $module->id)
+                            ->first();
+
+                if ($hasText) {
+                    $totalChecklists++;
+                    if ($prog && $prog->is_text_read) {
+                        $completedChecklists++;
+                    }
+                }
+
+                if ($hasVideo) {
+                    $totalChecklists++;
+                    if ($prog && $prog->is_video_watched) {
+                        $completedChecklists++;
+                    }
                 }
             }
         }

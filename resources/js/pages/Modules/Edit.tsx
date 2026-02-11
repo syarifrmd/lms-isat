@@ -30,7 +30,7 @@ export default function ModuleEdit({ course, module, youtube_connected }: { cour
     // Check if doc is a file upload (local storage) or external link
     // This logic is simple; might need adjustment based on real storage paths
     
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, progress } = useForm({
         _method: 'PUT',
         title: module.title || '',
         content_text: module.content_text || '',
@@ -182,10 +182,26 @@ export default function ModuleEdit({ course, module, youtube_connected }: { cour
                                 )}
                             </div>
 
-                            <div className="flex justify-end pt-4">
-                                <Button type="submit" disabled={processing} size="lg">
-                                    {processing ? 'Updating Module...' : 'Update Module'}
-                                </Button>
+                            <div className="flex flex-col gap-4 pt-4">
+                                {progress && (
+                                    <div className="w-full space-y-1">
+                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                            <span>Uploading...</span>
+                                            <span>{progress.percentage}%</span>
+                                        </div>
+                                        <div className="w-full bg-secondary rounded-full h-2.5 overflow-hidden">
+                                            <div 
+                                                className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+                                                style={{ width: `${progress.percentage}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={processing} size="lg">
+                                        {processing ? 'Updating Module...' : 'Update Module'}
+                                    </Button>
+                                </div>
                             </div>
                         </form>
                     </CardContent>

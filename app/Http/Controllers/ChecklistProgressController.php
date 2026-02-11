@@ -99,16 +99,38 @@ class ChecklistProgressController extends Controller
         foreach ($modules as $module) {
             // Get all checklist items for this module
             $checklistItems = $module->checklistItems;
-            $totalChecklists += $checklistItems->count();
+            $count = $checklistItems->count();
 
-            foreach ($checklistItems as $item) {
-                $progress = ModuleProgress::where('enrollment_id', $enrollment->id)
-                    ->where('checklist_item_id', $item->id)
-                    ->where('is_completed', true)
-                    ->first();
+            if ($count > 0) {
+                $totalChecklists += $count;
+    
+                foreach ($checklistItems as $item) {
+                    $progress = ModuleProgress::where('enrollment_id', $enrollment->id)
+                        ->where('checklist_item_id', $item->id)
+                        ->where('is_completed', true)
+                        ->first();
+    
+                    if ($progress) {
+                        $completedChecklists++;
+                    }
+                }
+            } else {
+                 // FALLBACK: Module-based virtual items for consistency
+                $hasText = !empty($module->content_text);
+                $hasVideo = !empty($module->video_url);
 
-                if ($progress) {
-                    $completedChecklists++;
+                $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
+                            ->where('module_id', $module->id)
+                            ->first();
+
+                if ($hasText) {
+                    $totalChecklists++;
+                    if ($prog && $prog->is_text_read) $completedChecklists++;
+                }
+                
+                if ($hasVideo) {
+                    $totalChecklists++;
+                    if ($prog && $prog->is_video_watched) $completedChecklists++;
                 }
             }
         }

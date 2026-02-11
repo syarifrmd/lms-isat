@@ -44,8 +44,8 @@ class ModuleController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:102400',
-            'doc_file' => 'nullable|file|max:10240', 
+            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'doc_file' => 'nullable|file|max:51200', // 50MB
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);
@@ -87,6 +87,39 @@ class ModuleController extends Controller
 
             $module->update($updateData);
 
+            // Sync Checklist Items
+            // 1. Video Checklist
+            if (!empty($module->video_url)) {
+                \App\Models\ModuleChecklistItem::firstOrCreate(
+                    ['module_id' => $module->id, 'type' => 'video'],
+                    [
+                        'title' => 'Watch Video', 
+                        'order_sequence' => 1, 
+                        'xp_reward' => 10
+                    ]
+                );
+            } else {
+                \App\Models\ModuleChecklistItem::where('module_id', $module->id)
+                    ->where('type', 'video')
+                    ->delete();
+            }
+
+            // 2. Text Checklist
+            if (!empty($module->content_text)) {
+                \App\Models\ModuleChecklistItem::firstOrCreate(
+                    ['module_id' => $module->id, 'type' => 'text'],
+                    [
+                        'title' => 'Read Material', 
+                        'order_sequence' => 2, 
+                        'xp_reward' => 5
+                    ]
+                );
+            } else {
+                \App\Models\ModuleChecklistItem::where('module_id', $module->id)
+                    ->where('type', 'text')
+                    ->delete();
+            }
+
             DB::commit();
 
             $message = 'Module updated successfully.';
@@ -106,8 +139,8 @@ class ModuleController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:102400',
-            'doc_file' => 'nullable|file|max:10240', // 10MB
+            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'doc_file' => 'nullable|file|max:51200', // 50MB
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);
@@ -156,6 +189,25 @@ class ModuleController extends Controller
                 'content_text' => $request->content_text,
                 'order_sequence' => $maxOrder + 1,
             ]);
+
+            // Create Checklist Items automatically
+            if ($videoId) {
+                $module->checklistItems()->create([
+                    'title' => 'Watch Video',
+                    'type' => 'video',
+                    'order_sequence' => 1,
+                    'xp_reward' => 10,
+                ]);
+            }
+
+            if ($request->content_text) {
+                $module->checklistItems()->create([
+                    'title' => 'Read Material',
+                    'type' => 'text',
+                    'order_sequence' => 2,
+                    'xp_reward' => 5,
+                ]);
+            }
 
             DB::commit();
 

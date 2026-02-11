@@ -18,7 +18,7 @@ interface Course {
 export default function ModuleCreate({ course, youtube_connected }: { course: Course, youtube_connected: boolean }) {
     const [docType, setDocType] = useState<'upload' | 'link'>('upload');
     
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, progress } = useForm({
         title: '',
         content_text: '',
         video: null as File | null,
@@ -164,10 +164,26 @@ export default function ModuleCreate({ course, youtube_connected }: { course: Co
                                 )}
                             </div>
 
-                            <div className="flex justify-end pt-4">
-                                <Button type="submit" disabled={processing} size="lg">
-                                    {processing ? 'Creating Module...' : 'Create Module'}
-                                </Button>
+                            <div className="flex flex-col gap-4 pt-4">
+                                {progress && (
+                                    <div className="w-full space-y-1">
+                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                            <span>Uploading...</span>
+                                            <span>{progress.percentage}%</span>
+                                        </div>
+                                        <div className="w-full bg-secondary rounded-full h-2.5 overflow-hidden">
+                                            <div 
+                                                className="bg-primary h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+                                                style={{ width: `${progress.percentage}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={processing} size="lg">
+                                        {processing ? 'Creating Module...' : 'Create Module'}
+                                    </Button>
+                                </div>
                             </div>
                         </form>
                     </CardContent>
