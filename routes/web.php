@@ -13,6 +13,7 @@ use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\ModuleProgressController;
 use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\CertificateController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -76,6 +77,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Module Progress
     Route::post('/modules/{module}/progress/text', [ModuleProgressController::class, 'markTextRead'])->name('modules.progress.text');
     Route::post('/modules/{module}/progress/video', [ModuleProgressController::class, 'markVideoWatched'])->name('modules.progress.video');
+
+    // Certificates
+    Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
+    Route::get('/certificate/{courseId}', [CertificateController::class, 'download'])->name('certificate.download');
 });
 
 // Trainer Only Routes - Modules & Assessments
