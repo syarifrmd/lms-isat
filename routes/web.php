@@ -14,6 +14,7 @@ use App\Http\Controllers\ModuleProgressController;
 use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\LeaderboardController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -55,6 +56,9 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Leaderboard
+    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
     
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');

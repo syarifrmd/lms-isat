@@ -142,6 +142,19 @@ class QuizController extends Controller
                 'is_passed' => $isPassed,
             ]);
 
+            // Award XP jika lulus dan ini adalah pertama kalinya lulus quiz ini
+            if ($isPassed && $quiz->xp_bonus > 0) {
+                $alreadyPassed = UserQuizAttempt::where('user_id', Auth::id())
+                    ->where('quiz_id', $quiz->id)
+                    ->where('is_passed', true)
+                    ->where('id', '!=', $attempt->id)
+                    ->exists();
+
+                if (!$alreadyPassed) {
+                    Auth::user()->increment('xp', $quiz->xp_bonus);
+                }
+            }
+
             DB::commit();
 
             return redirect()
