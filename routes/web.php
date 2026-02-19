@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
         Route::get('/quiz/{quiz}/edit', [AssessmentsController::class, 'edit'])->name('edit');
         Route::put('/quiz/{quiz}', [AssessmentsController::class, 'update'])->name('update');
         Route::delete('/quiz/{quiz}', [AssessmentsController::class, 'destroy'])->name('destroy');
+        Route::post('/upload-image', [AssessmentsController::class, 'uploadImage'])->name('upload-image');
     });
 });
 

@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
     PlusCircle,
     Trash2,
@@ -42,6 +42,7 @@ import {
     Globe,
     FileText,
     AlertTriangle,
+    Save,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import InputError from '@/components/input-error';
@@ -58,18 +59,35 @@ interface Module {
 }
 
 interface Answer {
+    id?: number;
     answer_text: string;
     is_correct: boolean;
 }
 
 interface Question {
+    id?: number;
     question_text: string;
     explanation: string;
     point: number;
     answers: Answer[];
 }
 
-interface CreateQuizProps {
+interface Quiz {
+    id: number;
+    title: string;
+    description?: string;
+    module_id: number | null;
+    passing_score: number;
+    min_score: number;
+    is_timed: boolean;
+    time_limit_second: number;
+    xp_bonus: number;
+    status: 'draft' | 'published';
+    questions: Question[];
+}
+
+interface EditQuizProps {
+    quiz: Quiz;
     course: Course;
     modules: Module[];
 }
@@ -92,52 +110,48 @@ function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export default function CreateQuiz({ course, modules }: CreateQuizProps) {
-    const { data, setData, processing, errors } = useForm({
-        title: '',
-        description: '',
-        module_id: 'none',
-        passing_score: 70,
-        min_score: 0,
-        is_timed: false,
-        time_limit_second: 1800,
-        xp_bonus: 50,
-        status: 'draft' as 'draft' | 'published',
-        questions: [
-            {
-                question_text: '',
-                explanation: '',
-                point: 10,
-                answers: [
-                    { answer_text: '', is_correct: false },
-                    { answer_text: '', is_correct: false },
-                    { answer_text: '', is_correct: false },
-                    { answer_text: '', is_correct: false },
-                ],
-            },
-        ] as Question[],
-    });
+export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
+    const [title, setTitle] = useState(quiz.title);
+    const [description, setDescription] = useState(quiz.description ?? '');
+    const [moduleId, setModuleId] = useState(quiz.module_id ? quiz.module_id.toString() : 'none');
+    const [passingScore, setPassingScore] = useState(quiz.passing_score);
+    const [minScore] = useState(quiz.min_score);
+    const [isTimed, setIsTimed] = useState(quiz.is_timed);
+    const [timeLimitSecond, setTimeLimitSecond] = useState(quiz.time_limit_second ?? 1800);
+    const [xpBonus, setXpBonus] = useState(quiz.xp_bonus);
+    const [questions, setQuestions] = useState<Question[]>(
+        quiz.questions.map((q) => ({
+            id: q.id,
+            question_text: q.question_text,
+            explanation: q.explanation ?? '',
+            point: q.point,
+            answers: q.answers.map((a) => ({
+                id: a.id,
+                answer_text: a.answer_text,
+                is_correct: a.is_correct,
+            })),
+        }))
+    );
 
     const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set([0]));
     const [activeStep, setActiveStep] = useState<1 | 2>(1);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const toggleQuestion = (index: number) => {
-        setExpandedQuestions(prev => {
+        setExpandedQuestions((prev) => {
             const next = new Set(prev);
-            if (next.has(index)) {
-                next.delete(index);
-            } else {
-                next.add(index);
-            }
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
             return next;
         });
     };
 
     const addQuestion = () => {
-        const newIndex = data.questions.length;
-        setData('questions', [
-            ...data.questions,
+        const newIndex = questions.length;
+        setQuestions([
+            ...questions,
             {
                 question_text: '',
                 explanation: '',
@@ -150,41 +164,42 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                 ],
             },
         ]);
-        setExpandedQuestions(prev => new Set([...prev, newIndex]));
+        setExpandedQuestions((prev) => new Set([...prev, newIndex]));
     };
 
     const removeQuestion = (index: number) => {
-        const newQuestions = data.questions.filter((_, i) => i !== index);
-        setData('questions', newQuestions);
-        setExpandedQuestions(prev => {
+        setQuestions(questions.filter((_, i) => i !== index));
+        setExpandedQuestions((prev) => {
             const next = new Set<number>();
-            prev.forEach(i => { if (i < index) next.add(i); else if (i > index) next.add(i - 1); });
+            prev.forEach((i) => {
+                if (i < index) next.add(i);
+                else if (i > index) next.add(i - 1);
+            });
             return next;
         });
     };
 
     const updateQuestion = (index: number, field: keyof Question, value: string | number) => {
-        const newQuestions = [...data.questions];
-        const q = { ...newQuestions[index], [field]: value };
-        newQuestions[index] = q;
-        setData('questions', newQuestions);
+        const updated = [...questions];
+        updated[index] = { ...updated[index], [field]: value };
+        setQuestions(updated);
     };
 
-    const updateAnswer = (questionIndex: number, answerIndex: number, field: keyof Answer, value: string | boolean) => {
-        const newQuestions = [...data.questions];
-        const answers = [...newQuestions[questionIndex].answers];
-        answers[answerIndex] = { ...answers[answerIndex], [field]: value };
-        newQuestions[questionIndex] = { ...newQuestions[questionIndex], answers };
-        setData('questions', newQuestions);
+    const updateAnswer = (qIdx: number, aIdx: number, field: keyof Answer, value: string | boolean) => {
+        const updated = [...questions];
+        const answers = [...updated[qIdx].answers];
+        answers[aIdx] = { ...answers[aIdx], [field]: value };
+        updated[qIdx] = { ...updated[qIdx], answers };
+        setQuestions(updated);
     };
 
-    const setCorrectAnswer = (questionIndex: number, answerIndex: number) => {
-        const newQuestions = [...data.questions];
-        newQuestions[questionIndex].answers = newQuestions[questionIndex].answers.map((answer, idx) => ({
-            ...answer,
-            is_correct: idx === answerIndex,
+    const setCorrectAnswer = (qIdx: number, aIdx: number) => {
+        const updated = [...questions];
+        updated[qIdx].answers = updated[qIdx].answers.map((a, i) => ({
+            ...a,
+            is_correct: i === aIdx,
         }));
-        setData('questions', newQuestions);
+        setQuestions(updated);
     };
 
     const handleSubmit = (e: FormEvent) => {
@@ -194,19 +209,38 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
 
     const submitWithStatus = (chosenStatus: 'draft' | 'published') => {
         setShowConfirmModal(false);
-        router.post(`/assessments/${course.id}/quizzes`, {
-            ...data,
+        setProcessing(true);
+        const payload = {
+            title,
+            description,
+            module_id: moduleId === 'none' ? null : moduleId,
+            passing_score: passingScore,
+            min_score: minScore,
+            is_timed: isTimed,
+            time_limit_second: timeLimitSecond,
+            xp_bonus: xpBonus,
             status: chosenStatus,
-            module_id: data.module_id === 'none' ? null : data.module_id,
-        } as unknown as Record<string, string>);
+            questions: JSON.parse(JSON.stringify(questions)) as Record<string, unknown>[],
+        };
+        router.put(
+            `/assessments/quiz/${quiz.id}`,
+            payload as unknown as Record<string, string>,
+            {
+                onError: (errs) => {
+                    setErrors(errs);
+                    setProcessing(false);
+                },
+                onFinish: () => setProcessing(false),
+            },
+        );
     };
 
-    const timeLimitMinutes = Math.floor(data.time_limit_second / 60);
-    const totalPoints = data.questions.reduce((sum, q) => sum + q.point, 0);
-    const isStep1Valid = data.title.trim().length > 0;
-    const completedQuestions = data.questions.filter(q => {
+    const timeLimitMinutes = Math.floor(timeLimitSecond / 60);
+    const totalPoints = questions.reduce((sum, q) => sum + q.point, 0);
+    const isStep1Valid = title.trim().length > 0;
+    const completedQuestions = questions.filter((q) => {
         const plain = stripHtml(q.question_text);
-        const correctIdx = q.answers.findIndex(a => a.is_correct);
+        const correctIdx = q.answers.findIndex((a) => a.is_correct);
         return plain.length > 0 && correctIdx !== -1 && q.answers[correctIdx]?.answer_text.trim().length > 0;
     }).length;
 
@@ -215,10 +249,10 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
             breadcrumbs={[
                 { title: 'Assessments', href: '/assessments' },
                 { title: course.title, href: `/assessments/${course.id}/quizzes` },
-                { title: 'Create Quiz', href: '#' }
+                { title: 'Edit Quiz', href: '#' },
             ]}
         >
-            <Head title="Create Quiz" />
+            <Head title={`Edit Quiz — ${quiz.title}`} />
 
             <div className="min-h-screen bg-linear-to-b from-background to-muted/20">
                 <div className="container px-4 mx-auto py-6 max-w-3xl">
@@ -231,7 +265,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                             </Link>
                         </Button>
                         <div className="min-w-0">
-                            <h1 className="text-2xl font-bold tracking-tight truncate">Buat Quiz Baru</h1>
+                            <h1 className="text-2xl font-bold tracking-tight truncate">Edit Quiz</h1>
                             <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
                                 <BookOpen className="h-3.5 w-3.5 shrink-0" />
                                 {course.title}
@@ -267,9 +301,9 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                         >
                             <Hash className="h-3.5 w-3.5" />
                             Pertanyaan
-                            {data.questions.length > 0 && (
+                            {questions.length > 0 && (
                                 <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-1">
-                                    {data.questions.length}
+                                    {questions.length}
                                 </Badge>
                             )}
                         </button>
@@ -297,8 +331,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             </Label>
                                             <Input
                                                 id="title"
-                                                value={data.title}
-                                                onChange={(e) => setData('title', e.target.value)}
+                                                value={title}
+                                                onChange={(e) => setTitle(e.target.value)}
                                                 placeholder="Contoh: Ujian Akhir Bab 1"
                                                 className="text-base"
                                             />
@@ -311,8 +345,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             </Label>
                                             <Textarea
                                                 id="description"
-                                                value={data.description || ''}
-                                                onChange={(e) => (setData as (key: string, value: string) => void)('description', e.target.value)}
+                                                value={description}
+                                                onChange={(e) => setDescription(e.target.value)}
                                                 placeholder="Jelaskan tujuan atau petunjuk umum quiz ini..."
                                                 rows={3}
                                                 className="resize-none"
@@ -323,10 +357,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             <Label htmlFor="module_id" className="text-sm font-medium">
                                                 Tautkan ke Modul <span className="text-muted-foreground text-xs">(opsional)</span>
                                             </Label>
-                                            <Select
-                                                value={data.module_id}
-                                                onValueChange={(value) => setData('module_id', value)}
-                                            >
+                                            <Select value={moduleId} onValueChange={setModuleId}>
                                                 <SelectTrigger id="module_id">
                                                     <SelectValue placeholder="Pilih modul (opsional)" />
                                                 </SelectTrigger>
@@ -370,8 +401,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                         type="number"
                                                         min="0"
                                                         max="100"
-                                                        value={data.passing_score}
-                                                        onChange={(e) => setData('passing_score', parseInt(e.target.value))}
+                                                        value={passingScore}
+                                                        onChange={(e) => setPassingScore(parseInt(e.target.value))}
                                                         className="pr-8"
                                                     />
                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
@@ -388,8 +419,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                         id="xp_bonus"
                                                         type="number"
                                                         min="0"
-                                                        value={data.xp_bonus}
-                                                        onChange={(e) => setData('xp_bonus', parseFloat(e.target.value))}
+                                                        value={xpBonus}
+                                                        onChange={(e) => setXpBonus(parseFloat(e.target.value))}
                                                         className="pr-8"
                                                     />
                                                     <Zap className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-500" />
@@ -398,17 +429,17 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             </div>
                                         </div>
 
-                                        {/* Passing score visual indicator */}
+                                        {/* Passing score visual */}
                                         <div className="space-y-1.5">
                                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                                                 <span>0%</span>
-                                                <span className="font-medium text-foreground">Batas lulus: {data.passing_score}%</span>
+                                                <span className="font-medium text-foreground">Batas lulus: {passingScore}%</span>
                                                 <span>100%</span>
                                             </div>
                                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-linear-to-r from-red-400 via-amber-400 to-green-500 rounded-full transition-all duration-300"
-                                                    style={{ width: `${data.passing_score}%` }}
+                                                    style={{ width: `${passingScore}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -420,8 +451,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     <CardContent className="pt-5 space-y-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                <div className={`p-1.5 rounded-lg transition-colors ${data.is_timed ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-muted'}`}>
-                                                    <Clock className={`h-4 w-4 transition-colors ${data.is_timed ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
+                                                <div className={`p-1.5 rounded-lg transition-colors ${isTimed ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-muted'}`}>
+                                                    <Clock className={`h-4 w-4 transition-colors ${isTimed ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'}`} />
                                                 </div>
                                                 <div>
                                                     <p className="font-semibold text-base">Batas Waktu</p>
@@ -430,12 +461,12 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             </div>
                                             <Switch
                                                 id="is_timed"
-                                                checked={data.is_timed}
-                                                onCheckedChange={(checked) => setData('is_timed', checked)}
+                                                checked={isTimed}
+                                                onCheckedChange={setIsTimed}
                                             />
                                         </div>
 
-                                        {data.is_timed && (
+                                        {isTimed && (
                                             <div className="space-y-3 pt-1">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-medium">Durasi</span>
@@ -449,7 +480,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                     max="180"
                                                     step="1"
                                                     value={timeLimitMinutes}
-                                                    onChange={(e) => setData('time_limit_second', parseInt(e.target.value) * 60)}
+                                                    onChange={(e) => setTimeLimitSecond(parseInt(e.target.value) * 60)}
                                                     className="w-full h-2 rounded-full accent-blue-500 cursor-pointer"
                                                 />
                                                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -457,13 +488,12 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                     <span>1 jam</span>
                                                     <span>3 jam</span>
                                                 </div>
-                                                {/* Quick presets */}
                                                 <div className="flex flex-wrap gap-2 pt-1">
-                                                    {[15, 30, 45, 60, 90].map(min => (
+                                                    {[15, 30, 45, 60, 90].map((min) => (
                                                         <button
                                                             key={min}
                                                             type="button"
-                                                            onClick={() => setData('time_limit_second', min * 60)}
+                                                            onClick={() => setTimeLimitSecond(min * 60)}
                                                             className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
                                                                 timeLimitMinutes === min
                                                                     ? 'bg-blue-500 text-white border-blue-500'
@@ -501,7 +531,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     <div className="flex items-center gap-4">
                                         <span className="flex items-center gap-1.5 text-muted-foreground">
                                             <Hash className="h-3.5 w-3.5" />
-                                            <span><strong className="text-foreground">{data.questions.length}</strong> soal</span>
+                                            <span><strong className="text-foreground">{questions.length}</strong> soal</span>
                                         </span>
                                         <span className="flex items-center gap-1.5 text-muted-foreground">
                                             <Star className="h-3.5 w-3.5" />
@@ -515,20 +545,21 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                 </div>
 
                                 {/* Question cards */}
-                                {data.questions.map((question, qIndex) => {
+                                {questions.map((question, qIndex) => {
                                     const isExpanded = expandedQuestions.has(qIndex);
                                     const plainText = stripHtml(question.question_text);
                                     const hasText = plainText.length > 0;
                                     const hasImage = question.question_text.includes('<img');
-                                    const correctIdx = question.answers.findIndex(a => a.is_correct);
-                                    const isComplete = hasText && correctIdx !== -1 && question.answers[correctIdx]?.answer_text.trim().length > 0;
+                                    const correctIdx = question.answers.findIndex((a) => a.is_correct);
+                                    const isComplete =
+                                        (hasText || hasImage) &&
+                                        correctIdx !== -1 &&
+                                        question.answers[correctIdx]?.answer_text.trim().length > 0;
 
                                     return (
                                         <Card
                                             key={qIndex}
-                                            className={`border-0 shadow-sm overflow-hidden transition-all ${
-                                                isExpanded ? 'ring-1 ring-primary/20' : ''
-                                            }`}
+                                            className={`border-0 shadow-sm overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-primary/20' : ''}`}
                                         >
                                             {/* Question header */}
                                             <button
@@ -538,7 +569,9 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             >
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                                        isComplete ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-muted text-muted-foreground'
+                                                        isComplete
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                                                            : 'bg-muted text-muted-foreground'
                                                     }`}>
                                                         {isComplete ? <CheckCircle2 className="h-4 w-4" /> : qIndex + 1}
                                                     </div>
@@ -548,8 +581,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                                 ? plainText
                                                                 : hasImage
                                                                     ? 'Soal dengan gambar'
-                                                                    : `Soal ${qIndex + 1} — belum diisi`
-                                                            }
+                                                                    : `Soal ${qIndex + 1} — belum diisi`}
                                                         </p>
                                                         {!isExpanded && (
                                                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -576,7 +608,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                             onChange={(val) => updateQuestion(qIndex, 'question_text', val)}
                                                             placeholder="Tulis pertanyaanmu di sini... (bisa sisipkan gambar)"
                                                         />
-                                                        <InputError message={errors[`questions.${qIndex}.question_text` as keyof typeof errors]} />
+                                                        <InputError message={errors[`questions.${qIndex}.question_text`]} />
                                                     </div>
 
                                                     {/* Point */}
@@ -604,7 +636,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                         </div>
                                                     </div>
 
-                                                    {/* Answer options */}
+                                                    {/* Answers */}
                                                     <div className="space-y-2">
                                                         <Label className="text-sm font-medium">
                                                             Pilihan Jawaban <span className="text-destructive">*</span>
@@ -629,10 +661,11 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                                         className="shrink-0 transition-transform hover:scale-110"
                                                                         title="Tandai sebagai jawaban benar"
                                                                     >
-                                                                        {isCorrect
-                                                                            ? <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                                                            : <Circle className="h-5 w-5 text-muted-foreground/40" />
-                                                                        }
+                                                                        {isCorrect ? (
+                                                                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                                        ) : (
+                                                                            <Circle className="h-5 w-5 text-muted-foreground/40" />
+                                                                        )}
                                                                     </button>
                                                                     <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${ANSWER_LABEL_COLORS[aIndex]}`}>
                                                                         {ANSWER_LABELS[aIndex]}
@@ -646,7 +679,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                                 </div>
                                                             );
                                                         })}
-                                                        <InputError message={errors[`questions.${qIndex}.answers` as keyof typeof errors]} />
+                                                        <InputError message={errors[`questions.${qIndex}.answers`]} />
                                                     </div>
 
                                                     {/* Explanation */}
@@ -665,8 +698,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                         />
                                                     </div>
 
-                                                    {/* Remove button */}
-                                                    {data.questions.length > 1 && (
+                                                    {/* Remove */}
+                                                    {questions.length > 1 && (
                                                         <div className="flex justify-end pt-1">
                                                             <Button
                                                                 type="button"
@@ -686,7 +719,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     );
                                 })}
 
-                                {/* Add question button */}
+                                {/* Add question */}
                                 <button
                                     type="button"
                                     onClick={addQuestion}
@@ -696,7 +729,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     Tambah Soal Baru
                                 </button>
 
-                                {/* Action buttons */}
+                                {/* Actions */}
                                 <div className="flex gap-3 pt-2">
                                     <Button
                                         type="button"
@@ -729,8 +762,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             </>
                                         ) : (
                                             <>
-                                                <CheckCircle2 className="h-4 w-4" />
-                                                Simpan Quiz
+                                                <Save className="h-4 w-4" />
+                                                Simpan Perubahan
                                             </>
                                         )}
                                     </Button>
@@ -746,11 +779,11 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                 <DialogContent className="w-full max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-primary" />
-                            Simpan Quiz
+                            <Save className="h-5 w-5 text-primary" />
+                            Simpan Perubahan
                         </DialogTitle>
                         <DialogDescription className="pt-1">
-                            Quiz <strong>&ldquo;{data.title}&rdquo;</strong> siap disimpan.
+                            Quiz <strong>&ldquo;{title}&rdquo;</strong> akan diperbarui.
                             Pilih status untuk quiz ini.
                         </DialogDescription>
                     </DialogHeader>
@@ -759,16 +792,16 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                     <div className="rounded-xl bg-muted/50 px-4 py-3 text-sm space-y-1.5 my-1">
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Total soal</span>
-                            <span className="font-medium">{data.questions.length} soal</span>
+                            <span className="font-medium">{questions.length} soal</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Soal lengkap</span>
                             <span className={`font-medium ${
-                                completedQuestions === data.questions.length
+                                completedQuestions === questions.length
                                     ? 'text-green-600 dark:text-green-400'
                                     : 'text-amber-600 dark:text-amber-400'
                             }`}>
-                                {completedQuestions} / {data.questions.length}
+                                {completedQuestions} / {questions.length}
                             </span>
                         </div>
                         <div className="flex justify-between">
@@ -777,9 +810,9 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Nilai kelulusan</span>
-                            <span className="font-medium">{data.passing_score}%</span>
+                            <span className="font-medium">{passingScore}%</span>
                         </div>
-                        {data.is_timed && (
+                        {isTimed && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Batas waktu</span>
                                 <span className="font-medium">{timeLimitMinutes} menit</span>
@@ -787,11 +820,11 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                         )}
                     </div>
 
-                    {completedQuestions < data.questions.length && (
+                    {completedQuestions < questions.length && (
                         <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
                             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                             <span>
-                                {data.questions.length - completedQuestions} soal belum lengkap.
+                                {questions.length - completedQuestions} soal belum lengkap.
                                 Quiz tetap bisa disimpan sebagai draft.
                             </span>
                         </div>
@@ -820,7 +853,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                         <Button
                             type="button"
                             onClick={() => submitWithStatus('published')}
-                            disabled={processing || completedQuestions < data.questions.length}
+                            disabled={processing || completedQuestions < questions.length}
                             className="w-full sm:w-auto gap-2"
                         >
                             {processing ? (

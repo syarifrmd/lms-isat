@@ -22,6 +22,7 @@ class Quiz extends Model
         'is_timed',
         'time_limit_second',
         'xp_bonus',
+        'status',
     ];
 
     protected $casts = [
