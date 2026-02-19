@@ -9,6 +9,7 @@ use App\Models\Answer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class AssessmentsController extends Controller
@@ -111,12 +112,12 @@ class AssessmentsController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'module_id' => 'nullable|exists:modules,id',
-            'module_id' => '|exists:modules,id',
             'passing_score' => 'required|integer|min:0|max:100',
             'min_score' => 'integer|min:0|max:100',
             'is_timed' => 'boolean',
             'time_limit_second' => 'nullable|integer|min:1',
             'xp_bonus' => 'nullable|numeric|min:0',
+            'status' => 'required|in:draft,published',
             'questions' => 'required|array|min:1',
             'questions.*.question_text' => 'required|string',
             'questions.*.explanation' => 'nullable|string',
@@ -172,6 +173,7 @@ class AssessmentsController extends Controller
                 'is_timed' => $validated['is_timed'] ?? false,
                 'time_limit_second' => $validated['time_limit_second'],
                 'xp_bonus' => $validated['xp_bonus'],
+                'status' => $validated['status'],
             ]);
 
             // Create questions and answers
@@ -242,6 +244,7 @@ class AssessmentsController extends Controller
             'is_timed' => 'boolean',
             'time_limit_second' => 'nullable|integer|min:1',
             'xp_bonus' => 'nullable|numeric|min:0',
+            'status' => 'sometimes|in:draft,published',
             'questions' => 'required|array|min:1',
             'questions.*.id' => 'nullable|exists:questions,id',
             'questions.*.question_text' => 'required|string',
@@ -282,6 +285,7 @@ class AssessmentsController extends Controller
                 'is_timed' => $validated['is_timed'] ?? false,
                 'time_limit_second' => $validated['time_limit_second'],
                 'xp_bonus' => $validated['xp_bonus'],
+                'status' => $validated['status'] ?? $quiz->status,
             ]);
 
             // Get existing question IDs
@@ -355,6 +359,21 @@ class AssessmentsController extends Controller
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to update quiz: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Upload an image for quiz questions and return the URL.
+     */
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|max:5120', // 5MB max
+        ]);
+
+        $path = $request->file('image')->store('quiz-images', 'public');
+        $url = Storage::disk('public')->url($path);
+
+        return response()->json(['url' => $url]);
     }
 
     /**
