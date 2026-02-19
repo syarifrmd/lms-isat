@@ -2,7 +2,12 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
     SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard, logout } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
@@ -18,9 +23,6 @@ import {
     Trophy,
     Users,
 } from 'lucide-react';
-
-// Map icon names if needed, or use lucide-react direct imports
-// BarChart3 might be BarChart or ChartBar in some versions
 
 export function AppSidebar() {
     const { props, url } = usePage<SharedData>();
@@ -48,7 +50,7 @@ export function AppSidebar() {
                     { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Students', href: '/dashboard/students', icon: Users },
                 ];
-            case 'user': // Previously 'dse'
+            case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/courses', icon: BookOpen },
@@ -67,97 +69,106 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-            <SidebarHeader className="border-b border-sidebar-border p-6 bg-sidebar" >
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600">
-                        <GraduationCap className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                        <div className="font-bold text-sidebar-foreground">Indosat LMS</div>
-                        <div className="text-xs capitalize text-muted-foreground">
-                            {role || 'User'} Portal
-                        </div>
-                    </div>
-                </div>
+
+            {/* ── Logo header ── */}
+            <SidebarHeader className="border-b border-sidebar-border bg-sidebar px-2 py-3">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton size="lg" tooltip="Indosat LMS" asChild className="hover:bg-transparent active:bg-transparent cursor-default">
+                            <Link href={dashboard().url}>
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600">
+                                    <GraduationCap className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="flex flex-col leading-tight min-w-0">
+                                    <span className="font-bold text-sidebar-foreground truncate">Indosat LMS</span>
+                                    <span className="text-xs capitalize text-muted-foreground truncate">
+                                        {role || 'User'} Portal
+                                    </span>
+                                </div>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarHeader>
 
             <SidebarContent className="bg-sidebar">
-                {/* User Profile Section */}
-                <div className="border-b border-sidebar-border p-6">
-                    <div className="flex items-center gap-3">
-                        <img
-                            src={
-                                user.avatar ||
-                                `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`
-                            }
-                            alt={user.name}
-                            className="h-12 w-12 rounded-full border-2 border-yellow-400 bg-gray-600"
-                        />
-                        <div className="flex-1 overflow-hidden">
-                            <div className="truncate font-medium text-sidebar-foreground">
-                                {user.name}
-                            </div>
-                            <div className="truncate text-sm text-muted-foreground">
-                                {user.email}
-                            </div>
-                            {role === 'user' && ( // role was 'dse' in previous app
-                                <div className="mt-1 flex items-center gap-2">
-                                    <span className="text-xs text-yellow-400">
-                                        Level {user.level || 1}
-                                    </span>
-                                    <span className="dark:text-white text-gray-900">•</span>
-                                    <span className="text-xs text-gray-900">
-                                        {user.points || 0} pts
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
 
-                {/* Navigation Links */}
-                <div className="flex-1 space-y-1 p-4">
-                    {navItems.map((item) => {
-                        const Icon = item.icon!;
-                        const active = isActive(item.href as string);
-                        return (
-                            <Link
-                                key={item.href as string}
-                                href={item.href}
-                                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
-                                    active
-                                        ? 'bg-red-600'
-                                        : 'bg-transparent hover:bg-white/5'
-                                }`}
-                            >
-                                <Icon
-                                    className={`h-5 w-5 ${
-                                        active ? 'text-white' : 'dark:text-white text-gray-900'
-                                    }`}
-                                />
-                                <span
-                                    className={
-                                        active ? 'text-white' : 'dark:text-white text-gray-900'
-                                    }
+                {/* ── User profile ── */}
+                <SidebarGroup className="border-b border-sidebar-border py-2 px-2">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    size="lg"
+                                    tooltip={user.name}
+                                    className="cursor-default hover:bg-transparent active:bg-transparent data-[active=true]:bg-transparent"
                                 >
-                                    {item.title}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </div>
+                                    <img
+                                        src={
+                                            user.avatar ||
+                                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`
+                                        }
+                                        alt={user.name}
+                                        className="h-8 w-8 shrink-0 rounded-full border-2 border-yellow-400 bg-gray-600 object-cover"
+                                    />
+                                    <div className="flex flex-col leading-tight min-w-0">
+                                        <span className="truncate font-medium text-sidebar-foreground text-sm">
+                                            {user.name}
+                                        </span>
+                                        <span className="truncate text-xs text-muted-foreground">
+                                            {user.email}
+                                        </span>
+                                        {role === 'user' && (
+                                            <span className="text-xs text-yellow-400 mt-0.5">
+                                                Level {user.level || 1} · {user.points || 0} pts
+                                            </span>
+                                        )}
+                                    </div>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                {/* ── Navigation ── */}
+                <SidebarGroup className="py-2">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {navItems.map((item) => {
+                                const Icon = item.icon!;
+                                const active = isActive(item.href as string);
+                                return (
+                                    <SidebarMenuItem key={item.href as string}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={active}
+                                            tooltip={item.title}
+                                        >
+                                            <Link href={item.href}>
+                                                <Icon />
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                );
+                            })}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter className=" bg-sidebar p-4 text-gray-900">
-                <Link
-                    href={logout().url}
-                    method="post"
-                    as="button"
-                    className="flex w-full items-center gap-3 rounded-lg px-4 py-3 hover:bg-white/5"
-                >
-                    <LogOut className="h-5 w-5 dark:text-white text-[#111111]" />
-                    <span className="dark:text-white text-gray-900">Logout</span>
-                </Link>
+            {/* ── Logout footer ── */}
+            <SidebarFooter className="bg-sidebar border-t border-sidebar-border py-2">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild tooltip="Logout">
+                            <Link href={logout().url} method="post" as="button">
+                                <LogOut />
+                                <span>Logout</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarFooter>
         </Sidebar>
     );
