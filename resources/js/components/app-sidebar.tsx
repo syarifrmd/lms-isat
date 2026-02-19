@@ -52,7 +52,7 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/courses', icon: BookOpen },
-                    { title: 'Certificates', href: '/dashboard/certificates', icon: GraduationCap },
+                    { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                     { title: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
                     { title: 'My Badges', href: '/dashboard/badges', icon: Award },
                 ];
