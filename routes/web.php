@@ -15,8 +15,8 @@ use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CourseRatingController;
-use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\LeaderboardController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -61,13 +61,13 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // Leaderboard
-    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
     
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
     Route::get('/courses/{id}', [CourseController::class, 'show'])->name('courses.show');
+
+     // Leaderboard
+    Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
     
     // Enrollment (Users can enroll/unenroll from courses)
     Route::post('/courses/{id}/enroll', [EnrollmentController::class, 'store'])->name('courses.enroll');
@@ -91,16 +91,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
     Route::get('/certificate/{courseId}', [CertificateController::class, 'show'])->name('certificate.show');
     Route::get('/certificate/{courseId}/download', [CertificateController::class, 'download'])->name('certificate.download');
+
+    // Course Ratings
+    Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
+    Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 });
 
 // Trainer & Admin - Students Monitoring
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
-
-    // Course Ratings
-    Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
-    Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 });
 
 // Trainer Only Routes - Modules & Assessments
