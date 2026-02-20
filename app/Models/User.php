@@ -33,6 +33,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'google_id', // Add google_id here
         'avatar',    // Add avatar if stored
         'is_registered',
+        'xp',
     ];
     
     

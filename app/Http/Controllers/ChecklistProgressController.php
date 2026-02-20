@@ -26,6 +26,12 @@ class ChecklistProgressController extends Controller
             ->where('course_id', $module->course_id)
             ->firstOrFail();
 
+        // Cek apakah checklist item ini sudah pernah diselesaikan sebelumnya
+        $wasAlreadyCompleted = ModuleProgress::where('enrollment_id', $enrollment->id)
+            ->where('checklist_item_id', $checklistItemId)
+            ->where('is_completed', true)
+            ->exists();
+
         // Create or update progress for this checklist item
         $progress = ModuleProgress::updateOrCreate(
             [
@@ -42,6 +48,11 @@ class ChecklistProgressController extends Controller
                 'is_quiz_passed' => $checklistItem->type === 'quiz' ? true : null,
             ]
         );
+
+        // Award XP hanya jika belum pernah diselesaikan sebelumnya
+        if (!$wasAlreadyCompleted && $checklistItem->xp_reward > 0) {
+            $user->increment('xp', $checklistItem->xp_reward);
+        }
 
         // Update overall enrollment progress
         $this->updateEnrollmentProgress($enrollment);
