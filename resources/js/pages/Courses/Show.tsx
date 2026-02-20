@@ -1,10 +1,11 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, usePage, router } from '@inertiajs/react';
+import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2 } from 'lucide-react';
 import { Quiz, SharedData } from '@/types';
+import { useState } from 'react';
 
 interface Module {
     id: number;
@@ -35,15 +36,31 @@ interface CourseCreator {
     id?: string;
 }
 
-interface ShowProps {
-    course: Course;
-    userProgress?: number; // optional karena trainer tidak punya progress
+interface UserRating {
+    rating: number;
+    review: string | null;
 }
 
-export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
+interface RatingData {
+    average: number | null;
+    count: number;
+    distribution: Record<string, number>;
+    user_rating: UserRating | null;
+}
+
+interface ShowProps {
+    course: Course;
+    userProgress?: number;
+    isEnrolled?: boolean;
+    ratingData?: RatingData;
+}
+
+export default function CourseShow({ course, userProgress = 0, isEnrolled = false, ratingData }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
-    const isTrainer = auth.user.role === 'trainer' || auth.user.role === 'admin'; // Ubah dari profile.role
+    const isAdmin = auth.user.role === 'admin';
+    const isTrainer = auth.user.role === 'trainer' || isAdmin;
     const isCreator = course.created_by === auth.user.id;
+    const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
 
@@ -70,6 +87,22 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
         });
     };
 
+    // ── Rating form ─────────────────────────────────────────────────────────
+    const [hovered, setHovered] = useState(0);
+    const { data: ratingForm, setData: setRatingData, post: postRating, delete: deleteRating, processing: ratingProcessing } = useForm({
+        rating: ratingData?.user_rating?.rating ?? 0,
+        review: ratingData?.user_rating?.review ?? '',
+    });
+
+    const submitRating = (e: React.FormEvent) => {
+        e.preventDefault();
+        postRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
+    };
+
+    const removeRating = () => {
+        deleteRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
+    };
+
 
     return (
         <AppLayout 
@@ -85,14 +118,26 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-3xl">{course.title}</CardTitle>
-                            <CardDescription className="text-lg mt-2">{course.description}</CardDescription>
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-3xl">{course.title}</CardTitle>
+                                    <CardDescription className="text-lg mt-2">{course.description}</CardDescription>
+                                </div>
+                                {isTrainer && canManage && (
+                                    <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5">
+                                        <Link href={`/courses/${course.id}/edit`}>
+                                            <Edit className="w-3.5 h-3.5" />
+                                            Edit Course
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
                         </CardHeader>
                     </Card>
 
                     <div className="flex items-center justify-between">
                          <h2 className="text-xl font-bold">Course Modules</h2>
-                         {isTrainer && isCreator && (
+                         {isTrainer && canManage && (
                              <Button asChild>
                                 <Link href={`/courses/${course.id}/modules/create`}>
                                     <Plus className="w-4 h-4 mr-2" />
@@ -147,7 +192,7 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    {isTrainer && isCreator && (
+                                                    {isTrainer && canManage && (
                                                         <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
                                                             <Link href={`/courses/${course.id}/modules/${module.id}/edit`}>
                                                                 <Edit className="w-4 h-4" />
@@ -377,6 +422,133 @@ export default function CourseShow({ course, userProgress = 0 }: ShowProps) {
                                     </div>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* ── Course Rating Card ── */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                Course Rating
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Average display */}
+                            <div className="flex items-end gap-3">
+                                <span className="text-4xl font-bold text-gray-900 dark:text-white leading-none">
+                                    {ratingData?.average ?? '—'}
+                                </span>
+                                <div className="pb-0.5 space-y-1">
+                                    <div className="flex gap-0.5">
+                                        {[1,2,3,4,5].map(s => (
+                                            <Star
+                                                key={s}
+                                                className={`w-4 h-4 ${
+                                                    s <= Math.round(ratingData?.average ?? 0)
+                                                        ? 'text-amber-400 fill-amber-400'
+                                                        : 'text-gray-300 dark:text-neutral-600'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{ratingData?.count ?? 0} rating{ratingData?.count !== 1 ? 's' : ''}</p>
+                                </div>
+                            </div>
+
+                            {/* Distribution bars */}
+                            {(ratingData?.count ?? 0) > 0 && (
+                                <div className="space-y-1.5">
+                                    {[5,4,3,2,1].map(star => {
+                                        const count = ratingData?.distribution?.[star] ?? 0;
+                                        const pct = ratingData?.count ? Math.round((count / ratingData.count) * 100) : 0;
+                                        return (
+                                            <div key={star} className="flex items-center gap-2 text-xs">
+                                                <span className="w-3 text-muted-foreground">{star}</span>
+                                                <Star className="w-3 h-3 shrink-0 text-amber-400 fill-amber-400" />
+                                                <div className="flex-1 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-neutral-800">
+                                                    <div
+                                                        className="h-full rounded-full bg-amber-400 transition-all"
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                                <span className="w-6 text-right text-muted-foreground">{count}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Rating form — only for enrolled non-trainer users */}
+                            {!isTrainer && isEnrolled && (
+                                <div className="border-t pt-4 space-y-3">
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {ratingData?.user_rating ? 'Your Rating' : 'Rate this Course'}
+                                    </p>
+                                    <form onSubmit={submitRating} className="space-y-3">
+                                        {/* Star selector */}
+                                        <div className="flex gap-1">
+                                            {[1,2,3,4,5].map(star => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    onMouseEnter={() => setHovered(star)}
+                                                    onMouseLeave={() => setHovered(0)}
+                                                    onClick={() => setRatingData('rating', star)}
+                                                    className="p-0.5 focus:outline-none"
+                                                >
+                                                    <Star
+                                                        className={`w-7 h-7 transition-colors ${
+                                                            star <= (hovered || ratingForm.rating)
+                                                                ? 'text-amber-400 fill-amber-400'
+                                                                : 'text-gray-300 dark:text-neutral-600'
+                                                        }`}
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* Review textarea */}
+                                        <textarea
+                                            value={ratingForm.review}
+                                            onChange={e => setRatingData('review', e.target.value)}
+                                            placeholder="Share your experience (optional)..."
+                                            rows={3}
+                                            className="w-full resize-none rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-800 placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-white/10 dark:text-gray-200"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={ratingProcessing || ratingForm.rating === 0}
+                                                className="flex-1 gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+                                            >
+                                                <Star className="w-3.5 h-3.5 fill-white" />
+                                                {ratingData?.user_rating ? 'Update' : 'Submit'} Rating
+                                            </Button>
+                                            {ratingData?.user_rating && (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={ratingProcessing}
+                                                    onClick={removeRating}
+                                                    className="gap-1 text-red-500 border-red-200 hover:bg-red-50 dark:border-red-900/40 dark:hover:bg-red-900/20"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* Message for non-enrolled users */}
+                            {!isTrainer && !isEnrolled && (
+                                <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 dark:border-white/10 px-3 py-2.5 text-xs text-muted-foreground">
+                                    <MessageSquare className="w-4 h-4 shrink-0" />
+                                    Enroll to rate this course
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

@@ -10,7 +10,6 @@ import {
     Settings,
     Trophy,
     Users,
-    BarChart3,
 } from 'lucide-react';
 
 interface NavItem {
@@ -32,8 +31,7 @@ export function MobileBottomNav() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'Users', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
-                    { title: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-                    { title: 'Settings', href: '/dashboard/settings', icon: Settings },
+                    { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [

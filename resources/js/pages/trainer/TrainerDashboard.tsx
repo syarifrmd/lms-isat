@@ -9,6 +9,7 @@ import {
     FileText,
     LogOut,
     PlusCircle,
+    Star,
     Users,
     Video,
     Youtube,
@@ -253,9 +254,17 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                                     <p className="font-medium text-gray-900 dark:text-white truncate text-sm">
                                         {course.title}
                                     </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {course.students_count ?? 0} siswa
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            {course.students_count ?? 0} siswa
+                                        </p>
+                                        {course.rating != null && (
+                                            <span className="flex items-center gap-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                                {course.rating}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusColors[course.status ?? 'draft']}`}>
                                     {course.status ?? 'draft'}

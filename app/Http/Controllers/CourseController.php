@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseRating;
 use App\Models\Module;
 use App\Models\Enrollment; // Pastikan import ini ada
 use App\Models\ModuleProgress; // Pastikan import ini ada
@@ -137,10 +138,111 @@ class CourseController extends Controller
         }
 
         return Inertia::render('Courses/Show', [
-            'course' => $course,
+            'course'       => $course,
             'userProgress' => $enrollment ? $enrollment->progress_percentage : 0,
-            'isEnrolled' => $enrollment ? true : false,
+            'isEnrolled'   => $enrollment ? true : false,
+            'ratingData'   => [
+                'average'      => $course->ratings()->avg('rating')
+                    ? round((float) $course->ratings()->avg('rating'), 1)
+                    : null,
+                'count'        => $course->ratings()->count(),
+                'distribution' => $course->ratings()
+                    ->selectRaw('rating, count(*) as total')
+                    ->groupBy('rating')
+                    ->orderByDesc('rating')
+                    ->pluck('total', 'rating'),
+                'user_rating'  => Auth::check()
+                    ? CourseRating::where('course_id', $id)
+                        ->where('user_id', Auth::id())
+                        ->first(['rating', 'review'])
+                    : null,
+            ],
         ]);
+    }
+
+    public function edit(Course $course)
+    {
+        $user = Auth::user();
+
+        // Trainer can only edit their own courses; admin can edit all
+        if ($user->role === 'trainer' && $course->created_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $course->load(['modules' => function ($q) {
+            $q->orderBy('order_sequence', 'asc');
+        }]);
+
+        return Inertia::render('Courses/Edit', [
+            'course' => $course,
+        ]);
+    }
+
+    public function update(Request $request, Course $course)
+    {
+        $user = Auth::user();
+
+        // Trainer can only edit their own courses; admin can edit all
+        if ($user->role === 'trainer' && $course->created_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category'    => 'nullable|string',
+            'status'      => 'required|in:draft,published,archived',
+            'cover_image' => 'nullable|image|max:2048',
+            'start_date'  => 'nullable|date',
+            'end_date'    => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $updateData = [
+            'title'       => $request->title,
+            'description' => $request->description,
+            'category'    => $request->category,
+            'status'      => $request->status,
+            'start_date'  => $request->start_date,
+            'end_date'    => $request->end_date,
+        ];
+
+        if ($request->hasFile('cover_image')) {
+            // Delete old cover if stored
+            if ($course->cover_url) {
+                $oldPath = str_replace('/storage/', '', $course->cover_url);
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('cover_image')->store('covers', 'public');
+            $updateData['cover_url'] = Storage::url($path);
+        }
+
+        $course->update($updateData);
+
+        return redirect()->route('courses.edit', $course->id)
+            ->with('success', 'Course updated successfully.');
+    }
+
+    public function reorderModules(Request $request, Course $course)
+    {
+        $user = Auth::user();
+
+        if ($user->role === 'trainer' && $course->created_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'modules'             => 'required|array',
+            'modules.*.id'        => 'required|integer|exists:modules,id',
+            'modules.*.order_sequence' => 'required|integer|min:1',
+        ]);
+
+        foreach ($request->modules as $item) {
+            Module::where('id', $item['id'])
+                ->where('course_id', $course->id)
+                ->update(['order_sequence' => $item['order_sequence']]);
+        }
+
+        return response()->json(['message' => 'Modules reordered successfully.']);
     }
 
     public function destroy(Course $course)
