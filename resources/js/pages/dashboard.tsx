@@ -4,11 +4,45 @@ import { dashboard, logout } from '@/routes';
 import { type BreadcrumbItem, type SharedData, type TrainerDashboardData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { LogOut } from 'lucide-react';
+import AdminDashboard from './admin/AdminDashboard';
 import TrainerDashboard from './trainer/TrainerDashboard';
 // import EmployeeDashboard from './employee/EmployeeDashboard'; // Uncomment when created
 
+interface AdminData {
+    stats: {
+        total_users: number;
+        total_trainers: number;
+        total_students: number;
+        total_courses: number;
+        total_enrollments: number;
+        completed_enrollments: number;
+        completion_rate: number;
+    };
+    courses_by_status: Record<string, number>;
+    popular_courses: Array<{
+        id: number;
+        title: string;
+        status: string;
+        enrollments_count: number;
+        creator_name: string;
+    }>;
+    monthly_enrollments: Record<string, number>;
+    recent_enrollments: Array<{
+        course_title: string;
+        user_name: string;
+        status: string;
+        progress: number;
+        enrolled_at: string;
+    }>;
+    trainer_stats: Array<{
+        trainer_name: string;
+        student_total: number;
+    }>;
+}
+
 interface DashboardPageProps extends SharedData {
     dashboardData?: TrainerDashboardData;
+    adminData?: AdminData;
     youtube_connected: boolean;
 }
 
@@ -20,12 +54,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function Dashboard({ youtube_connected }: { youtube_connected: boolean }) {
-    const { auth, dashboardData } = usePage<DashboardPageProps>().props;
+    const { auth, dashboardData, adminData } = usePage<DashboardPageProps>().props;
     const role = auth.user.role?.toUpperCase();
 
     // Render dashboard berdasarkan role
     const renderDashboardContent = () => {
         switch (role) {
+            case 'ADMIN':
+                return <AdminDashboard data={adminData} />;
+
             case 'TRAINER':
                 return <TrainerDashboard data={dashboardData} youtube_connected={youtube_connected} />;
 

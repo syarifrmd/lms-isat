@@ -45,7 +45,7 @@ class ModuleController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
-            'doc_file' => 'nullable|file|max:51200', // 50MB
+            'doc_file' => 'nullable|file|max:51200',
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);

@@ -14,6 +14,7 @@ use App\Http\Controllers\ModuleProgressController;
 use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CertificateController;
+use App\Http\Controllers\CourseRatingController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -50,6 +51,9 @@ Route::controller(SocialLoginController::class)->group(function () {
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
     Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+    Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
+    Route::post('/courses/{course}/reorder-modules', [CourseController::class, 'reorderModules'])->name('courses.reorder-modules');
     Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
 });
 
@@ -81,6 +85,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Certificates
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
     Route::get('/certificate/{courseId}', [CertificateController::class, 'download'])->name('certificate.download');
+
+    // Course Ratings
+    Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
+    Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 });
 
 // Trainer Only Routes - Modules & Assessments

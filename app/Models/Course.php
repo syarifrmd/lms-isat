@@ -44,4 +44,18 @@ class Course extends Model
     {
         return $this->hasMany(Quiz::class);
     }
+
+    public function ratings()
+    {
+        return $this->hasMany(CourseRating::class);
+    }
+
+    /**
+     * Average rating as a float, or null if no ratings yet.
+     */
+    public function getAverageRatingAttribute(): ?float
+    {
+        $avg = $this->ratings()->avg('rating');
+        return $avg ? round((float) $avg, 1) : null;
+    }
 }

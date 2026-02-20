@@ -14,7 +14,6 @@ import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     Award,
-    BarChart3,
     BookOpen,
     GraduationCap,
     LayoutDashboard,
@@ -40,8 +39,7 @@ export function AppSidebar() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
-                    { title: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-                    { title: 'Settings', href: '/dashboard/settings', icon: Settings },
+                    { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
