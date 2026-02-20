@@ -28,26 +28,35 @@ class CertificateController extends Controller
         ]);
     }
 
+    public function show(Request $request, $courseId, CertificateService $certificateService)
+    {
+        $user = Auth::user();
+        $course = Course::findOrFail($courseId);
+
+        $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]);
+        $pdfContent = $certificateService->generate($user, $course, $verificationUrl);
+
+        // Inline: tampilkan di browser (iframe/tab baru)
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Sertifikat-' . $user->name . '.pdf"',
+        ]);
+    }
+
     public function download(Request $request, $courseId, CertificateService $certificateService)
     {
         $user = Auth::user();
         
-        // Logika untuk mengambil data Course (Sesuaikan dengan model Anda)
         $course = Course::findOrFail($courseId);
 
-        // TODO: Tambahkan validasi apakah user sudah menyelesaikan course ini
-        // if (!$user->hasCompleted($course)) { abort(403); }
-
-        // URL yang akan muncul saat QR discan (misalnya halaman verifikasi keaslian)
         $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]); 
 
-        // Generate PDF Content
         $pdfContent = $certificateService->generate($user, $course, $verificationUrl);
 
-        // Return response stream agar browser mendeteksi ini file PDF
+        // Attachment: force download
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="Sertifikat-'.$user->name.'.pdf"',
+            'Content-Disposition' => 'attachment; filename="Sertifikat-' . $user->name . '.pdf"',
         ]);
     }
 }

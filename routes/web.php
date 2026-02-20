@@ -15,6 +15,7 @@ use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\UserManagementController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\StudentController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -84,7 +85,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Certificates
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
-    Route::get('/certificate/{courseId}', [CertificateController::class, 'download'])->name('certificate.download');
+    Route::get('/certificate/{courseId}', [CertificateController::class, 'show'])->name('certificate.show');
+    Route::get('/certificate/{courseId}/download', [CertificateController::class, 'download'])->name('certificate.download');
+});
+
+// Trainer & Admin - Students Monitoring
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 });
 
 // Trainer Only Routes - Modules & Assessments
