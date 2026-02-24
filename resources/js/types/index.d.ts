@@ -87,6 +87,56 @@ export interface TrainerDashboardData {
     recent_courses: Course[];
 }
 
+export interface UserDashboardStats {
+    enrolled_courses: number;
+    completed_courses: number;
+    quiz_attempts: number;
+    passed_quizzes: number;
+    certificates: number;
+    xp: number;
+    rank: number;
+}
+
+export interface UserActiveCourse {
+    course_id: number;
+    title: string;
+    cover_url: string | null;
+    category: string | null;
+    creator_name: string;
+    progress: number;
+    enrolled_at: string;
+}
+
+export interface UserQuizResult {
+    quiz_title: string;
+    course_title: string;
+    score: number;
+    is_passed: boolean;
+    submitted_at: string;
+}
+
+export interface UserWeeklyProgress {
+    day: string;
+    date: string;
+    minutes: number;
+}
+
+export interface UserCourseCalendar {
+    course_id: number;
+    title: string;
+    start_date: string | null;
+    end_date: string | null;
+    color_index: number;
+}
+
+export interface UserDashboardData {
+    stats: UserDashboardStats;
+    active_courses: UserActiveCourse[];
+    recent_attempts: UserQuizResult[];
+    weekly_progress: UserWeeklyProgress[];
+    course_calendar: UserCourseCalendar[];
+}
+
 export interface Answer {
     id: number;
     question_id: number;
