@@ -9,7 +9,6 @@ use App\Models\ModuleProgress;
 use App\Models\User;
 use App\Models\UserQuizAttempt;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -220,16 +219,19 @@ class DashboardController extends Controller
                 'submitted_at' => $a->submitted_at?->diffForHumans() ?? 'N/A',
             ]);
 
-        // Aktivitas mingguan — total menit aktif dari cache (di-ping frontend setiap 60 detik)
+        // Aktivitas mingguan — baca dari tabel user_daily_activity (7 hari terakhir)
+        $activityRows = DB::table('user_daily_activity')
+            ->where('user_id', $userId)
+            ->whereBetween('date', [now()->subDays(6)->toDateString(), now()->toDateString()])
+            ->pluck('minutes', 'date'); // ['2026-02-19' => 45, ...]
+
         $weeklyProgress = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date         = now()->subDays($i);
-            $dateKey      = $date->format('Y-m-d');
-            $totalMinutes = (int) Cache::get("activity_minutes_{$userId}_{$dateKey}", 0);
+            $date = now()->subDays($i);
             $weeklyProgress[] = [
                 'day'     => $date->locale('id')->isoFormat('ddd'),
                 'date'    => $date->format('d M'),
-                'minutes' => (int) $totalMinutes,
+                'minutes' => (int) ($activityRows[$date->toDateString()] ?? 0),
             ];
         }
 
