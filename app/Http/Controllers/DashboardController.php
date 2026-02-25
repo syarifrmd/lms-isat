@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\CourseRating;
 use App\Models\Enrollment;
+use App\Models\ModuleProgress;
 use App\Models\User;
+use App\Models\UserQuizAttempt;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -19,7 +22,7 @@ class DashboardController extends Controller
         $role = $user->role;
         $youtubeConnected = Storage::disk('local')->exists('google-token.json');
 
-        // ── Admin Dashboard ──────────────────────────────────────────────────
+        // ── Admin Dashboard 
         if ($role === 'admin') {
             // Overview stats
             $totalUsers    = User::count();
@@ -173,7 +176,93 @@ class DashboardController extends Controller
         }
 
         // ── Default (User/Employee) ──────────────────────────────────────────
+        $userId = $user->id;
+
+        // Stats
+        $enrolledCount    = Enrollment::where('user_id', $userId)->count();
+        $completedCount   = Enrollment::where('user_id', $userId)->whereNotNull('completed_at')->count();
+        $quizAttemptCount = UserQuizAttempt::where('user_id', $userId)->count();
+        $passedQuizCount  = UserQuizAttempt::where('user_id', $userId)->where('is_passed', true)->count();
+        $xp               = $user->xp ?? 0;
+        $leaderboardRank  = DB::table('users')
+            ->where('role', 'user')
+            ->where('xp', '>', $xp)
+            ->count() + 1;
+
+        // Active (in-progress) enrollments
+        $activeCourses = Enrollment::where('user_id', $userId)
+            ->whereNull('completed_at')
+            ->with(['course:id,title,cover_url,category,created_by', 'course.creator:id,name'])
+            ->orderByDesc('enrollment_at')
+            ->limit(4)
+            ->get()
+            ->map(fn ($e) => [
+                'course_id'    => $e->course_id,
+                'title'        => $e->course?->title ?? 'N/A',
+                'cover_url'    => $e->course?->cover_url,
+                'category'     => $e->course?->category,
+                'creator_name' => $e->course?->creator?->name ?? 'N/A',
+                'progress'     => (float) ($e->progress_percentage ?? 0),
+                'enrolled_at'  => $e->enrollment_at?->diffForHumans() ?? 'N/A',
+            ]);
+
+        // Recent quiz attempts
+        $recentAttempts = UserQuizAttempt::where('user_id', $userId)
+            ->with(['quiz:id,title', 'course:id,title'])
+            ->orderByDesc('submitted_at')
+            ->limit(5)
+            ->get()
+            ->map(fn ($a) => [
+                'quiz_title'   => $a->quiz?->title ?? 'N/A',
+                'course_title' => $a->course?->title ?? 'N/A',
+                'score'        => (float) ($a->score ?? 0),
+                'is_passed'    => (bool) $a->is_passed,
+                'submitted_at' => $a->submitted_at?->diffForHumans() ?? 'N/A',
+            ]);
+
+        // Aktivitas mingguan — total menit aktif dari cache (di-ping frontend setiap 60 detik)
+        $weeklyProgress = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date         = now()->subDays($i);
+            $dateKey      = $date->format('Y-m-d');
+            $totalMinutes = (int) Cache::get("activity_minutes_{$userId}_{$dateKey}", 0);
+            $weeklyProgress[] = [
+                'day'     => $date->locale('id')->isoFormat('ddd'),
+                'date'    => $date->format('d M'),
+                'minutes' => (int) $totalMinutes,
+            ];
+        }
+
+        // Kalender: course yang diikuti beserta durasi (start_date – end_date)
+        $enrolledCourses = Enrollment::where('user_id', $userId)
+            ->with('course:id,title,start_date,end_date')
+            ->get()
+            ->filter(fn ($e) => $e->course && ($e->course->start_date || $e->course->end_date))
+            ->values()
+            ->map(fn ($e, $idx) => [
+                'course_id'   => $e->course->id,
+                'title'       => $e->course->title,
+                'start_date'  => $e->course->start_date?->format('Y-m-d'),
+                'end_date'    => $e->course->end_date?->format('Y-m-d'),
+                'color_index' => $idx % 6,
+            ]);
+
         return Inertia::render('dashboard', [
+            'userData' => [
+                'stats' => [
+                    'enrolled_courses'  => $enrolledCount,
+                    'completed_courses' => $completedCount,
+                    'quiz_attempts'     => $quizAttemptCount,
+                    'passed_quizzes'    => $passedQuizCount,
+                    'certificates'      => $completedCount,
+                    'xp'                => $xp,
+                    'rank'              => $leaderboardRank,
+                ],
+                'active_courses'   => $activeCourses,
+                'recent_attempts'  => $recentAttempts,
+                'weekly_progress'  => $weeklyProgress,
+                'course_calendar'  => $enrolledCourses,
+            ],
             'youtube_connected' => $youtubeConnected,
         ]);
     }

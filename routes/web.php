@@ -17,6 +17,7 @@ use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CourseRatingController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\LeaderboardController;
+use App\Http\Controllers\SessionPingController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -61,7 +62,10 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+
+    // Heartbeat aktivitas belajar (dipanggil frontend setiap 60 detik)
+    Route::post('/session/ping', [SessionPingController::class, 'ping'])->name('session.ping');
+
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
     Route::get('/courses/{id}', [CourseController::class, 'show'])->name('courses.show');
