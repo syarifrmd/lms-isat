@@ -12,7 +12,8 @@ class LeaderboardController extends Controller
     public function index()
     {
         // 1. Ambil 50 user teratas berdasarkan XP tertinggi
-        $topUsers = User::orderBy('xp', 'desc')
+        $topUsers = User::where('role', 'user')
+            ->orderBy('xp', 'desc')
             ->take(50)
             ->get();
 
@@ -29,7 +30,9 @@ class LeaderboardController extends Controller
         });
 
         // 3. Cari ranking user yang sedang login (jika tidak masuk top 50)
-        $currentUserRank = User::where('xp', '>', Auth::user()->xp)->count() + 1;
+        $currentUserRank = User::where('role', 'user')
+            ->where('xp', '>', Auth::user()->xp)
+            ->count() + 1;
 
         return Inertia::render('leaderboard/leaderboard', [
             'leaderboard' => $leaderboardData,
