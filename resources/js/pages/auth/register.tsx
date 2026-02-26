@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 import { Form, Head, Link } from '@inertiajs/react';
+import { SlideIn } from '@/components/page-transition';
 import { IdCard, Lock, Mail, User, Languages } from 'lucide-react';
 import { useState } from 'react';
 
@@ -53,6 +54,10 @@ const translations = {
       placeholder: 'Konfirmasi kata sandi Anda'
     },
     signUpButton: 'Daftar',
+    illustration: {
+      title: 'Selamat Datang di Indosat LMS',
+      desc: 'Platform pembelajaran digital terpadu untuk pengembangan kompetensi karyawan Indosat Ooredoo Hutchison.'
+    },
     footer: {
       terms: 'Dengan mendaftar, Anda menyetujui Syarat Layanan kami',
       link: 'Sudah punya akun? Masuk'
@@ -87,6 +92,10 @@ const translations = {
         placeholder: 'Confirm your password'
     },
     signUpButton: 'Sign Up',
+    illustration: {
+      title: 'Welcome to Indosat LMS',
+      desc: 'An integrated digital learning platform for the competency development of Indosat Ooredoo Hutchison employees.'
+    },
     footer: {
         terms: 'By signing up, you agree to our Terms of Service',
         link: 'Already have an account? Sign In'
@@ -103,67 +112,94 @@ export default function Register() {
     };
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-red-600 dark:bg-gray-950 p-4 relative transition-colors duration-300">
+        <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950 transition-colors duration-300">
             <Head title="Register" />
 
             {/* Language Switcher */}
-             <button 
+            <button
                 onClick={toggleLang}
-                className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors flex items-center space-x-1 backdrop-blur-sm z-50"
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-colors flex items-center space-x-1 backdrop-blur-sm z-50"
             >
-                <Languages className="w-5 h-5" />
-                <span className="text-sm font-medium">{lang === 'id' ? 'ID' : 'EN'}</span>
+                <Languages className="w-4 h-4" />
+                <span className="text-xs font-medium">{lang === 'id' ? 'ID' : 'EN'}</span>
             </button>
 
+            {/* LEFT: Illustration Panel */}
+            <SlideIn direction="left" className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-sky-500 to-pink-400 dark:from-gray-900 dark:to-gray-800 flex-col items-center justify-center p-8 relative overflow-hidden">
+                <div className="absolute top-[-80px] left-[-80px] w-80 h-80 bg-white/10 rounded-full" />
+                <div className="absolute bottom-[-60px] right-[-60px] w-64 h-64 bg-white/10 rounded-full" />
+                <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-white/5 rounded-full" />
 
-            <div className="w-full max-w-md animate-in fade-in zoom-in duration-300">
-                {/* Logo Section */}
-                <div className="mb-8 text-center">
-                    <div className="inline-block mb-4 rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-xl w-full">
-                        <h1 className="text-3xl font-bold text-red-600 dark:text-red-500">{t.brand}</h1>
-                        <p className="mt-2 text-gray-600 dark:text-gray-400 font-medium">{t.subtitle}</p>
-                    </div>
+                <div className="z-20 w-full max-w-lg mb-3">
+                    <img
+                        src="/assets/loginimage.png"
+                        alt="Learning Illustration"
+                        className="w-full h-96 object-contain drop-shadow-2xl"
+                    />
                 </div>
 
-                {/* Register Card */}
-                <div className="rounded-2xl bg-white dark:bg-gray-900 p-8 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
-                    {/* Toggle Tabs (Visual only, acting as links) */}
-                    <div className="mb-8 flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
+                <div className="z-10 text-center text-white max-w-md">
+                    <h2 className="text-3xl font-bold mb-2">{t.illustration.title}</h2>
+                    <p className="text-red-100 text-sm leading-relaxed">{t.illustration.desc}</p>
+                </div>
+            </SlideIn>
+
+            {/* RIGHT: Form */}
+            <SlideIn direction="right" delay={0.1} className="flex w-full lg:w-1/2 items-center justify-center px-8 overflow-hidden">
+                <div className="w-full max-w-md">
+
+                    {/* Logo Indosat */}
+                    <div className="mb-10 flex justify-center">
+                        {/* Light mode logo */}
+                        <img
+                            src="/assets/logoindosat.png"
+                            alt="Indosat Logo"
+                            className="h-14 w-auto object-contain dark:hidden"
+                        />
+                        {/* Dark mode logo */}
+                        <img
+                            src="/assets/logoindosatterang.png"
+                            alt="Indosat Logo"
+                            className="h-14 w-auto object-contain hidden dark:block"
+                        />
+                    </div>
+
+                    {/* Toggle Tabs */}
+                    <div className="mb-4 flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
                         <Link
                             href={login.url()}
-                            className="flex-1 py-3 transition-colors hover:text-gray-900 dark:hover:text-gray-200"
+                            className="flex-1 py-2 transition-colors"
                         >
-                            <div className="text-center font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                            <div className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
                                 {t.signIn}
                             </div>
                         </Link>
-                        <div className="flex-1 rounded-lg bg-white dark:bg-gray-700 py-3 shadow-sm transition-all">
-                            <div className="text-center font-bold text-red-600 dark:text-red-400">
+                        <div className="flex-1 rounded-lg bg-white dark:bg-gray-700 py-2 shadow-sm">
+                            <div className="text-center text-sm font-bold text-red-600 dark:text-red-400">
                                 {t.signUp}
                             </div>
                         </div>
                     </div>
 
-                    <h2 className="mb-8 text-center text-2xl font-bold text-gray-800 dark:text-white">
+                    <h2 className="mb-3 text-center text-lg font-bold text-gray-800 dark:text-white">
                         {t.createAccount}
                     </h2>
 
-                    {/* Google Login Section */}
-                    <div className="mb-6">
+                    {/* Google Button */}
+                    <div className="mb-3">
                         <a
-                            href="/login/google" 
-                            className="w-full h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-3 font-semibold rounded-lg shadow-sm"
+                            href="/login/google"
+                            className="w-full h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-sm"
                         >
-                            <GoogleIcon className="w-5 h-5" />
+                            <GoogleIcon className="w-4 h-4" />
                             <span>{t.googleSignUp}</span>
                         </a>
-
-                        <div className="relative mt-6 mb-2">
+                        <div className="relative mt-3 mb-1">
                             <div className="absolute inset-0 flex items-center">
                                 <span className="w-full border-t border-gray-200 dark:border-gray-700" />
                             </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="bg-white dark:bg-gray-900 px-4 text-gray-500 dark:text-gray-400">
+                            <div className="relative flex justify-center text-xs">
+                                <span className="bg-gray-50 dark:bg-gray-950 px-3 text-gray-500 dark:text-gray-400">
                                     {t.or}
                                 </span>
                             </div>
@@ -174,139 +210,107 @@ export default function Register() {
                         {...store.form()}
                         resetOnSuccess={['password', 'password_confirmation']}
                         disableWhileProcessing
-                        className="flex flex-col gap-6"
+                        className="flex flex-col gap-3"
                     >
                         {({ processing, errors }) => (
                             <>
-                                <div className="space-y-5">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="name" className="text-gray-700 dark:text-gray-300 font-semibold">{t.name.label}</Label>
-                                        <div className="relative group">
-                                            <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
-                                                <User size={20} />
+                                <div className="space-y-2">
+                                    <div>
+                                        <Label htmlFor="name" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.name.label}</Label>
+                                        <div className="relative group mt-1">
+                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                                <User size={15} />
                                             </div>
-                                            <Input
-                                                id="name"
-                                                type="text"
-                                                required
-                                                autoFocus
-                                                tabIndex={1}
-                                                autoComplete="name"
-                                                name="name"
+                                            <Input id="name" type="text" required autoFocus tabIndex={1} autoComplete="name" name="name"
                                                 placeholder={t.name.placeholder}
-                                                className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
+                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
                                             />
                                         </div>
-                                        <InputError message={errors.name} className="mt-1" />
+                                        <InputError message={errors.name} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="nik" className="text-gray-700 dark:text-gray-300 font-semibold">{t.nik.label}</Label>
-                                        <div className="relative group">
-                                            <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
-                                                <IdCard size={20} />
+                                    <div>
+                                        <Label htmlFor="nik" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.nik.label}</Label>
+                                        <div className="relative group mt-1">
+                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                                <IdCard size={15} />
                                             </div>
-                                            <Input
-                                                id="nik"
-                                                type="text"
-                                                required
-                                                tabIndex={2}
-                                                name="nik"
+                                            <Input id="nik" type="text" required tabIndex={2} name="nik"
                                                 placeholder={t.nik.placeholder}
-                                                className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
+                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
                                             />
                                         </div>
-                                        <InputError message={errors.nik} className="mt-1" />
+                                        <InputError message={errors.nik} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email" className="text-gray-700 dark:text-gray-300 font-semibold">{t.email.label}</Label>
-                                        <div className="relative group">
-                                            <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
-                                                <Mail size={20} />
+                                    <div>
+                                        <Label htmlFor="email" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.email.label}</Label>
+                                        <div className="relative group mt-1">
+                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                                <Mail size={15} />
                                             </div>
-                                            <Input
-                                                id="email"
-                                                type="email"
-                                                required
-                                                tabIndex={3}
-                                                autoComplete="email"
-                                                name="email"
+                                            <Input id="email" type="email" required tabIndex={3} autoComplete="email" name="email"
                                                 placeholder={t.email.placeholder}
-                                                className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
+                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
                                             />
                                         </div>
-                                        <InputError message={errors.email} className="mt-1" />
+                                        <InputError message={errors.email} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password" className="text-gray-700 dark:text-gray-300 font-semibold">{t.password.label}</Label>
-                                        <div className="relative group">
-                                            <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
-                                                <Lock size={20} />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <Label htmlFor="password" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.password.label}</Label>
+                                            <div className="relative group mt-1">
+                                                <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                                    <Lock size={15} />
+                                                </div>
+                                                <Input id="password" type="password" required tabIndex={4} autoComplete="new-password" name="password"
+                                                    placeholder={t.password.placeholder}
+                                                    className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                />
                                             </div>
-                                            <Input
-                                                id="password"
-                                                type="password"
-                                                required
-                                                tabIndex={4}
-                                                autoComplete="new-password"
-                                                name="password"
-                                                placeholder={t.password.placeholder}
-                                                className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
-                                            />
+                                            <InputError message={errors.password} className="text-xs mt-0.5" />
                                         </div>
-                                        <InputError message={errors.password} className="mt-1" />
-                                    </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="password_confirmation" className="text-gray-700 dark:text-gray-300 font-semibold">{t.confirmPassword.label}</Label>
-                                        <div className="relative group">
-                                            <div className="absolute left-3 top-3 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
-                                                <Lock size={20} />
+                                        <div>
+                                            <Label htmlFor="password_confirmation" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.confirmPassword.label}</Label>
+                                            <div className="relative group mt-1">
+                                                <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                                    <Lock size={15} />
+                                                </div>
+                                                <Input id="password_confirmation" type="password" required tabIndex={5} autoComplete="new-password" name="password_confirmation"
+                                                    placeholder={t.confirmPassword.placeholder}
+                                                    className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                />
                                             </div>
-                                            <Input
-                                                id="password_confirmation"
-                                                type="password"
-                                                required
-                                                tabIndex={5}
-                                                autoComplete="new-password"
-                                                name="password_confirmation"
-                                                placeholder={t.confirmPassword.placeholder}
-                                                className="h-12 pl-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg transition-all"
-                                            />
+                                            <InputError message={errors.password_confirmation} className="text-xs mt-0.5" />
                                         </div>
-                                        <InputError message={errors.password_confirmation} className="mt-1" />
                                     </div>
-
-                                    <Button
-                                        type="submit"
-                                        className="w-full h-12 text-base font-bold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-red-600/25 transition-all duration-300 rounded-lg"
-                                        tabIndex={6}
-                                        data-test="register-user-button"
-                                    >
-                                        {processing && <Spinner className="mr-2 text-white" />}
-                                        {t.signUpButton}
-                                    </Button>
                                 </div>
-                                <div className="mt-8 border-t border-gray-100 dark:border-gray-800 pt-6">
-                                    <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-                                        {t.footer.terms}
-                                    </p>
-                                    <div className="mt-4 text-center">
-                                        <Link
-                                            href={login.url()}
-                                            className="text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
-                                        >
-                                            {t.footer.link}
-                                        </Link>
-                                    </div>
+
+                                <Button
+                                    type="submit"
+                                    className="w-full h-10 text-sm font-bold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg transition-all duration-300 rounded-lg"
+                                    tabIndex={6}
+                                    data-test="register-user-button"
+                                >
+                                    {processing && <Spinner className="mr-2 text-white" />}
+                                    {t.signUpButton}
+                                </Button>
+
+                                <div className="border-t border-gray-200 dark:border-gray-800 pt-2 text-center">
+                                    <Link
+                                        href={login.url()}
+                                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                                    >
+                                        {t.footer.link}
+                                    </Link>
                                 </div>
                             </>
                         )}
                     </Form>
                 </div>
-            </div>
+            </SlideIn>
         </div>
     );
 }
