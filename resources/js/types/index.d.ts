@@ -47,7 +47,7 @@ export interface User {
     points?: number;
     is_registered: boolean;
     google_id?: string;
-    [key: string]: unknown; // This allows for additional properties...
+    [key: string]: unknown;
 }
 
 export type UserRole = 'admin' | 'trainer' | 'user';
