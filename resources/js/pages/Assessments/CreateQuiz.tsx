@@ -213,9 +213,9 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
     return (
         <AppLayout
             breadcrumbs={[
-                { title: 'Assessments', href: '/assessments' },
+                { title: 'Penilaian', href: '/assessments' },
                 { title: course.title, href: `/assessments/${course.id}/quizzes` },
-                { title: 'Create Quiz', href: '#' }
+                { title: 'Buat Kuis', href: '#' }
             ]}
         >
             <Head title="Create Quiz" />
@@ -246,7 +246,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                             onClick={() => setActiveStep(1)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                                 activeStep === 1
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-sky-600 text-white shadow-sm'
                                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                             }`}
                         >
@@ -259,7 +259,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                             onClick={() => isStep1Valid && setActiveStep(2)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                                 activeStep === 2
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-sky-600 text-white shadow-sm'
                                     : isStep1Valid
                                         ? 'bg-muted text-muted-foreground hover:bg-muted/80'
                                         : 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
@@ -285,8 +285,8 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                 <Card className="border-0 shadow-sm">
                                     <CardContent className="pt-5 space-y-4">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <div className="p-1.5 rounded-lg bg-primary/10">
-                                                <ClipboardList className="h-4 w-4 text-primary" />
+                                            <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-900/30">
+                                                <ClipboardList className="h-4 w-4 text-sky-600 dark:text-sky-400" />
                                             </div>
                                             <h2 className="font-semibold text-base">Informasi Quiz</h2>
                                         </div>
@@ -480,15 +480,15 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     </CardContent>
                                 </Card>
 
-                                <Button
+                                <button
                                     type="button"
-                                    className="w-full"
+                                    className="w-full inline-flex items-center justify-center rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 transition-colors shadow-sm gap-2"
                                     disabled={!isStep1Valid}
                                     onClick={() => setActiveStep(2)}
                                 >
                                     Lanjut ke Pertanyaan
-                                    <ChevronDown className="h-4 w-4 ml-2" />
-                                </Button>
+                                    <ChevronDown className="h-4 w-4" />
+                                </button>
                             </div>
                         )}
 
@@ -508,10 +508,10 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             <span><strong className="text-foreground">{totalPoints}</strong> poin total</span>
                                         </span>
                                     </div>
-                                    <Button type="button" onClick={addQuestion} size="sm" variant="default" className="h-8 text-xs gap-1.5">
+                                    <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition-colors">
                                         <PlusCircle className="h-3.5 w-3.5" />
                                         Tambah Soal
-                                    </Button>
+                                    </button>
                                 </div>
 
                                 {/* Question cards */}
@@ -527,7 +527,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                         <Card
                                             key={qIndex}
                                             className={`border-0 shadow-sm overflow-hidden transition-all ${
-                                                isExpanded ? 'ring-1 ring-primary/20' : ''
+                                                isExpanded ? 'ring-1 ring-sky-200 dark:ring-sky-800' : ''
                                             }`}
                                         >
                                             {/* Question header */}
@@ -690,7 +690,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                 <button
                                     type="button"
                                     onClick={addQuestion}
-                                    className="w-full border-2 border-dashed border-border rounded-xl py-4 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                                    className="w-full border-2 border-dashed border-border rounded-xl py-4 text-sm text-muted-foreground hover:border-sky-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-all flex items-center justify-center gap-2"
                                 >
                                     <PlusCircle className="h-4 w-4" />
                                     Tambah Soal Baru
@@ -717,10 +717,10 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             Batal
                                         </Link>
                                     </Button>
-                                    <Button
+                                    <button
                                         type="submit"
                                         disabled={processing}
-                                        className="flex-1 sm:flex-none sm:ml-auto gap-2"
+                                        className="flex-1 sm:flex-none sm:ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
                                     >
                                         {processing ? (
                                             <>
@@ -733,7 +733,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                 Simpan Quiz
                                             </>
                                         )}
-                                    </Button>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -746,7 +746,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                 <DialogContent className="w-full max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                            <CheckCircle2 className="h-5 w-5 text-sky-600 dark:text-sky-400" />
                             Simpan Quiz
                         </DialogTitle>
                         <DialogDescription className="pt-1">
@@ -817,11 +817,11 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                             <FileText className="h-4 w-4" />
                             Simpan sebagai Draft
                         </Button>
-                        <Button
+                        <button
                             type="button"
                             onClick={() => submitWithStatus('published')}
                             disabled={processing || completedQuestions < data.questions.length}
-                            className="w-full sm:w-auto gap-2"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors"
                         >
                             {processing ? (
                                 <>
@@ -834,7 +834,7 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                     Publish Sekarang
                                 </>
                             )}
-                        </Button>
+                        </button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

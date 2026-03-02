@@ -1,10 +1,8 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { BookOpen, FileQuestion, PlusCircle } from 'lucide-react';
+import { BookOpen, FileQuestion, PlusCircle, ClipboardList } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 
 interface Course {
     id: number;
@@ -17,92 +15,125 @@ interface Course {
     quizzes_count: number;
 }
 
+const breadcrumbs = [
+    { title: 'Penilaian', href: '/assessments' },
+];
+
 export default function AssessmentsIndex({ courses }: { courses: Course[] }) {
     return (
-        <AppLayout breadcrumbs={[{ title: 'Assessments', href: '/assessments' }]}>
-            <Head title="Assessments Management" />
+        <AppLayout breadcrumbs={breadcrumbs}>
+            <Head title="Manajemen Penilaian" />
 
-            <div className="container px-4 mx-auto py-8">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Assessment Management</h1>
-                        <p className="text-muted-foreground mt-2">
-                            Manage quizzes and assessments for your courses
-                        </p>
+            <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
+
+                {/* Header Card */}
+                <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0">
+                            <ClipboardList className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Modul</p>
+                            <p className="mt-0.5 text-2xl font-bold text-sky-600">Manajemen Penilaian</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total Kursus</p>
+                        <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.length}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">kursus tersedia</p>
                     </div>
                 </div>
 
+                {/* Content */}
                 {courses.length === 0 ? (
-                    <Card className="p-12 text-center">
-                        <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No Courses Found</h3>
-                        <p className="text-muted-foreground mb-4">
-                            Create a course first to start adding assessments
-                        </p>
-                        <Button asChild>
-                            <Link href="/courses/create">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create Course
-                            </Link>
-                        </Button>
-                    </Card>
+                    <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-16 flex flex-col items-center text-center gap-4">
+                        <div className="h-16 w-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                            <BookOpen className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">Tidak Ada Kursus</h3>
+                            <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                                Buat kursus terlebih dahulu untuk mulai menambahkan penilaian
+                            </p>
+                        </div>
+                        <Link
+                            href="/courses/create"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium transition-colors"
+                        >
+                            <PlusCircle className="h-4 w-4" />
+                            Buat Kursus
+                        </Link>
+                    </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {courses.map((course) => (
-                            <Card key={course.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 flex flex-col h-full">
-                                <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                                    {course.cover_url ? (
-                                        <img
-                                            src={course.cover_url}
-                                            alt={course.title}
-                                            className="object-cover w-full h-full"
-                                        />
-                                    ) : (
-                                        <div className="flex items-center justify-center h-full bg-gradient-to-br from-primary/10 to-primary/5">
-                                            <BookOpen className="h-12 w-12 text-muted-foreground" />
-                                        </div>
-                                    )}
-                                </div>
+                    <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm flex flex-col overflow-hidden">
+                        {/* Section header */}
+                        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between shrink-0">
+                            <h2 className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Daftar Kursus</h2>
+                            <span className="text-xs text-gray-300 dark:text-gray-600">{courses.length} kursus</span>
+                        </div>
 
-                                <CardHeader>
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="flex-1">
+                        {/* Grid */}
+                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {courses.map((course) => (
+                                <div
+                                    key={course.id}
+                                    className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden flex flex-col hover:shadow-md transition-shadow duration-200"
+                                >
+                                    {/* Cover */}
+                                    <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                        {course.cover_url ? (
+                                            <img
+                                                src={course.cover_url}
+                                                alt={course.title}
+                                                className="object-cover w-full h-full"
+                                            />
+                                        ) : (
+                                            <div className="flex items-center justify-center h-full bg-gradient-to-br from-sky-50 to-sky-100 dark:from-sky-950 dark:to-sky-900">
+                                                <BookOpen className="h-10 w-10 text-sky-300 dark:text-sky-600" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Body */}
+                                    <div className="p-4 flex flex-col flex-1 gap-3">
+                                        <div>
                                             {course.category && (
-                                                <Badge variant="outline" className="mb-2">
+                                                <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-400 mb-2">
                                                     {course.category}
-                                                </Badge>
+                                                </span>
                                             )}
-                                            <CardTitle className="line-clamp-2">{course.title}</CardTitle>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug">
+                                                {course.title}
+                                            </p>
+                                            {course.description && (
+                                                <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-2 mt-1">
+                                                    {course.description}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                                            <FileQuestion className="h-3.5 w-3.5" />
+                                            <span>
+                                                {course.quizzes_count} {course.quizzes_count === 1 ? 'Kuis' : 'Kuis'}
+                                            </span>
+                                        </div>
+
+                                        <div className="mt-auto flex flex-col gap-2">
+                                            <Link
+                                                href={`/assessments/${course.id}/quizzes`}
+                                                className="w-full text-center px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium transition-colors"
+                                            >
+                                                Kelola Penilaian
+                                            </Link>
+                                            <p className="text-xs text-sky-300 dark:text-gray-600 text-center">
+                                                Dibuat {formatDistanceToNow(new Date(course.created_at), { addSuffix: true, locale: idLocale })}
+                                            </p>
                                         </div>
                                     </div>
-                                    {course.description && (
-                                        <CardDescription className="line-clamp-2">
-                                            {course.description}
-                                        </CardDescription>
-                                    )}
-                                </CardHeader>
-
-                                <CardContent className="flex-1">
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <FileQuestion className="h-4 w-4" />
-                                        <span>
-                                            {course.quizzes_count} {course.quizzes_count === 1 ? 'Quiz' : 'Quizzes'}
-                                        </span>
-                                    </div>
-                                </CardContent>
-
-                                <CardFooter className="flex flex-col gap-2">
-                                    <Button asChild className="w-full">
-                                        <Link href={`/assessments/${course.id}/quizzes`}>
-                                            Manage Assessments
-                                        </Link>
-                                    </Button>
-                                    <p className="text-xs text-muted-foreground text-center">
-                                        Created {formatDistanceToNow(new Date(course.created_at), { addSuffix: true })}
-                                    </p>
-                                </CardFooter>
-                            </Card>
-                        ))}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
