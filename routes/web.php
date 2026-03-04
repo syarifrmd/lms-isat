@@ -137,6 +137,10 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+    // Import routes (must be before {user} wildcard)
+    Route::post('/users/import', [UserManagementController::class, 'import'])->name('users.import');
+    Route::get('/users/import/template', [UserManagementController::class, 'downloadTemplate'])->name('users.import.template');
+    Route::post('/users/sync-resign', [UserManagementController::class, 'syncResign'])->name('users.sync-resign');
     Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
     Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/verify', [UserManagementController::class, 'verify'])->name('users.verify');

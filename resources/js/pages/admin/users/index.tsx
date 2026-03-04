@@ -39,10 +39,14 @@ import {
     XCircle,
     UserCheck,
     Filter,
+    FileSpreadsheet,
+    UserMinus,
 } from 'lucide-react';
 import CreateUserModal from '@/components/admin/users/CreateUserModal';
 import EditUserModal from '@/components/admin/users/EditUserModal';
 import DeleteUserDialog from '@/components/admin/users/DeleteUserDialog';
+import ImportUserModal from '@/components/admin/users/ImportUserModal';
+import SyncResignModal from '@/components/admin/users/SyncResignModal';
 
 interface UsersPageProps extends SharedData {
     users: {
@@ -83,6 +87,8 @@ export default function UsersIndex() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isSyncResignModalOpen, setIsSyncResignModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
     const handleSearch = (e: React.FormEvent) => {
@@ -170,10 +176,24 @@ export default function UsersIndex() {
                             Kelola pengguna sistem LMS
                         </p>
                     </div>
-                    <Button onClick={() => setIsCreateModalOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Tambah User
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            onClick={() => setIsSyncResignModalOpen(true)}
+                        >
+                            <UserMinus className="w-4 h-4 mr-2" />
+                            Sync Resign
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            Import Excel/CSV
+                        </Button>
+                        <Button onClick={() => setIsCreateModalOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Tambah User
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Filters */}
@@ -354,6 +374,16 @@ export default function UsersIndex() {
             </div>
 
             {/* Modals */}
+            <SyncResignModal
+                open={isSyncResignModalOpen}
+                onOpenChange={setIsSyncResignModalOpen}
+                onSuccess={() => router.reload()}
+            />
+            <ImportUserModal
+                open={isImportModalOpen}
+                onOpenChange={setIsImportModalOpen}
+                onSuccess={() => router.reload()}
+            />
             <CreateUserModal 
                 open={isCreateModalOpen} 
                 onOpenChange={setIsCreateModalOpen}
