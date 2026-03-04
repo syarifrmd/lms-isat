@@ -247,9 +247,9 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
     return (
         <AppLayout
             breadcrumbs={[
-                { title: 'Assessments', href: '/assessments' },
+                { title: 'Penilaian', href: '/assessments' },
                 { title: course.title, href: `/assessments/${course.id}/quizzes` },
-                { title: 'Edit Quiz', href: '#' },
+                { title: 'Edit Kuis', href: '#' },
             ]}
         >
             <Head title={`Edit Quiz — ${quiz.title}`} />
@@ -280,7 +280,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                             onClick={() => setActiveStep(1)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                                 activeStep === 1
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-sky-600 text-white shadow-sm'
                                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                             }`}
                         >
@@ -293,7 +293,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                             onClick={() => isStep1Valid && setActiveStep(2)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                                 activeStep === 2
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-sky-600 text-white shadow-sm'
                                     : isStep1Valid
                                         ? 'bg-muted text-muted-foreground hover:bg-muted/80'
                                         : 'bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
@@ -319,8 +319,8 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                 <Card className="border-0 shadow-sm">
                                     <CardContent className="pt-5 space-y-4">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <div className="p-1.5 rounded-lg bg-primary/10">
-                                                <ClipboardList className="h-4 w-4 text-primary" />
+                                            <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-900/30">
+                                                <ClipboardList className="h-4 w-4 text-sky-600 dark:text-sky-400" />
                                             </div>
                                             <h2 className="font-semibold text-base">Informasi Quiz</h2>
                                         </div>
@@ -512,7 +512,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
 
                                 <Button
                                     type="button"
-                                    className="w-full"
+                                    className="w-full inline-flex items-center justify-center rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2.5 transition-colors shadow-sm gap-2"
                                     disabled={!isStep1Valid}
                                     onClick={() => setActiveStep(2)}
                                 >
@@ -538,10 +538,10 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                             <span><strong className="text-foreground">{totalPoints}</strong> poin total</span>
                                         </span>
                                     </div>
-                                    <Button type="button" onClick={addQuestion} size="sm" variant="default" className="h-8 text-xs gap-1.5">
+                                    <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition-colors">
                                         <PlusCircle className="h-3.5 w-3.5" />
                                         Tambah Soal
-                                    </Button>
+                                    </button>
                                 </div>
 
                                 {/* Question cards */}
@@ -559,7 +559,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                     return (
                                         <Card
                                             key={qIndex}
-                                            className={`border-0 shadow-sm overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-primary/20' : ''}`}
+                                            className={`border-0 shadow-sm overflow-hidden transition-all ${isExpanded ? 'ring-1 ring-sky-200 dark:ring-sky-800' : ''}`}
                                         >
                                             {/* Question header */}
                                             <button
@@ -723,7 +723,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                 <button
                                     type="button"
                                     onClick={addQuestion}
-                                    className="w-full border-2 border-dashed border-border rounded-xl py-4 text-sm text-muted-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                                    className="w-full border-2 border-dashed border-border rounded-xl py-4 text-sm text-muted-foreground hover:border-sky-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-all flex items-center justify-center gap-2"
                                 >
                                     <PlusCircle className="h-4 w-4" />
                                     Tambah Soal Baru
@@ -750,10 +750,10 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                             Batal
                                         </Link>
                                     </Button>
-                                    <Button
+                                    <button
                                         type="submit"
                                         disabled={processing}
-                                        className="flex-1 sm:flex-none sm:ml-auto gap-2"
+                                        className="flex-1 sm:flex-none sm:ml-auto inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
                                     >
                                         {processing ? (
                                             <>
@@ -766,7 +766,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                                 Simpan Perubahan
                                             </>
                                         )}
-                                    </Button>
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -779,7 +779,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                 <DialogContent className="w-full max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Save className="h-5 w-5 text-primary" />
+                            <Save className="h-5 w-5 text-sky-600 dark:text-sky-400" />
                             Simpan Perubahan
                         </DialogTitle>
                         <DialogDescription className="pt-1">
@@ -840,21 +840,20 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                         >
                             Kembali Edit
                         </Button>
-                        <Button
+                        <button
                             type="button"
-                            variant="secondary"
                             onClick={() => submitWithStatus('draft')}
                             disabled={processing}
-                            className="w-full sm:w-auto gap-2"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium px-4 py-2 transition-colors"
                         >
                             <FileText className="h-4 w-4" />
                             Simpan sebagai Draft
-                        </Button>
-                        <Button
+                        </button>
+                        <button
                             type="button"
                             onClick={() => submitWithStatus('published')}
                             disabled={processing || completedQuestions < questions.length}
-                            className="w-full sm:w-auto gap-2"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors"
                         >
                             {processing ? (
                                 <>
@@ -867,7 +866,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                     Publish Sekarang
                                 </>
                             )}
-                        </Button>
+                        </button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

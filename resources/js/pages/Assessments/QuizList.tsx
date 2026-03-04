@@ -1,17 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-    FileQuestion, 
-    PlusCircle, 
-    Clock, 
-    Award, 
-    Pencil, 
-    Trash2,
-    AlertCircle
-} from 'lucide-react';
+import { FileQuestion, PlusCircle, Clock, Award, Pencil, Trash2, AlertCircle, ClipboardList } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,9 +10,9 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Quiz } from '@/types';
+import { useState } from 'react';
 
 interface Course {
     id: number;
@@ -37,139 +26,158 @@ interface QuizListProps {
 }
 
 export default function QuizList({ course, quizzes }: QuizListProps) {
-    const handleDelete = (quizId: number) => {
-        router.delete(`/assessments/quiz/${quizId}`, {
-            onSuccess: () => {
-                // Success message will be shown via flash
-            },
-        });
+    const [quizToDelete, setQuizToDelete] = useState<number | null>(null);
+
+    const handleDelete = () => {
+        if (quizToDelete) {
+            router.delete(`/assessments/quiz/${quizToDelete}`, {
+                onSuccess: () => setQuizToDelete(null),
+            });
+        }
     };
 
     return (
-        <AppLayout 
+        <AppLayout
             breadcrumbs={[
-                { title: 'Assessments', href: '/assessments' },
-                { title: course.title, href: `/assessments/${course.id}/quizzes` }
+                { title: 'Penilaian', href: '/assessments' },
+                { title: course.title, href: `/assessments/${course.id}/quizzes` },
             ]}
         >
-            <Head title={`${course.title} - Assessments`} />
+            <Head title={`${course.title} - Penilaian`} />
 
-            <div className="container px-4 mx-auto py-8">
-                <div className="flex justify-between items-center mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">{course.title}</h1>
-                        <p className="text-muted-foreground mt-2">
-                            Manage assessments and quizzes for this course
-                        </p>
+            <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
+
+                {/* Header */}
+                <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0">
+                            <ClipboardList className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Kursus</p>
+                            <p className="mt-0.5 text-2xl font-bold text-sky-600 line-clamp-1">{course.title}</p>
+                        </div>
                     </div>
-                    <Button asChild>
-                        <Link href={`/assessments/${course.id}/quizzes/create`}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Create Quiz
-                        </Link>
-                    </Button>
+                    <div className="text-right">
+                        <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total</p>
+                        <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{quizzes.length}</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">kuis tersedia</p>
+                    </div>
                 </div>
 
-                {quizzes.length === 0 ? (
-                    <Card className="p-12 text-center">
-                        <FileQuestion className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No Quizzes Yet</h3>
-                        <p className="text-muted-foreground mb-4">
-                            Create your first quiz to assess your students
-                        </p>
-                        <Button asChild>
-                            <Link href={`/assessments/${course.id}/quizzes/create`}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Create Quiz
-                            </Link>
-                        </Button>
-                    </Card>
-                ) : (
-                    <div className="grid grid-cols-1 gap-4">
-                        {quizzes.map((quiz) => (
-                            <Card key={quiz.id} className="hover:shadow-md transition-shadow">
-                                <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <CardTitle className="flex items-center gap-2">
-                                                {quiz.title}
-                                                {quiz.module && (
-                                                    <Badge variant="secondary" className="text-xs">
-                                                        Module: {quiz.module.title}
-                                                    </Badge>
-                                                )}
-                                            </CardTitle>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button 
-                                                asChild
-                                                variant="outline" 
-                                                size="sm"
-                                            >
-                                                <Link href={`/assessments/quiz/${quiz.id}/edit`}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="sm">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete Quiz</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Are you sure you want to delete "{quiz.title}"? This action cannot be undone and will also delete all associated questions and student attempts.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            onClick={() => handleDelete(quiz.id)}
-                                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                                        >
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <FileQuestion className="h-4 w-4 text-muted-foreground" />
-                                            <span>
-                                                {quiz.questions_count || 0} {quiz.questions_count === 1 ? 'Question' : 'Questions'}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                            <span>Passing: {quiz.passing_score}%</span>
-                                        </div>
-                                        {quiz.is_timed && (
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                                <span>
-                                                    {Math.floor((quiz.time_limit_second || 0) / 60)} minutes
-                                                </span>
-                                            </div>
-                                        )}
-                                        {quiz.xp_bonus && (
-                                            <div className="flex items-center gap-2">
-                                                <Award className="h-4 w-4 text-muted-foreground" />
-                                                <span>+{quiz.xp_bonus} XP</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                {/* Toolbar */}
+                <div className="flex justify-end">
+                    <Link
+                        href={`/assessments/${course.id}/quizzes/create`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
+                    >
+                        <PlusCircle className="h-4 w-4" />
+                        Buat Kuis
+                    </Link>
+                </div>
+
+                {/* Quiz Grid */}
+                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Semua Kuis</h2>
+                        <span className="text-xs text-gray-300 dark:text-gray-600">{quizzes.length} kuis</span>
                     </div>
-                )}
+
+                    {quizzes.length === 0 ? (
+                        <div className="py-16 text-center text-sm text-gray-400">
+                            Belum ada kuis. Buat kuis pertama untuk menilai peserta didik Anda.
+                        </div>
+                    ) : (
+                        <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {quizzes.map((quiz) => (
+                                <div
+                                    key={quiz.id}
+                                    className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
+                                >
+                                    {/* Color bar */}
+                                    <div className="h-2 w-full bg-gradient-to-r from-sky-400 to-sky-600 shrink-0" />
+
+                                    {/* Body */}
+                                    <div className="flex flex-col flex-1 px-4 pt-4 pb-4 gap-2">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug flex-1">
+                                                {quiz.title}
+                                            </p>
+                                            {quiz.module && (
+                                                <span className="inline-block bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">
+                                                    {quiz.module.title}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Stats */}
+                                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-gray-500 flex-1">
+                                            <div className="flex items-center gap-1">
+                                                <FileQuestion className="h-3.5 w-3.5" />
+                                                <span>{quiz.questions_count || 0} Pertanyaan</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                <span>Lulus: {quiz.passing_score}%</span>
+                                            </div>
+                                            {quiz.is_timed && (
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="h-3.5 w-3.5" />
+                                                    <span>{Math.floor((quiz.time_limit_second || 0) / 60)} menit</span>
+                                                </div>
+                                            )}
+                                            {quiz.xp_bonus && (
+                                                <div className="flex items-center gap-1">
+                                                    <Award className="h-3.5 w-3.5" />
+                                                    <span>+{quiz.xp_bonus} XP</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Footer row */}
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 mt-auto">
+                                            <button
+                                                onClick={() => setQuizToDelete(quiz.id)}
+                                                className="group inline-flex items-center gap-1 cursor-pointer border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-700 dark:hover:text-white px-2.5 py-1 rounded-xl text-xs font-medium transition-all duration-200"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                Hapus
+                                            </button>
+                                            <Link
+                                                href={`/assessments/quiz/${quiz.id}/edit`}
+                                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/40 text-xs font-medium transition-colors"
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Edit
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!quizToDelete} onOpenChange={(open) => !open && setQuizToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Kuis?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan. Kuis beserta semua pertanyaan dan riwayat percobaan peserta akan dihapus secara permanen.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                            Hapus
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
         </AppLayout>
     );
 }

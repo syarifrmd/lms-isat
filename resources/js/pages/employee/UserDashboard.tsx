@@ -273,7 +273,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
     const upcomingCourses = activeCourses.slice(0, 3);
 
     return (
-        <div className="flex gap-6 items-start min-w-0">
+        <div className="flex gap-6 items-start min-w-0 px-4 py-6">
 
             {/* ═══════════════════════════════════════
                 KIRI — Konten utama (flex-1 ≈70%)
@@ -325,7 +325,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                 </div>
 
                 {/* Kartu statistik */}
-                <div className="grid px-4 grid-cols-2 gap-4 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {statCards.map(({ label, value, icon: Icon, color, bg, border }) => (
                         <div key={label}
                              className={`flex flex-col gap-3 rounded-2xl border ${border} ${bg} px-5 py-4 shadow-sm`}>
