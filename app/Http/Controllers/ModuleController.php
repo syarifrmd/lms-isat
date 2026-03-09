@@ -22,33 +22,58 @@ class ModuleController extends Controller
     {
         $course = Course::findOrFail($courseId);
         $youtubeConnected = Storage::disk('local')->exists('google-token.json');
+        $youtubeVideos = $youtubeConnected ? $this->youtube->listChannelVideos() : [];
 
         return \Inertia\Inertia::render('Modules/Create', [
             'course' => $course,
-            'youtube_connected' => $youtubeConnected
+            'youtube_connected' => $youtubeConnected,
+            'youtube_videos' => $youtubeVideos,
         ]);
     }
 
     public function edit(Course $course, Module $module)
     {
         $youtubeConnected = Storage::disk('local')->exists('google-token.json');
+        $youtubeVideos = $youtubeConnected ? $this->youtube->listChannelVideos() : [];
 
         return \Inertia\Inertia::render('Modules/Edit', [
             'course' => $course,
             'module' => $module,
-            'youtube_connected' => $youtubeConnected
+            'youtube_connected' => $youtubeConnected,
+            'youtube_videos' => $youtubeVideos,
         ]);
+    }
+
+    public function channelVideos()
+    {
+        $youtubeConnected = Storage::disk('local')->exists('google-token.json');
+        if (!$youtubeConnected) {
+            return response()->json(['error' => 'YouTube not connected'], 403);
+        }
+        $videos = $this->youtube->listChannelVideos();
+        return response()->json($videos);
+    }
+
+    private function extractYouTubeId(string $url): ?string
+    {
+        preg_match('/(?:youtu\.be\/|[?&]v=|\/embed\/)([A-Za-z0-9_-]{11})/', $url, $m);
+        return $m[1] ?? (strlen(trim($url)) === 11 ? trim($url) : null);
     }
 
     public function update(Request $request, Course $course, Module $module)
     {
         $request->validate([
             'title' => 'required|string|max:255',
+            'video_mode' => 'nullable|in:upload,link,channel',
             'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'video_link' => 'nullable|string|max:500',
+            'youtube_video_id' => 'nullable|string|max:20',
             'doc_file' => 'nullable|file|max:51200',
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);
+
+        $videoMode = $request->input('video_mode', 'upload');
 
         DB::beginTransaction();
 
@@ -59,14 +84,12 @@ class ModuleController extends Controller
                 'doc_url' => $request->doc_url,
             ];
 
-            // Re-Upload Video if provided
             $uploadWarning = null;
-            if ($request->hasFile('video')) {
-                 try {
+
+            if ($videoMode === 'upload' && $request->hasFile('video')) {
+                try {
                     $videoPath = $request->file('video')->path();
-                    $videoTitle = $request->title;
-                    $videoId = $this->youtube->uploadVideo($videoPath, $videoTitle, "Uploaded from LMS");
-                    
+                    $videoId = $this->youtube->uploadVideo($videoPath, $request->title, "Uploaded from LMS");
                     if (!$videoId) {
                         $uploadWarning = "Video upload skipped (OAuth2 required).";
                     } else {
@@ -76,6 +99,15 @@ class ModuleController extends Controller
                     $uploadWarning = "Video upload failed: " . $uploadError->getMessage();
                     \Log::error('YouTube upload error: ' . $uploadError->getMessage());
                 }
+            } elseif ($videoMode === 'link' && $request->filled('video_link')) {
+                $videoId = $this->extractYouTubeId($request->input('video_link'));
+                if ($videoId) {
+                    $updateData['video_url'] = $videoId;
+                } else {
+                    $uploadWarning = "Could not extract a valid YouTube video ID from the provided link.";
+                }
+            } elseif ($videoMode === 'channel' && $request->filled('youtube_video_id')) {
+                $updateData['video_url'] = $request->input('youtube_video_id');
             }
 
             // Handle Document Update
@@ -139,42 +171,47 @@ class ModuleController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
+            'video_mode' => 'nullable|in:upload,link,channel',
             'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'video_link' => 'nullable|string|max:500',
+            'youtube_video_id' => 'nullable|string|max:20',
             'doc_file' => 'nullable|file|max:51200', // 50MB
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);
 
         $course = Course::findOrFail($courseId);
+        $videoMode = $request->input('video_mode', 'upload');
 
         DB::beginTransaction();
 
         try {
             $videoId = null;
             $uploadWarning = null;
-            
-            // Try to upload video to YouTube if provided
-            // Note: YouTube Data API v3 requires OAuth2 for uploads.
-            // API key alone is insufficient. Video upload will be skipped unless OAuth is configured.
-            if ($request->hasFile('video')) {
+
+            if ($videoMode === 'upload' && $request->hasFile('video')) {
                 try {
                     $videoPath = $request->file('video')->path();
-                    $videoTitle = $request->title;
-                    $videoId = $this->youtube->uploadVideo($videoPath, $videoTitle, "Uploaded from LMS");
-                    
+                    $videoId = $this->youtube->uploadVideo($videoPath, $request->title, "Uploaded from LMS");
                     if (!$videoId) {
                         $uploadWarning = "Video upload failed. Check logs for details (likely OAuth or SSL issue).";
                         \Log::warning('YouTube upload skipped - Video ID null returned');
                     }
                 } catch (\Exception $uploadError) {
-                    // Log but don't fail - allow module creation without video
                     $uploadWarning = "Video upload failed: " . $uploadError->getMessage();
                     \Log::error('YouTube upload error: ' . $uploadError->getMessage());
                 }
+            } elseif ($videoMode === 'link' && $request->filled('video_link')) {
+                $videoId = $this->extractYouTubeId($request->input('video_link'));
+                if (!$videoId) {
+                    $uploadWarning = "Could not extract a valid YouTube video ID from the provided link.";
+                }
+            } elseif ($videoMode === 'channel' && $request->filled('youtube_video_id')) {
+                $videoId = $request->input('youtube_video_id');
             }
-            
+
             // Handle Document
-            $docUrl = $request->doc_url; // Default to provided URL (e.g. GDrive)
+            $docUrl = $request->doc_url;
             if ($request->hasFile('doc_file')) {
                 $path = $request->file('doc_file')->store('module_docs', 'public');
                 $docUrl = Storage::url($path);
@@ -190,7 +227,6 @@ class ModuleController extends Controller
                 'order_sequence' => $maxOrder + 1,
             ]);
 
-            // Create Checklist Items automatically
             if ($videoId) {
                 $module->checklistItems()->create([
                     'title' => 'Watch Video',

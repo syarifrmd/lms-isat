@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Youtube, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Youtube, CheckCircle, AlertCircle, Upload, Link2, ListVideo } from 'lucide-react';
 import { useState } from 'react';
 import RichTextEditor from '@/components/rich-text-editor';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -24,20 +24,38 @@ interface Module {
     order_sequence: number;
 }
 
-export default function ModuleEdit({ course, module, youtube_connected }: { course: Course; module: Module, youtube_connected: boolean }) {
+interface YouTubeVideo {
+    id: string;
+    title: string;
+    thumbnail: string | null;
+    published: string;
+}
+
+export default function ModuleEdit({ course, module, youtube_connected, youtube_videos = [] }: {
+    course: Course;
+    module: Module;
+    youtube_connected: boolean;
+    youtube_videos: YouTubeVideo[];
+}) {
     const [docType, setDocType] = useState<'upload' | 'link'>(module.doc_url && !module.doc_url.startsWith('/storage') ? 'link' : 'upload');
-    
-    // Check if doc is a file upload (local storage) or external link
-    // This logic is simple; might need adjustment based on real storage paths
-    
+    const [videoMode, setVideoMode] = useState<'upload' | 'link' | 'channel'>('upload');
+
     const { data, setData, post, processing, errors, progress } = useForm({
         _method: 'PUT',
         title: module.title || '',
         content_text: module.content_text || '',
+        video_mode: 'upload' as 'upload' | 'link' | 'channel',
         video: null as File | null,
+        video_link: '',
+        youtube_video_id: '',
         doc_file: null as File | null,
         doc_url: module.doc_url || '',
     });
+
+    const handleVideoModeChange = (mode: 'upload' | 'link' | 'channel') => {
+        setVideoMode(mode);
+        setData('video_mode', mode);
+    };
 
     const submitModule = (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,52 +104,116 @@ export default function ModuleEdit({ course, module, youtube_connected }: { cour
                             </div>
 
                             <div className="space-y-4">
-                                <Label htmlFor="video">Video Upload (Optional)</Label>
+                                <div className="flex justify-between items-center">
+                                    <Label>Video (Optional)</Label>
+                                    <span className={`flex items-center text-xs font-bold px-2 py-1 rounded-full ${youtube_connected ? 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30' : 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30'}`}>
+                                        {youtube_connected
+                                            ? <><CheckCircle className="w-3 h-3 mr-1" /> YouTube Connected</>
+                                            : <><AlertCircle className="w-3 h-3 mr-1" /> YouTube Not Connected</>
+                                        }
+                                    </span>
+                                </div>
+
                                 {module.video_url && (
-                                    <div className="text-xs text-muted-foreground mb-2">
-                                        Current Video ID: {module.video_url} (Upload new video to replace)
+                                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border text-sm">
+                                        <img
+                                            src={`https://img.youtube.com/vi/${module.video_url}/mqdefault.jpg`}
+                                            alt="Current video thumbnail"
+                                            className="w-24 rounded shrink-0"
+                                        />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Current video (ID: <span className="font-mono">{module.video_url}</span>)</p>
+                                            <p className="text-xs text-muted-foreground mt-1">Select a new video below to replace it.</p>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="bg-muted/30 p-4 rounded-md border text-sm">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <p className="font-medium">YouTube Integration:</p>
-                                        {youtube_connected ? (
-                                            <span className="flex items-center text-green-600 dark:text-green-400 text-xs font-bold bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
-                                                <CheckCircle className="w-3 h-3 mr-1" /> Connected
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center text-amber-600 dark:text-amber-400 text-xs font-bold bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-full">
-                                                <AlertCircle className="w-3 h-3 mr-1" /> Not Connected
-                                            </span>
-                                        )}
+
+                                <RadioGroup value={videoMode} onValueChange={(v) => handleVideoModeChange(v as 'upload' | 'link' | 'channel')} className="flex flex-wrap gap-3">
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="upload" id="vm-upload" />
+                                        <Label htmlFor="vm-upload" className="flex items-center gap-1 cursor-pointer"><Upload className="w-3.5 h-3.5" /> Upload File</Label>
                                     </div>
-                                    <ul className="list-disc ml-5 space-y-1 text-muted-foreground mb-3">
-                                        <li>If you upload a video, it will be uploaded to the linked YouTube channel.</li>
-                                        <li>YouTube OAuth2 authentication is required on the server.</li>
-                                    </ul>
-                                    {!youtube_connected && (
-                                        <div className="mt-2">
-                                             <a 
-                                                href="/auth/google" 
-                                                className="inline-flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-md hover:bg-red-700 transition-colors text-xs font-medium"
-                                                target="_blank"
-                                            >
-                                                <Youtube className="w-3 h-3" />
-                                                Connect YouTube Channel
-                                            </a>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                (Refreshes dashboard, you may need to reload this page after connecting)
-                                            </p>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem value="link" id="vm-link" />
+                                        <Label htmlFor="vm-link" className="flex items-center gap-1 cursor-pointer"><Link2 className="w-3.5 h-3.5" /> Paste YouTube URL</Label>
+                                    </div>
+                                    {youtube_connected && (
+                                        <div className="flex items-center space-x-2">
+                                            <RadioGroupItem value="channel" id="vm-channel" />
+                                            <Label htmlFor="vm-channel" className="flex items-center gap-1 cursor-pointer"><ListVideo className="w-3.5 h-3.5" /> Pick from Channel</Label>
                                         </div>
                                     )}
-                                </div>
-                                <Input
-                                    id="video"
-                                    type="file"
-                                    accept="video/mp4,video/quicktime"
-                                    onChange={(e) => setData('video', e.target.files ? e.target.files[0] : null)}
-                                />
-                                <InputError message={errors.video} />
+                                </RadioGroup>
+
+                                {videoMode === 'upload' && (
+                                    <div className="space-y-2">
+                                        <div className="bg-muted/30 p-3 rounded-md border text-xs text-muted-foreground">
+                                            Video will be uploaded to the linked YouTube channel. OAuth2 authentication required.
+                                            {!youtube_connected && (
+                                                <div className="mt-2">
+                                                    <a href="/auth/google" className="inline-flex items-center gap-1 bg-red-600 text-white px-2.5 py-1 rounded hover:bg-red-700 transition-colors text-xs font-medium" target="_blank">
+                                                        <Youtube className="w-3 h-3" /> Connect YouTube Channel
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <Input
+                                            id="video"
+                                            type="file"
+                                            accept="video/mp4,video/quicktime"
+                                            onChange={(e) => setData('video', e.target.files ? e.target.files[0] : null)}
+                                        />
+                                        <InputError message={errors.video} />
+                                    </div>
+                                )}
+
+                                {videoMode === 'link' && (
+                                    <div className="space-y-2">
+                                        <Input
+                                            id="video_link"
+                                            type="url"
+                                            placeholder="https://www.youtube.com/watch?v=..."
+                                            value={data.video_link}
+                                            onChange={(e) => setData('video_link', e.target.value)}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Paste a YouTube video URL. The video ID will be extracted automatically.</p>
+                                        <InputError message={errors.video_link} />
+                                    </div>
+                                )}
+
+                                {videoMode === 'channel' && youtube_connected && (
+                                    <div className="space-y-2">
+                                        {youtube_videos.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded-md border">No videos found in your channel, or unable to list videos.</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-72 overflow-y-auto pr-1">
+                                                {youtube_videos.map((vid) => (
+                                                    <button
+                                                        key={vid.id}
+                                                        type="button"
+                                                        onClick={() => setData('youtube_video_id', vid.id)}
+                                                        className={`rounded-md border overflow-hidden text-left transition-all hover:ring-2 hover:ring-primary focus:outline-none ${data.youtube_video_id === vid.id ? 'ring-2 ring-primary' : ''}`}
+                                                    >
+                                                        {vid.thumbnail ? (
+                                                            <img src={vid.thumbnail} alt={vid.title} className="w-full aspect-video object-cover" />
+                                                        ) : (
+                                                            <div className="w-full aspect-video bg-muted flex items-center justify-center">
+                                                                <Youtube className="w-6 h-6 text-muted-foreground" />
+                                                            </div>
+                                                        )}
+                                                        <div className="p-1.5">
+                                                            <p className="text-xs font-medium leading-tight line-clamp-2">{vid.title}</p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {data.youtube_video_id && (
+                                            <p className="text-xs text-green-600 dark:text-green-400">Selected: <span className="font-mono">{data.youtube_video_id}</span></p>
+                                        )}
+                                        <InputError message={errors.youtube_video_id} />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2">
@@ -210,3 +292,15 @@ export default function ModuleEdit({ course, module, youtube_connected }: { cour
         </AppLayout>
     );
 }
+
+interface Course {
+    id: number;
+    title: string;
+}
+
+interface Module {
+    id: number;
+    title: string;
+    video_url: string | null;
+
+

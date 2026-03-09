@@ -149,4 +149,33 @@ class YouTubeService
             return null; 
         }
     }
+
+    public function listChannelVideos(int $maxResults = 50): array
+    {
+        try {
+            $response = $this->youtube->search->listSearch('snippet', [
+                'forMine'    => true,
+                'type'       => 'video',
+                'maxResults' => $maxResults,
+                'order'      => 'date',
+            ]);
+
+            return array_map(function ($item) {
+                $thumbnails = $item->getSnippet()->getThumbnails();
+                $thumbnail = $thumbnails->getMedium()
+                    ? $thumbnails->getMedium()->getUrl()
+                    : ($thumbnails->getDefault() ? $thumbnails->getDefault()->getUrl() : null);
+
+                return [
+                    'id'        => $item->getId()->getVideoId(),
+                    'title'     => $item->getSnippet()->getTitle(),
+                    'thumbnail' => $thumbnail,
+                    'published' => $item->getSnippet()->getPublishedAt(),
+                ];
+            }, $response->getItems() ?? []);
+        } catch (\Exception $e) {
+            \Log::error('YouTube listChannelVideos error: ' . $e->getMessage());
+            return [];
+        }
+    }
 }

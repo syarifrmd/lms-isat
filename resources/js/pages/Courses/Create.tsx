@@ -69,7 +69,7 @@ export default function CreateCourse() {
                                     id="title"
                                     value={data.title}
                                     onChange={(e) => setData('title', e.target.value)}
-                                    placeholder="Contoh: Pengantar React untuk Pemula"
+                                    placeholder="Contoh: Sales Funnel Mastery: Strategi Penjualan yang Efektif"
                                     required
                                 />
                                 <InputError message={errors.title} />

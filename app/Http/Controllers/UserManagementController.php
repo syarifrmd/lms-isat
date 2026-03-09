@@ -174,16 +174,25 @@ class UserManagementController extends Controller
             'rows.*.email'     => 'nullable|email',
             'rows.*.role'      => 'nullable|in:admin,trainer,user',
             'rows.*.region'    => 'nullable|string|max:255',
+            'rows.*.status'    => 'nullable|string',
         ]);
 
         $rows    = $request->input('rows');
         $success = 0;
         $failed  = 0;
+        $skipped = 0;
         $errors  = [];
 
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
             $nik       = trim($row['nik']);
+
+            // Skip rows with status = off (resigned/inactive employees)
+            $status = strtolower(trim($row['status'] ?? ''));
+            if ($status === 'off') {
+                $skipped++;
+                continue;
+            }
 
             // Skip duplicate NIK in DB
             if (User::where('id', $nik)->exists()) {
@@ -231,6 +240,7 @@ class UserManagementController extends Controller
 
         return response()->json([
             'success' => $success,
+            'skipped' => $skipped,
             'failed'  => $failed,
             'errors'  => $errors,
         ]);
@@ -247,9 +257,10 @@ class UserManagementController extends Controller
         ];
 
         $rows = [
-            ['nik', 'nama', 'email', 'role', 'region'],
-            ['1234567890', 'Budi Santoso', 'budi@example.com', 'user', 'Jakarta'],
-            ['0987654321', 'Siti Rahayu', '', 'user', 'Surabaya'],
+            ['nik', 'nama', 'email', 'role', 'region', 'status'],
+            ['1234567890', 'Budi Santoso', 'budi@example.com', 'user', 'Jakarta', 'active'],
+            ['0987654321', 'Siti Rahayu', '', 'user', 'Surabaya', 'active'],
+            ['1122334455', 'Joko Widodo', '', 'user', 'Bandung', 'off'],
         ];
 
         $callback = function () use ($rows) {

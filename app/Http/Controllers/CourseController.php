@@ -16,16 +16,19 @@ class CourseController extends Controller
 {
     public function index()
     {
-        // For admin/trainer showing all or created courses could be logic here.
-        // For now showing all published courses + courses created by user if logged in (for trainer view)
-        $courses = Course::with('creator')
+        $user = Auth::user();
+
+        $query = Course::with('creator')
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id());
-            }])
-            ->where('status', 'published')
-            ->orderBy('created_at', 'desc')
-            ->latest()
-            ->get(); 
+            }]);
+
+        // Trainer & admin see all statuses; regular users only see published
+        if (!$user || !in_array($user->role, ['trainer', 'admin'])) {
+            $query->where('status', 'published');
+        }
+
+        $courses = $query->orderBy('created_at', 'desc')->get();
             
         return Inertia::render('Courses/Index', [
             'courses' => $courses

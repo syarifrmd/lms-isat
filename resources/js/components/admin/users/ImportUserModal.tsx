@@ -43,7 +43,7 @@ import {
 type Step = 'upload' | 'mapping' | 'preview' | 'result';
 
 interface SystemField {
-    key: 'nik' | 'name' | 'email' | 'role' | 'region';
+    key: 'nik' | 'name' | 'email' | 'role' | 'region' | 'status';
     label: string;
     required: boolean;
     hint?: string;
@@ -55,6 +55,7 @@ interface Mapping {
     email: string;
     role: string;
     region: string;
+    status: string;
 }
 
 interface ImportError {
@@ -65,6 +66,7 @@ interface ImportError {
 
 interface ImportResult {
     success: number;
+    skipped: number;
     failed: number;
     errors: ImportError[];
 }
@@ -83,6 +85,7 @@ const SYSTEM_FIELDS: SystemField[] = [
     { key: 'email',  label: 'Email',  required: false },
     { key: 'role',   label: 'Role',   required: false, hint: 'admin / trainer / user (default: user)' },
     { key: 'region', label: 'Region', required: false },
+    { key: 'status', label: 'Status', required: false, hint: 'active = import, off = lewati (tidak diimport)' },
 ];
 
 /** Common header synonyms for auto-matching */
@@ -92,6 +95,7 @@ const SYNONYMS: Record<string, string[]> = {
     email:  ['email', 'e-mail', 'surel', 'mail'],
     role:   ['role', 'peran', 'jabatan', 'tipe', 'type'],
     region: ['region', 'wilayah', 'area', 'kota', 'daerah', 'lokasi'],
+    status: ['status', 'kondisi', 'state', 'keterangan'],
 };
 
 const NONE = '__none__';
@@ -99,7 +103,7 @@ const NONE = '__none__';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function autoMatch(headers: string[]): Mapping {
-    const mapping: Mapping = { nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE };
+    const mapping: Mapping = { nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE };
     const lowerHeaders = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
 
     (Object.keys(SYNONYMS) as Array<keyof typeof SYNONYMS>).forEach(field => {
@@ -149,6 +153,7 @@ function applyMapping(rows: Record<string, string>[], mapping: Mapping) {
         email:  mapping.email  !== NONE ? String(row[mapping.email]  ?? '').trim() : '',
         role:   mapping.role   !== NONE ? String(row[mapping.role]   ?? '').trim().toLowerCase() : 'user',
         region: mapping.region !== NONE ? String(row[mapping.region] ?? '').trim() : '',
+        status: mapping.status !== NONE ? String(row[mapping.status] ?? '').trim().toLowerCase() : '',
     }));
 }
 
@@ -195,7 +200,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const [file, setFile]           = useState<File | null>(null);
     const [headers, setHeaders]     = useState<string[]>([]);
     const [rawRows, setRawRows]     = useState<Record<string, string>[]>([]);
-    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE });
+    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
     const [isDragging, setIsDragging] = useState(false);
     const [parseError, setParseError] = useState<string | null>(null);
     const [isParsing, setIsParsing]   = useState(false);
@@ -211,7 +216,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
             setFile(null);
             setHeaders([]);
             setRawRows([]);
-            setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE });
+            setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
             setParseError(null);
             setResult(null);
         }
@@ -269,6 +274,8 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     // ── Mapped preview rows (first 10) ────────────────────────────────────────
 
     const mappedRows = applyMapping(rawRows, mapping);
+    const importableRows = mappedRows.filter(r => r.status !== 'off');
+    const skippedOffCount = mappedRows.filter(r => r.status === 'off').length;
     const previewRows = mappedRows.slice(0, 10);
 
     // ── Import submit ─────────────────────────────────────────────────────────
@@ -464,10 +471,19 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                 {step === 'preview' && (
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Total <span className="font-semibold text-foreground">{rawRows.length}</span> baris akan diimport.
-                                {rawRows.length > 10 && ` (menampilkan 10 baris pertama)`}
-                            </p>
+                            <div className="flex items-center gap-3 text-sm">
+                                <span className="text-muted-foreground">
+                                    Total <span className="font-semibold text-foreground">{rawRows.length}</span> baris
+                                </span>
+                                {skippedOffCount > 0 && (
+                                    <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400">
+                                        {skippedOffCount} dilewati (off)
+                                    </Badge>
+                                )}
+                                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                                    {importableRows.length} akan diimport
+                                </Badge>
+                            </div>
                         </div>
 
                         <div className="rounded-lg border overflow-hidden overflow-x-auto">
@@ -480,33 +496,45 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                         <TableHead>Email</TableHead>
                                         <TableHead>Role</TableHead>
                                         <TableHead>Region</TableHead>
+                                        {mapping.status !== NONE && <TableHead>Status</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {previewRows.map((row, i) => (
-                                        <TableRow key={i} className={!row.nik || !row.name ? 'bg-destructive/5' : ''}>
-                                            <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
-                                            <TableCell className="font-mono text-sm">
-                                                {row.nik || <span className="text-destructive italic">kosong</span>}
-                                            </TableCell>
-                                            <TableCell>
-                                                {row.name || <span className="text-destructive italic">kosong</span>}
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                                {row.email || '-'}
-                                            </TableCell>
-                                            <TableCell>
-                                                {row.role ? (
-                                                    <Badge variant="secondary">{row.role}</Badge>
-                                                ) : (
-                                                    <Badge variant="outline">user</Badge>
+                                    {previewRows.map((row, i) => {
+                                        const isOff = row.status === 'off';
+                                        return (
+                                            <TableRow key={i} className={isOff ? 'opacity-40 bg-muted/40' : (!row.nik || !row.name ? 'bg-destructive/5' : '')}>
+                                                <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
+                                                <TableCell className={`font-mono text-sm ${isOff ? 'line-through' : ''}`}>
+                                                    {row.nik || <span className="text-destructive italic">kosong</span>}
+                                                </TableCell>
+                                                <TableCell className={isOff ? 'line-through' : ''}>
+                                                    {row.name || <span className="text-destructive italic">kosong</span>}
+                                                </TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {row.email || '-'}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {row.role ? (
+                                                        <Badge variant="secondary">{row.role}</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline">user</Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-sm text-muted-foreground">
+                                                    {row.region || '-'}
+                                                </TableCell>
+                                                {mapping.status !== NONE && (
+                                                    <TableCell>
+                                                        {isOff
+                                                            ? <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400">off</Badge>
+                                                            : <Badge className="bg-green-500">active</Badge>
+                                                        }
+                                                    </TableCell>
                                                 )}
-                                            </TableCell>
-                                            <TableCell className="text-sm text-muted-foreground">
-                                                {row.region || '-'}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </div>
@@ -527,7 +555,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                 {isImporting ? (
                                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Mengimport...</>
                                 ) : (
-                                    <>Import {rawRows.length} Data<ArrowRight className="w-4 h-4 ml-2" /></>
+                                    <>Import {importableRows.length} Data<ArrowRight className="w-4 h-4 ml-2" /></>
                                 )}
                             </Button>
                         </div>
@@ -538,7 +566,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                 {step === 'result' && result && (
                     <div className="space-y-4">
                         {/* Summary cards */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div className="rounded-lg border p-4 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
                                 <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                                     <CheckCircle2 className="w-5 h-5" />
@@ -548,6 +576,22 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                     {result.success}
                                 </div>
                                 <p className="text-xs text-green-600 dark:text-green-500">data berhasil diimport</p>
+                            </div>
+                            <div className={`rounded-lg border p-4 ${
+                                result.skipped > 0
+                                    ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+                                    : 'bg-muted/30'
+                            }`}>
+                                <div className={`flex items-center gap-2 ${ result.skipped > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                                    <XCircle className="w-5 h-5" />
+                                    <span className="font-semibold">Dilewati</span>
+                                </div>
+                                <div className={`text-3xl font-bold mt-1 ${ result.skipped > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                                    {result.skipped}
+                                </div>
+                                <p className={`text-xs ${ result.skipped > 0 ? 'text-amber-500 dark:text-amber-500' : 'text-muted-foreground'}`}>
+                                    status off
+                                </p>
                             </div>
                             <div className={`rounded-lg border p-4 ${
                                 result.failed > 0
@@ -603,7 +647,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                 setFile(null);
                                 setHeaders([]);
                                 setRawRows([]);
-                                setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE });
+                                setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
                                 setParseError(null);
                                 setResult(null);
                             }}>
