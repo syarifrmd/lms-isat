@@ -73,9 +73,11 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" tooltip="Indosat LMS" asChild className="hover:bg-transparent active:bg-transparent cursor-default">
                             <Link href={dashboard().url}>
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-600">
-                                    <GraduationCap className="h-5 w-5 text-white" />
-                                </div>
+                                <img 
+                                    src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
+                                    alt="Indosat Logo" 
+                                    className="h-6 w-6 shrink-0 object-contain" 
+                                />
                                 <div className="flex flex-col leading-tight min-w-0">
                                     <span className="font-bold text-sidebar-foreground truncate">Indosat LMS</span>
                                     <span className="text-xs capitalize text-muted-foreground truncate">
@@ -91,36 +93,39 @@ export function AppSidebar() {
             <SidebarContent className="bg-sidebar">
 
                 {/* ── User profile ── */}
-                <SidebarGroup className="border-b border-sidebar-border py-2 px-2">
+                <SidebarGroup className="border-b border-sidebar-border py-2 px-2 group-data-[collapsible=icon]:hidden">
                     <SidebarGroupContent>
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     size="lg"
-                                    tooltip={user.name}
-                                    className="cursor-default hover:bg-transparent active:bg-transparent data-[active=true]:bg-transparent"
+                                    tooltip="Edit Profile"
+                                    asChild
+                                    className="h-auto py-3 px-3 group/profile"
                                 >
-                                    <img
-                                        src={
-                                            user.avatar ||
-                                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`
-                                        }
-                                        alt={user.name}
-                                        className="h-8 w-8 shrink-0 rounded-full border-2 border-yellow-400 bg-gray-600 object-cover"
-                                    />
-                                    <div className="flex flex-col leading-tight min-w-0">
-                                        <span className="truncate font-medium text-sidebar-foreground text-sm">
-                                            {user.name}
-                                        </span>
-                                        <span className="truncate text-xs text-muted-foreground">
-                                            {user.email}
-                                        </span>
-                                        {role === 'user' && (
-                                            <span className="text-xs text-yellow-400 mt-0.5">
-                                                Level {user.level || 1} · {user.points || 0} pts
+                                    <Link href="/settings/profile" className="flex items-center gap-3">
+                                        <img
+                                            src={
+                                                user.avatar ||
+                                                `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`
+                                            }
+                                            alt={user.name}
+                                            className="h-10 w-10 shrink-0 rounded-full border-2 border-yellow-400 bg-gray-600 object-cover"
+                                        />
+                                        <div className="flex flex-col leading-tight min-w-0 group-data-[collapsible=icon]:hidden">
+                                            <span className="truncate font-semibold text-sidebar-foreground text-sm group-hover/profile:text-white transition-colors">
+                                                {user.name}
                                             </span>
-                                        )}
-                                    </div>
+                                            <span className="truncate text-xs text-muted-foreground mt-0.5 group-hover/profile:text-white transition-colors">
+                                                {user.email}
+                                            </span>
+                                            {role === 'user' && (
+                                                <span className="text-xs font-medium text-yellow-500 mt-1">
+                                                    Level {user.level || 1} · {user.points || 0} pts
+                                                </span>
+                                            )}
+                                        </div>
+                                    </Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </SidebarMenu>
