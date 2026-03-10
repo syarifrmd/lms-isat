@@ -1,7 +1,7 @@
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Transition } from '@headlessui/react';
-import { Head, useForm, usePage } from '@inertiajs/react';
-import { Camera, UserCircle2, X } from 'lucide-react';
+import { Head, useForm, usePage, Link } from '@inertiajs/react';
+import { Camera, UserCircle2, X, LogOut } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 
 import DeleteUser from '@/components/delete-user';
@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
+import { logout } from '@/routes';
 
 const REGIONS = [
     'Jakarta',
@@ -299,6 +300,26 @@ export default function Profile({
                             </Transition>
                         </div>
                     </form>
+                </div>
+
+                {/* Logout Card */}
+                <div className="rounded-2xl bg-card p-6 shadow-sm border space-y-6">
+                    <HeadingSmall
+                        title="Logout"
+                        description="Log out from the current session on this device."
+                    />
+                    <div className="pt-2">
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border-red-200 px-6 rounded-full w-full sm:w-auto"
+                        >
+                            <Link href={logout().url} method="post" as="button">
+                                <LogOut className="h-4 w-4 mr-2" />
+                                <span>Logout Account</span>
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Delete Account */}
