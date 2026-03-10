@@ -214,9 +214,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLan
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center space-x-2 sm:space-x-3"
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-yellow-400 to-red-500 rounded-lg flex items-center justify-center">
-                <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
+              <img 
+                              src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
+                              alt="Indosat Logo" 
+                              className="h-8 w-8 shrink-0 object-contain" 
+              />
               <div>
                 <h1 className="font-bold text-lg sm:text-xl text-gray-800">Indosat LMS</h1>
                 <p className="text-xs text-gray-600 hidden sm:block">{t.nav.subtitle}</p>
