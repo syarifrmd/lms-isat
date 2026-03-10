@@ -302,5 +302,5 @@ interface Module {
     id: number;
     title: string;
     video_url: string | null;
-
+}
 
