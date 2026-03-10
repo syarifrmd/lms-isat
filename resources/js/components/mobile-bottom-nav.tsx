@@ -38,14 +38,14 @@ export function MobileBottomNav() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Students', href: '/dashboard/students', icon: Users },
+                    { title: 'Students', href: '/students', icon: Users },
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'Learning', href: '/courses', icon: BookOpen },
                     { title: 'Certificates', href: '/certificates', icon: GraduationCap },
-                    { title: 'Leaderboard', href: '/dashboard/leaderboard', icon: Trophy },
+                    { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:
                 return [
