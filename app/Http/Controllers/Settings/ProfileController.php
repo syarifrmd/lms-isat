@@ -32,18 +32,20 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $data = $request->safe()->except(['avatar', 'remove_avatar']);
+        $storedAvatarPath = $user->getRawOriginal('avatar');
 
         // Handle avatar removal
-        if ($request->boolean('remove_avatar') && $user->avatar && !str_starts_with($user->avatar, 'http')) {
-            Storage::disk('public')->delete($user->avatar);
+        if ($request->boolean('remove_avatar') && $storedAvatarPath && !str_starts_with($storedAvatarPath, 'http')) {
+            Storage::disk('public')->delete($storedAvatarPath);
             $data['avatar'] = null;
         }
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
-            if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
-                Storage::disk('public')->delete($user->avatar);
+            if ($storedAvatarPath && !str_starts_with($storedAvatarPath, 'http')) {
+                Storage::disk('public')->delete($storedAvatarPath);
             }
+
             $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
 

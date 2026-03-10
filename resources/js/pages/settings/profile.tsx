@@ -66,11 +66,7 @@ export default function Profile({
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
 
-    const avatarUrl = user.avatar
-        ? user.avatar.startsWith('http')
-            ? user.avatar
-            : `/storage/${user.avatar}`
-        : null;
+    const avatarUrl = user.avatar ?? null;
 
     const [preview, setPreview] = useState<string | null>(avatarUrl);
     const avatarInput = useRef<HTMLInputElement>(null);
