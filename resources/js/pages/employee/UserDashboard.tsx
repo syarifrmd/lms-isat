@@ -321,9 +321,16 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 </span>
                             </div>
                         </div>
+                        {/* mobile*/}
+                        <Link href="/settings/profile"
+                              className="xl:hidden ml-auto flex items-center gap-1.5 rounded-xl bg-blue-500 px-3 py-2
+                                         text-white shadow-sm hover:bg-blue-600 transition-colors">
+                            <User className="h-4 w-4" />
+                            <span className="text-sm font-bold">Edit Profil</span>
+                        </Link>
                     </div>
                 </div>
-
+              
                 {/* Kartu statistik */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     {statCards.map(({ label, value, icon: Icon, color, bg, border }) => (
@@ -340,6 +347,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                         </div>
                     ))}
                 </div>
+
 
                 {/* Aktivitas mingguan + Aksi cepat */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -360,6 +368,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 <span className="sm:hidden">7 hari</span>
                             </span>
                         </div>
+
 
                         <div className="flex gap-1.5 h-28">
                             {weeklyProgress.map((w, i) => {
@@ -443,6 +452,11 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* Kalender khusus mobile/tablet */}
+                <div className="xl:hidden rounded-2xl border border-border/60 bg-card px-4 py-4 sm:px-6 sm:py-5 shadow-sm">
+                    <MiniCalendar courses={courseCalendar} />
                 </div>
 
                 {/* Kursus aktif + Hasil kuis */}
