@@ -300,30 +300,32 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 : <AvatarFallback name={user.name} />}
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white
-                                        px-3 py-2 dark:border-amber-800/50 dark:bg-amber-900/10 shadow-sm">
-                            <Flame className="h-4 w-4 text-orange-500" />
-                            <div className="flex items-center gap-1 leading-tight">
-                                <span className="text-xs text-muted-foreground">XP</span>
-                                <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
-                                    {stats?.xp?.toLocaleString('id-ID') ?? 0}
-                                </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-2">
+                            <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white
+                                            px-3 py-2 dark:border-amber-800/50 dark:bg-amber-900/10 shadow-sm">
+                                <Flame className="h-4 w-4 text-orange-500" />
+                                <div className="flex items-center gap-1 leading-tight">
+                                    <span className="text-xs text-muted-foreground">XP</span>
+                                    <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
+                                        {stats?.xp?.toLocaleString('id-ID') ?? 0}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-white
+                                            px-3 py-2 dark:border-violet-800/50 dark:bg-violet-900/10 shadow-sm">
+                                <Trophy className="h-4 w-4 text-violet-500" />
+                                <div className="flex items-center gap-1 leading-tight">
+                                    <span className="text-xs text-muted-foreground">Peringkat</span>
+                                    <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
+                                        #{stats?.rank ?? '—'}
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-white
-                                        px-3 py-2 dark:border-violet-800/50 dark:bg-violet-900/10 shadow-sm">
-                            <Trophy className="h-4 w-4 text-violet-500" />
-                            <div className="flex items-center gap-1 leading-tight">
-                                <span className="text-xs text-muted-foreground">Peringkat</span>
-                                <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
-                                    #{stats?.rank ?? '—'}
-                                </span>
-                            </div>
-                        </div>
-                        {/* mobile*/}
+                        {/* mobile button edit profile*/}
                         <Link href="/settings/profile"
-                              className="xl:hidden ml-auto flex items-center gap-1.5 rounded-xl bg-blue-500 px-3 py-2
+                              className="xl:hidden flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl bg-blue-500 px-4 py-2.5
                                          text-white shadow-sm hover:bg-blue-600 transition-colors">
                             <User className="h-4 w-4" />
                             <span className="text-sm font-bold">Edit Profil</span>
