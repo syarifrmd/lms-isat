@@ -3,11 +3,8 @@
 namespace App\Services;
 
 use Fpdf\Fpdf; // Pastikan Anda menggunakan wrapper atau FPDF native
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\Image\ImagickImageBackEnd;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Renderer\GDLibRenderer;
 use BaconQrCode\Writer;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http; // Tambahkan ini
 use Illuminate\Support\Str;
 
@@ -82,22 +79,18 @@ class CertificateService
     private function generateQrImage($content)
     {
         try {
-            // Setup Renderer Bacon (400px size)
-            $renderer = new ImageRenderer(
-                new RendererStyle(400),
-                new ImagickImageBackEnd()
-            );
-            $writer = new Writer($renderer);
+            // Generate PNG 8-bit via GD backend so it is compatible with FPDF image handling.
+            $writer = new Writer(new GDLibRenderer(300));
+            $qrPng = $writer->writeString($content);
 
-            // Tulis QR ke file temporary
-            $tempFile = sys_get_temp_dir() . '/qr_' . uniqid() . '.png';
-            $writer->writeFile($content, $tempFile);
+            $tempFile = storage_path('app/public/qr_' . Str::random(10) . '.png');
+            file_put_contents($tempFile, $qrPng);
 
             return $tempFile;
         } catch (\Exception $e) {
             // Fallback: Jika Imagick error/tidak ada, gunakan API Online untuk generate QR
             try {
-                $tempFile = sys_get_temp_dir() . '/qr_online_' . uniqid() . '.png';
+                $tempFile = storage_path('app/public/qr_online_' . Str::random(10) . '.png');
                 // Menggunakan layanan qrserver.com
                 $response = Http::get('https://api.qrserver.com/v1/create-qr-code/', [
                     'size' => '400x400',
