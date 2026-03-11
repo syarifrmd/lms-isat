@@ -245,7 +245,7 @@ class CourseController extends Controller
                 ->update(['order_sequence' => $item['order_sequence']]);
         }
 
-        return response()->json(['message' => 'Modules reordered successfully.']);
+        return back()->with('success', 'Modules reordered successfully.');
     }
 
     public function destroy(Course $course)

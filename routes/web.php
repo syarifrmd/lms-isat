@@ -114,6 +114,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::post('/courses/{course}/modules', [ModuleController::class, 'store'])->name('modules.store');
     Route::get('/courses/{course}/modules/{module}/edit', [ModuleController::class, 'edit'])->name('modules.edit');
     Route::put('/courses/{course}/modules/{module}', [ModuleController::class, 'update'])->name('modules.update');
+    Route::delete('/courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('modules.destroy');
     Route::get('/modules/youtube-channel-videos', [ModuleController::class, 'channelVideos'])->name('modules.youtube-videos');
 
     // Assessments Management

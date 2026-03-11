@@ -1,4 +1,15 @@
 import InputError from '@/components/input-error';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,7 +34,7 @@ import {
     PlusCircle,
     Save,
     Tag,
-
+    Trash2,
     X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -113,6 +124,11 @@ export default function EditCourse({ course }: EditProps) {
     const dragItem = useRef<number | null>(null);
     const dragOver = useRef<number | null>(null);
 
+    // Sync local state when Inertia refreshes course.modules (e.g., after module delete)
+    useEffect(() => {
+        setModules([...course.modules].sort((a, b) => a.order_sequence - b.order_sequence));
+    }, [course.modules]);
+
     // reset saved indicator
     useEffect(() => {
         if (reorderSaved) {
@@ -120,6 +136,12 @@ export default function EditCourse({ course }: EditProps) {
             return () => clearTimeout(t);
         }
     }, [reorderSaved]);
+
+    const handleDeleteModule = (moduleId: number) => {
+        router.delete(`/courses/${course.id}/modules/${moduleId}`, {
+            preserveScroll: true,
+        });
+    };
 
     const handleDragStart = (index: number) => {
         dragItem.current = index;
@@ -476,6 +498,7 @@ export default function EditCourse({ course }: EditProps) {
                                             onDragEnter={handleDragEnter}
                                             onDragEnd={handleDragEnd}
                                             onMove={moveModule}
+                                            onDelete={handleDeleteModule}
                                         />
                                     ))}
                                 </div>
@@ -498,9 +521,10 @@ interface ModuleRowProps {
     onDragEnter: (i: number) => void;
     onDragEnd: () => void;
     onMove: (i: number, dir: 'up' | 'down') => void;
+    onDelete: (id: number) => void;
 }
 
-function ModuleRow({ module, index, total, courseId, onDragStart, onDragEnter, onDragEnd, onMove }: ModuleRowProps) {
+function ModuleRow({ module, index, total, courseId, onDragStart, onDragEnter, onDragEnd, onMove, onDelete }: ModuleRowProps) {
     const [isDragging, setIsDragging] = useState(false);
 
     const contentTypes: string[] = [];
@@ -575,6 +599,34 @@ function ModuleRow({ module, index, total, courseId, onDragStart, onDragEnter, o
                 >
                     <Edit3 className="h-3.5 w-3.5" />
                 </Link>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <button
+                            type="button"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-red-300 hover:text-red-500 dark:border-white/10 dark:hover:border-red-700 dark:hover:text-red-400"
+                            title="Hapus modul"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Modul?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Modul <span className="font-semibold text-foreground">{module.title}</span> akan dihapus secara permanen beserta seluruh konten dan progres siswa di modul ini.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => onDelete(module.id)}
+                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                            >
+                                Hapus
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
     );

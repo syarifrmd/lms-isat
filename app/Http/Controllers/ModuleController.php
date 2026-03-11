@@ -6,6 +6,7 @@ use App\Models\Module;
 use App\Models\Course;
 use App\Services\YouTubeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -69,7 +70,7 @@ class ModuleController extends Controller
             'video_link' => 'nullable|string|max:500',
             'youtube_video_id' => 'nullable|string|max:20',
             'doc_file' => 'nullable|file|max:51200',
-            'doc_url' => 'nullable|url',
+            'doc_url' => 'nullable|string',
             'content_text' => 'nullable|string',
         ]);
 
@@ -259,5 +260,24 @@ class ModuleController extends Controller
             \Log::error('Module creation failed: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Module creation failed: ' . $e->getMessage()]);
         }
+    }
+
+    public function destroy(Course $course, Module $module)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'admin' && $course->created_by !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Delete stored document file if any
+        if ($module->doc_url && str_starts_with($module->doc_url, '/storage/')) {
+            $path = str_replace('/storage/', '', $module->doc_url);
+            Storage::disk('public')->delete($path);
+        }
+
+        $module->delete();
+
+        return back()->with('success', 'Module deleted successfully.');
     }
 }

@@ -250,7 +250,11 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                             </div>
                                                             <div>
                                                                 <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Module Document</p>
-                                                                <p className="text-xs text-gray-400 truncate max-w-75">{module.doc_url}</p>
+                                                                <p className="text-xs text-gray-400">
+                                                                    {module.doc_url.startsWith('/storage/')
+                                                                        ? 'File dokumen'
+                                                                        : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                         <Button variant="outline" size="sm" asChild>
