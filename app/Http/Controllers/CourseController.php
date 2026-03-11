@@ -250,7 +250,9 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
-        if ($course->created_by !== Auth::id()) {
+        $user = Auth::user();
+
+        if ($user->role !== 'admin' && $course->created_by !== $user->id) {
             abort(403, 'Unauthorized action.');
         }
 
