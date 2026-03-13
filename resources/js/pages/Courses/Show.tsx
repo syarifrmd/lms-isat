@@ -6,8 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2 } from 'lucide-react';
 import { Quiz, SharedData } from '@/types';
 import { useState } from 'react';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
-import '@cyntler/react-doc-viewer/dist/index.css';
 
 interface Module {
     id: number;
@@ -78,6 +76,9 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         .toUpperCase()
         .substring(0, 2);
 
+    const [activeModuleItem, setActiveModuleItem] = useState<string>('');
+    const [previewModuleId, setPreviewModuleId] = useState<number | null>(null);
+
     const handleMarkTextRead = (moduleId: number) => {
         router.post(`/modules/${moduleId}/progress/text`, {}, {
             preserveScroll: true,
@@ -131,25 +132,84 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         return name || 'Dokumen';
     };
 
-    const renderDocPreview = (docUrl: string) => {
+    const getFileExtension = (url: string) => {
+        const clean = url.split('?')[0].toLowerCase();
+        return clean.split('.').pop() || '';
+    };
+
+    const getOfficePreviewUrl = (url: string) => {
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    };
+
+    const renderDocPreview = (docUrl: string, moduleId: number) => {
         const fullUrl = getPreviewUri(docUrl);
+        const extension = getFileExtension(docUrl);
+        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension);
+        const isPdf = extension === 'pdf';
+        const isOffice = ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'].includes(extension);
+        const shouldLoadPreview = previewModuleId === moduleId;
+
+        if (!shouldLoadPreview) {
+            return (
+                <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+                    <div className="rounded-full bg-sky-100 p-3 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
+                        <FileIcon className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Preview dokumen dimuat saat dibutuhkan</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Ini mengurangi beban halaman agar tidak freeze saat membuka course.</p>
+                    </div>
+                    <Button size="sm" onClick={() => setPreviewModuleId(moduleId)}>
+                        Tampilkan Preview
+                    </Button>
+                </div>
+            );
+        }
+
+        if (isImage) {
+            return (
+                <div className="bg-gray-50 p-3 dark:bg-gray-900/30">
+                    <img
+                        src={fullUrl}
+                        alt={getFileName(docUrl)}
+                        className="max-h-130 w-full rounded-lg object-contain"
+                        loading="lazy"
+                    />
+                </div>
+            );
+        }
+
+        if (isPdf) {
+            return (
+                <iframe
+                    src={fullUrl}
+                    title={getFileName(docUrl)}
+                    className="h-130 w-full"
+                    loading="lazy"
+                />
+            );
+        }
+
+        if (isOffice) {
+            return (
+                <iframe
+                    src={getOfficePreviewUrl(fullUrl)}
+                    title={getFileName(docUrl)}
+                    className="h-130 w-full"
+                    loading="lazy"
+                />
+            );
+        }
+
         return (
-            <DocViewer
-                documents={[{ uri: fullUrl, fileName: getFileName(docUrl) }]}
-                pluginRenderers={DocViewerRenderers}
-                config={{
-                    header: {
-                        disableHeader: true,
-                        disableFileName: true,
-                        retainURLParams: false,
-                    },
-                    pdfZoom: {
-                        defaultZoom: 1,
-                        zoomJump: 0.2,
-                    },
-                }}
-                style={{ width: '100%', minHeight: '480px' }}
-            />
+            <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Preview tidak tersedia untuk tipe file ini.</p>
+                <Button variant="outline" size="sm" asChild>
+                    <a href={docUrl} target="_blank" rel="noopener noreferrer">
+                        Buka Dokumen
+                    </a>
+                </Button>
+            </div>
         );
     };
 
@@ -210,7 +270,16 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
 
                         {/* Modules accordion */}
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-                            <Accordion type="single" collapsible className="w-full">
+                            <Accordion
+                                type="single"
+                                collapsible
+                                className="w-full"
+                                value={activeModuleItem}
+                                onValueChange={(value) => {
+                                    setActiveModuleItem(value);
+                                    setPreviewModuleId(null);
+                                }}
+                            >
                                 {course.modules.length > 0 ? (
                                     course.modules.map((module, index) => (
                                         <AccordionItem key={module.id} value={`item-${module.id}`} disabled={module.is_locked}
@@ -317,7 +386,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                         </div>
 
                                                         <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                                                            {renderDocPreview(module.doc_url)}
+                                                            {renderDocPreview(module.doc_url, module.id)}
                                                         </div>
                                                     </div>
                                                 )}
