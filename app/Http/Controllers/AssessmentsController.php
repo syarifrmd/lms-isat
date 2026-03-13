@@ -15,19 +15,34 @@ use Inertia\Inertia;
 class AssessmentsController extends Controller
 {
     /**
+     * Check if the current user can manage the given course's assessments.
+     * Admin can manage all; trainers can only manage their own.
+     */
+    private function canManageCourse(Course $course): bool
+    {
+        return Auth::user()->role === 'admin' || $course->created_by === Auth::id();
+    }
+
+    /**
      * Display a listing of trainer's courses for assessment management.
      */
     public function index()
     {
         $userId = Auth::id();
+        $isAdmin = Auth::user()->role === 'admin';
 
-        $courses = Course::where('created_by', $userId)
+        $query = Course::query()
             ->withCount('quizzes')
             ->with(['quizzes' => function($query) {
                 $query->select('id', 'course_id', 'title', 'passing_score');
             }])
-            ->orderBy('created_at', 'desc')
-            ->get();
+            ->orderBy('created_at', 'desc');
+
+        if (!$isAdmin) {
+            $query->where('created_by', $userId);
+        }
+
+        $courses = $query->get();
 
         return Inertia::render('Assessments/Index', [
             'courses' => $courses,
@@ -50,7 +65,7 @@ class AssessmentsController extends Controller
         }
 
         // Verify trainer owns this course
-        if ($course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($course)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -80,7 +95,7 @@ class AssessmentsController extends Controller
 
         // Verify trainer owns this course
         \Log::info("Checking ownership. User: " . Auth::id() . ", Creator: " . $course->created_by);
-        if ($course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($course)) {
             \Log::warning("Unauthorized access to create quiz. User: " . Auth::id());
             abort(403, 'Unauthorized action.');
         }
@@ -105,7 +120,7 @@ class AssessmentsController extends Controller
         }
 
         // Verify trainer owns this course
-        if ($course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($course)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -212,7 +227,7 @@ class AssessmentsController extends Controller
     public function edit(Quiz $quiz)
     {
         // Verify trainer owns the course
-        if ($quiz->course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($quiz->course)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -232,7 +247,7 @@ class AssessmentsController extends Controller
     public function update(Request $request, Quiz $quiz)
     {
         // Verify trainer owns the course
-        if ($quiz->course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($quiz->course)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -382,7 +397,7 @@ class AssessmentsController extends Controller
     public function destroy(Quiz $quiz)
     {
         // Verify trainer owns the course
-        if ($quiz->course->created_by !== Auth::id()) {
+        if (!$this->canManageCourse($quiz->course)) {
             abort(403, 'Unauthorized action.');
         }
 

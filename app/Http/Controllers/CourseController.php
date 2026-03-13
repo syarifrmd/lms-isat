@@ -78,6 +78,11 @@ class CourseController extends Controller
         $course = Course::with(['creator', 'modules' => function($query) {
             $query->orderBy('order_sequence', 'asc');
         }, 'modules.quizzes' => function($query) {
+            // Regular users only see published quizzes; trainers/admins see all
+            $isTrainer = Auth::check() && in_array(Auth::user()->role, ['trainer', 'admin']);
+            if (!$isTrainer) {
+                $query->where('status', 'published');
+            }
             // Check if quiz is passed by current user and count attempts
             $query->withExists(['attempts as is_passed' => function($q) {
                 $q->where('user_id', Auth::id())

@@ -26,6 +26,7 @@
         "typescript-eslint": "^8.23.0"
     },
     "dependencies": {
+        "@cyntler/react-doc-viewer": "^1.17.1",
         "@headlessui/react": "^2.2.0",
         "@inertiajs/react": "^2.3.7",
         "@radix-ui/react-accordion": "^1.2.12",
@@ -68,6 +69,7 @@
         "lucide-react": "^0.475.0",
         "motion": "^12.24.12",
         "react": "^19.2.0",
+        "react-doc-viewer": "^0.1.15",
         "react-dom": "^19.2.0",
         "react-quill": "^2.0.0",
         "tailwind-merge": "^3.0.1",

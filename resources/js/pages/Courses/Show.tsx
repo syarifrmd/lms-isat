@@ -2,9 +2,12 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2 } from 'lucide-react';
 import { Quiz, SharedData } from '@/types';
 import { useState } from 'react';
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
+import '@cyntler/react-doc-viewer/dist/index.css';
 
 interface Module {
     id: number;
@@ -17,7 +20,12 @@ interface Module {
     is_locked?: boolean;
     is_text_read?: boolean;
     is_video_watched?: boolean;
-    quizzes?: Quiz[];
+    quizzes?: QuizWithProgress[];
+}
+
+interface QuizWithProgress extends Quiz {
+    attempts_count?: number;
+    is_passed?: boolean;
 }
 
 interface Course {
@@ -86,6 +94,14 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         });
     };
 
+    // ── Quiz confirmation modal ──────────────────────────────────────────────
+    const [confirmQuiz, setConfirmQuiz] = useState<QuizWithProgress | null>(null);
+
+    const startQuiz = () => {
+        if (!confirmQuiz) return;
+        router.visit(`/quiz/${confirmQuiz.id}`);
+    };
+
     // ── Rating form ─────────────────────────────────────────────────────────
     const [hovered, setHovered] = useState(0);
     const { data: ratingForm, setData: setRatingData, post: postRating, delete: deleteRating, processing: ratingProcessing } = useForm({
@@ -102,6 +118,41 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         deleteRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
     };
 
+    const getPreviewUri = (url: string) => {
+        if (!url) return '';
+        if (/^https?:\/\//i.test(url)) return url;
+        if (typeof window === 'undefined') return url;
+        return new URL(url, window.location.origin).toString();
+    };
+
+    const getFileName = (url: string) => {
+        const clean = url.split('?')[0];
+        const name = clean.split('/').pop();
+        return name || 'Dokumen';
+    };
+
+    const renderDocPreview = (docUrl: string) => {
+        const fullUrl = getPreviewUri(docUrl);
+        return (
+            <DocViewer
+                documents={[{ uri: fullUrl, fileName: getFileName(docUrl) }]}
+                pluginRenderers={DocViewerRenderers}
+                config={{
+                    header: {
+                        disableHeader: true,
+                        disableFileName: true,
+                        retainURLParams: false,
+                    },
+                    pdfZoom: {
+                        defaultZoom: 1,
+                        zoomJump: 0.2,
+                    },
+                }}
+                style={{ width: '100%', minHeight: '480px' }}
+            />
+        );
+    };
+
 
     return (
         <AppLayout 
@@ -115,7 +166,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
 
                 {/* ── Course Title Header ── */}
-                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm px-6 py-5">
+                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-linear-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm px-6 py-5">
                     <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Course</p>
@@ -243,25 +294,31 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                 )}
 
                                                 {module.doc_url && (
-                                                    <div className="mb-4 p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="bg-sky-100 dark:bg-sky-900/40 p-2 rounded-lg">
-                                                                <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                                                    <div className="mb-4 space-y-3">
+                                                        <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="bg-sky-100 dark:bg-sky-900/40 p-2 rounded-lg shrink-0">
+                                                                    <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+                                                                    <p className="text-xs text-gray-400 truncate">
+                                                                        {module.doc_url.startsWith('/storage/')
+                                                                            ? getFileName(module.doc_url)
+                                                                            : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
+                                                                    </p>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Module Document</p>
-                                                                <p className="text-xs text-gray-400">
-                                                                    {module.doc_url.startsWith('/storage/')
-                                                                        ? 'File dokumen'
-                                                                        : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
-                                                                </p>
-                                                            </div>
+                                                            <Button variant="outline" size="sm" asChild className="shrink-0">
+                                                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
+                                                                    Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
+                                                                </a>
+                                                            </Button>
                                                         </div>
-                                                        <Button variant="outline" size="sm" asChild>
-                                                            <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
-                                                                View / Download <LinkIcon className="ml-2 w-3 h-3" />
-                                                            </a>
-                                                        </Button>
+
+                                                        <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+                                                            {renderDocPreview(module.doc_url)}
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -286,11 +343,20 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                     </div>
                                                 )}
 
-                                                {(module.quizzes?.length ?? 0) > 0 && (
+                                                {((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0) && (
                                                     <div className="mt-5 border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">
-                                                        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
-                                                            <FileQuestion className="w-3.5 h-3.5" /> Assessments
-                                                        </p>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                                                                <FileQuestion className="w-3.5 h-3.5" /> Assessments
+                                                            </p>
+                                                            {isTrainer && canManage && (
+                                                                <Button asChild size="sm" variant="outline">
+                                                                    <Link href={`/assessments/${course.id}/quizzes/create`}>
+                                                                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Quiz
+                                                                    </Link>
+                                                                </Button>
+                                                            )}
+                                                        </div>
                                                         <div className="space-y-2">
                                                             {module.quizzes!.map((quiz) => (
                                                                 <div key={quiz.id}
@@ -311,14 +377,14 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                                     <Clock className="h-3 w-3" />{Math.floor((quiz.time_limit_second || 0) / 60)}m
                                                                                 </span>
                                                                             )}
-                                                                            <span className={`flex items-center gap-1 ${((quiz as any).attempts_count || 0) >= 3 ? 'text-red-500 font-medium' : ''}`}>
+                                                                            <span className={`flex items-center gap-1 ${(quiz.attempts_count || 0) >= 3 ? 'text-red-500 font-medium' : ''}`}>
                                                                                 <Award className="h-3 w-3" />
-                                                                                Attempt: {(quiz as any).attempts_count || 0}/3
+                                                                                Attempt: {quiz.attempts_count || 0}/3
                                                                             </span>
                                                                         </div>
                                                                     </div>
                                                                     {(() => {
-                                                                        const q = quiz as any;
+                                                                        const q = quiz;
                                                                         const attempts = q.attempts_count || 0;
                                                                         if (q.is_passed) return (
                                                                             <Button size="sm" variant="outline"
@@ -332,8 +398,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                             </Button>
                                                                         );
                                                                         return (
-                                                                            <Button asChild size="sm">
-                                                                                <Link href={`/quiz/${quiz.id}`}>Start Quiz</Link>
+                                                                            <Button size="sm" onClick={() => setConfirmQuiz(quiz)}>
+                                                                                Start Quiz
                                                                             </Button>
                                                                         );
                                                                     })()}
@@ -354,68 +420,68 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                         </div>
                     </div>
 
-                    {/* RIGHT: Sidebar */}
-                    <div className="flex flex-col gap-4">
+                    {/* RIGHT: Sidebar – order-first on mobile, last column on desktop */}
+                    <div className="flex flex-col gap-3 lg:gap-4 order-first lg:order-last">
 
                         {/* Progress card */}
                         {!isTrainer && (
-                            <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm p-5">
-                                <p className="text-xs font-semibold uppercase tracking-widest text-sky-400 mb-3">Your Progress</p>
-                                <div className="flex items-end justify-between mb-2">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">Course Completion</span>
-                                    <span className="text-2xl font-bold text-sky-600">{userProgress}%</span>
+                            <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-linear-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm p-4 lg:p-5">
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-sky-400">Progress Belajar</p>
+                                    <span className="text-2xl lg:text-xl font-bold text-sky-600 leading-none">{userProgress}%</span>
                                 </div>
-                                <div className="w-full bg-sky-100 dark:bg-sky-900/40 rounded-full h-2">
+                                <div className="w-full bg-sky-100 dark:bg-sky-900/40 rounded-full h-2.5">
                                     <div
-                                        className="bg-sky-500 h-2 rounded-full transition-all duration-500"
+                                        className="bg-sky-500 h-2.5 rounded-full transition-all duration-500"
                                         style={{ width: `${userProgress}%` }}
                                     />
                                 </div>
+                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{userProgress < 100 ? 'Selesaikan semua modul untuk mendapat sertifikat' : ''}</p>
                                 {userProgress === 100 && (
-                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-3 font-semibold flex items-center gap-1.5">
-                                        <CheckCircle className="w-4 h-4" /> Course Completed!
+                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-semibold flex items-center gap-1.5">
+                                        <CheckCircle className="w-4 h-4" /> Kursus Selesai!
                                     </p>
                                 )}
                             </div>
                         )}
 
                         {/* Instructor card */}
-                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-5">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">Instructor</p>
+                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-4 lg:p-5">
+                            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Instruktur</p>
                             <div className="flex items-center gap-3">
-                                <div className="h-11 w-11 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-300 flex items-center justify-center font-bold text-base shrink-0">
+                                <div className="h-10 w-10 lg:h-11 lg:w-11 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-300 flex items-center justify-center font-bold text-sm lg:text-base shrink-0">
                                     {trainerInitials}
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">{trainerName}</p>
-                                    <p className="text-xs text-gray-400">Course Creator</p>
-                                    <p className="text-xs text-gray-400">ID: {trainerId}</p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-sm lg:text-sm text-gray-800 dark:text-gray-100 truncate">{trainerName}</p>
+                                    <p className="text-[11px] sm:text-xs text-gray-400">Pembuat Kursus</p>
+                                    <p className="text-[11px] sm:text-xs text-gray-400">ID: {trainerId}</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Rating card */}
-                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-5 space-y-4">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-4 lg:p-5 space-y-3 lg:space-y-4">
+                            <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
                                 <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> Course Rating
                             </p>
 
                             {/* Average */}
                             <div className="flex items-end gap-3">
-                                <span className="text-4xl font-bold text-gray-800 dark:text-gray-100 leading-none">
+                                <span className="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 leading-none">
                                     {ratingData?.average ?? '—'}
                                 </span>
                                 <div className="pb-0.5 space-y-1">
                                     <div className="flex gap-0.5">
                                         {[1,2,3,4,5].map(s => (
-                                            <Star key={s} className={`w-4 h-4 ${
+                                            <Star key={s} className={`w-3 h-3 sm:w-4 sm:h-4 ${
                                                 s <= Math.round(ratingData?.average ?? 0)
                                                     ? 'text-amber-400 fill-amber-400'
                                                     : 'text-gray-200 dark:text-gray-600'
                                             }`} />
                                         ))}
                                     </div>
-                                    <p className="text-xs text-gray-400">{ratingData?.count ?? 0} rating{ratingData?.count !== 1 ? 's' : ''}</p>
+                                    <p className="text-[11px] sm:text-xs text-gray-400">{ratingData?.count ?? 0} rating{ratingData?.count !== 1 ? 's' : ''}</p>
                                 </div>
                             </div>
 
@@ -441,9 +507,9 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
 
                             {/* Rating form – enrolled users */}
                             {!isTrainer && isEnrolled && (
-                                <div className="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-3">
-                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {ratingData?.user_rating ? 'Your Rating' : 'Rate this Course'}
+                                <div className="border-t border-gray-100 dark:border-gray-700 pt-3 lg:pt-4 space-y-3">
+                                    <p className="text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {ratingData?.user_rating ? 'Rating Anda' : 'Beri Rating Kursus'}
                                     </p>
                                     <form onSubmit={submitRating} className="space-y-3">
                                         <div className="flex gap-1">
@@ -453,7 +519,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                     onMouseLeave={() => setHovered(0)}
                                                     onClick={() => setRatingData('rating', star)}
                                                     className="p-0.5 focus:outline-none">
-                                                    <Star className={`w-7 h-7 transition-colors ${
+                                                    <Star className={`w-5 h-5 sm:w-6 sm:h-6 transition-colors ${
                                                         star <= (hovered || ratingForm.rating)
                                                             ? 'text-amber-400 fill-amber-400'
                                                             : 'text-gray-200 dark:text-gray-600'
@@ -491,7 +557,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             {!isTrainer && !isEnrolled && (
                                 <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2.5 text-xs text-gray-400">
                                     <MessageSquare className="w-4 h-4 shrink-0" />
-                                    Enroll to rate this course
+                                    Daftar kursus untuk memberi rating
                                 </div>
                             )}
                         </div>
@@ -499,6 +565,79 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                     </div>
                 </div>
             </div>
+        {/* ── Quiz Confirmation Modal ── */}
+            <Dialog open={!!confirmQuiz} onOpenChange={(open) => { if (!open) setConfirmQuiz(null); }}>
+                <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-base sm:text-lg">Mulai Quiz</DialogTitle>
+                        <DialogDescription className="text-sm text-gray-500 dark:text-gray-400">
+                            Pastikan kamu siap sebelum memulai quiz ini.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {confirmQuiz && (
+                        <div className="space-y-3 py-1">
+                            <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">{confirmQuiz.title}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5">
+                                    <FileQuestion className="w-4 h-4 text-sky-500 shrink-0" />
+                                    <div>
+                                        <p className="text-[11px] text-gray-400">Jumlah Soal</p>
+                                        <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{confirmQuiz.questions_count || 0} soal</p>
+                                    </div>
+                                </div>
+                                {confirmQuiz.is_timed && (
+                                    <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5">
+                                        <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                                        <div>
+                                            <p className="text-[11px] text-gray-400">Batas Waktu</p>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                                                {Math.floor((confirmQuiz.time_limit_second || 0) / 60)} menit
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {confirmQuiz.passing_score != null && (
+                                    <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5">
+                                        <Award className="w-4 h-4 text-emerald-500 shrink-0" />
+                                        <div>
+                                            <p className="text-[11px] text-gray-400">Nilai Lulus</p>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{confirmQuiz.passing_score}%</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex items-center gap-2 rounded-xl bg-gray-50 dark:bg-gray-700/40 px-3 py-2.5">
+                                    <AlertCircle className={`w-4 h-4 shrink-0 ${
+                                        (confirmQuiz.attempts_count || 0) >= 2 ? 'text-red-500' : 'text-gray-400'
+                                    }`} />
+                                    <div>
+                                        <p className="text-[11px] text-gray-400">Percobaan</p>
+                                        <p className={`text-sm font-semibold ${
+                                            (confirmQuiz.attempts_count || 0) >= 2 ? 'text-red-500' : 'text-gray-800 dark:text-gray-100'
+                                        }`}>
+                                            {confirmQuiz.attempts_count || 0}/3 digunakan
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            {(confirmQuiz.attempts_count || 0) >= 2 && (
+                                <div className="flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5 text-xs text-amber-600 dark:text-amber-400">
+                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                    Ini adalah percobaan terakhirmu. Gunakan dengan bijak!
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter className="flex-row gap-2 sm:flex-row">
+                        <Button variant="outline" className="flex-1" onClick={() => setConfirmQuiz(null)}>Batal</Button>
+                        <Button className="flex-1" onClick={startQuiz}>
+                            <CheckCircle className="w-4 h-4 mr-1.5" />
+                            Mulai Sekarang
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -14,7 +14,7 @@ interface Course {
     category?: string;
     start_date?: string;
     end_date?: string;
-    modules?: Array<any>;
+    modules?: unknown[];
 }
 
 interface EnrollmentModalProps {
@@ -51,7 +51,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-[50vw] max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="text-2xl">Konfirmasi Pendaftaran Kursus</DialogTitle>
                     <DialogDescription>
@@ -59,7 +59,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
+                <div className="space-y-4 py-4 overflow-y-auto pr-1 flex-1 min-h-0">
                     {/* Course Title */}
                     <div className="space-y-2">
                         <div className="flex items-start gap-3">
@@ -78,7 +78,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                     {/* Description */}
                     {course.description && (
                         <div className="rounded-lg bg-muted/50 p-4">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
+                            <p className="text-sm text-muted-foreground leading-relaxed wrap-break-word whitespace-pre-wrap max-h-36 overflow-y-auto pr-1">
                                 {course.description}
                             </p>
                         </div>
@@ -101,7 +101,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                         <div className="flex items-start gap-3 rounded-lg border p-3">
                             <Clock className="w-5 h-5 text-red-600 mt-0.5" />
                             <div>
-                                <p className="text-xs font-medium text-muted-foreground">Deadline</p>
+                                <p className="text-xs font-medium text-muted-foreground">Batas Akhir</p>
                                 <p className="text-sm font-semibold mt-1">
                                     {formatDate(course.end_date)}
                                 </p>
@@ -125,7 +125,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                             <div>
                                 <p className="text-xs font-medium text-muted-foreground">Sertifikat</p>
                                 <p className="text-sm font-semibold mt-1">
-                                    Tersedia setelah selesai
+                                    Tersedia setelah kursus selesai
                                 </p>
                             </div>
                         </div>
@@ -139,12 +139,13 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                     </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="shrink-0 border-t pt-4 gap-2">
                     <Button
                         type="button"
                         variant="outline"
                         onClick={() => onOpenChange(false)}
                         disabled={isEnrolling}
+                        className="w-full sm:w-auto"
                     >
                         Batal
                     </Button>
@@ -152,6 +153,7 @@ export function EnrollmentModal({ open, onOpenChange, course, onConfirm }: Enrol
                         type="button"
                         onClick={handleEnroll}
                         disabled={isEnrolling}
+                        className="w-full sm:w-auto"
                     >
                         {isEnrolling ? 'Mendaftar...' : 'Daftar Sekarang'}
                     </Button>

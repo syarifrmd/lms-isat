@@ -39,6 +39,7 @@ export function AppSidebar() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
+                    { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
