@@ -39,7 +39,7 @@ export default function Certificates({ courses }: CertificatesProps) {
                     </DialogHeader>
                     {selectedCourse && (
                         <iframe
-                            src={`/certificate/${selectedCourse.id}`}
+                            src={`/certificate/${selectedCourse.id}?t=${Date.now()}`}
                             className="w-full flex-1 rounded-lg border border-gray-100 dark:border-gray-700"
                             title="Certificate Preview"
                         />

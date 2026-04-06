@@ -21,6 +21,7 @@ import {
     Settings,
     Trophy,
     Users,
+    Palette,  
 } from 'lucide-react';
 
 export function AppSidebar() {
@@ -40,6 +41,7 @@ export function AppSidebar() {
                     { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
+                      { title: 'Desain Sertifikat', href: '/admin/certificate-templates', icon: Palette },
                     { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':

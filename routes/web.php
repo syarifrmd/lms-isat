@@ -18,6 +18,7 @@ use App\Http\Controllers\CourseRatingController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\SessionPingController;
+use App\Http\Controllers\Admin\CertificateTemplateController;
 
 Route::get('/', function () {
     return Inertia::render('welcome', [
@@ -147,6 +148,15 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/verify', [UserManagementController::class, 'verify'])->name('users.verify');
     Route::post('/users/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('users.toggle-status');
+
+    // Certificate Templates
+    Route::get('/certificate-templates', [CertificateTemplateController::class, 'index'])->name('certificate-templates.index');
+    Route::get('/certificate-templates/create', [CertificateTemplateController::class, 'create'])->name('certificate-templates.create');
+    Route::post('/certificate-templates', [CertificateTemplateController::class, 'store'])->name('certificate-templates.store');
+    Route::get('/certificate-templates/{certificateTemplate}/edit', [CertificateTemplateController::class, 'edit'])->name('certificate-templates.edit');
+    Route::put('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'update'])->name('certificate-templates.update');
+    Route::delete('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'destroy'])->name('certificate-templates.destroy');
+    Route::post('/certificate-templates/{certificateTemplate}/activate', [CertificateTemplateController::class, 'activate'])->name('certificate-templates.activate');
 });
 
 require __DIR__.'/settings.php';
