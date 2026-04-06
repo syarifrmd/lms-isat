@@ -1,4 +1,4 @@
-import { type SharedData } from '@/types';
+﻿import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
@@ -7,7 +7,6 @@ import {
     CheckCircle,
     ChevronRight,
     GraduationCap,
-    LayoutDashboard,
     Settings,
     Star,
     TrendingUp,
@@ -81,12 +80,32 @@ function formatMonth(key: string) {
     return new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'short' });
 }
 
+function toMonthKey(date: Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+}
+
+function getLastSixMonthsSeries(raw: Record<string, number>) {
+    const now = new Date();
+    const months: string[] = [];
+
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(toMonthKey(d));
+    }
+
+    return months.map((key) => [key, raw[key] ?? 0] as const);
+}
+
+
+
 // ── Subcomponents ─────────────────────────────────────────────────────────────
 
 function StatCard({
     label,
     value,
-    sub,
+    tone = 'default',
     icon: Icon,
     iconBg,
     iconColor,
@@ -94,26 +113,42 @@ function StatCard({
 }: {
     label: string;
     value: string | number;
-    sub?: string;
+    tone?: 'default' | 'highlight';
     icon: React.ElementType;
     iconBg: string;
     iconColor: string;
     borderColor: string;
 }) {
+    const iconWrapperClass = tone === 'highlight'
+        ? `${iconBg} group-hover:border-white/20 group-hover:bg-white/10`
+        : iconBg;
+    const iconColorClass = tone === 'highlight'
+        ? `${iconColor} group-hover:text-white`
+        : iconColor;
+
     return (
-        <div className={`relative overflow-hidden rounded-2xl border bg-white dark:bg-neutral-900 p-5 shadow-sm ${borderColor}`}>
-            <div className="flex items-start justify-between">
-                <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                    <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
-                    {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
+        <div className={`group relative h-full overflow-hidden rounded-[22px] border p-4 font-sans shadow-sm transition-all hover:shadow-md ${tone === 'highlight'
+            ? 'border-gray-100 bg-white hover:border-red-700/20 hover:bg-linear-to-br hover:from-red-600 hover:via-red-500 hover:to-red-500 hover:text-white hover:shadow-red-950/10 dark:border-white/10 dark:bg-neutral-900'
+            : `bg-white ${borderColor} dark:bg-neutral-900`
+        }`}>
+            <div className="flex h-full min-h-33 flex-col">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-medium ${tone === 'highlight' ? 'text-gray-700 group-hover:text-white/90 dark:text-gray-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {label}
+                        </p>
+                    </div>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${iconWrapperClass}`}>
+                        <Icon className={`h-4.5 w-4.5 ${iconColorClass}`} />
+                    </div>
                 </div>
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-                    <Icon className={`h-5 w-5 ${iconColor}`} />
+
+                <div className="mt-4 flex flex-1 items-end">
+                    <p className={`text-[2.05rem] font-semibold leading-none tracking-tight ${tone === 'highlight' ? 'text-gray-950 group-hover:text-white dark:text-white' : 'text-gray-950 dark:text-white'}`}>
+                        {value}
+                    </p>
                 </div>
             </div>
-            {/* Subtle decorative arc */}
-            <div className={`pointer-events-none absolute -right-4 -bottom-4 h-20 w-20 rounded-full opacity-10 ${iconBg}`} />
         </div>
     );
 }
@@ -125,15 +160,10 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
     const user = auth.user;
     const stats = data?.stats;
 
-    const initials = (user.full_name || user.name || 'A')
-        .split(' ')
-        .slice(0, 2)
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase();
+
 
     // Monthly enrollments bar chart
-    const monthlyData = Object.entries(data?.monthly_enrollments ?? {});
+    const monthlyData = getLastSixMonthsSeries(data?.monthly_enrollments ?? {});
     const maxMonthly = Math.max(...monthlyData.map(([, v]) => v), 1);
 
     // Course status distribution
@@ -142,9 +172,6 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
 
     // Quick links
     const quickLinks = [
-        { label: 'Dashboard',      href: '/dashboard',   icon: LayoutDashboard },
-        { label: 'User Management', href: '/admin/users', icon: Users },
-        { label: 'All Courses',    href: '/courses',     icon: BookOpen },
         { label: 'Settings',       href: '/settings',    icon: Settings },
     ];
 
@@ -152,19 +179,20 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
         <div className="space-y-8 p-4 md:p-6">
 
             {/* ── Hero ── */}
-            <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-slate-800 to-slate-900 p-6 md:p-8 text-white shadow-lg">
+            <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-red-500 to-red-700 p-6 md:p-8 text-white shadow-lg">
                 <div className="relative z-10 flex items-center justify-between gap-4">
                     <div>
-                        <p className="text-sm font-medium text-slate-400">Admin Portal</p>
+                        <p className="text-sm font-medium text-white">Admin Portal</p>
                         <h1 className="mt-1 text-2xl md:text-3xl font-bold leading-tight">
                             {user.full_name || user.name}
                         </h1>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Platform overview — all systems operational
-                        </p>
                     </div>
-                    <div className="hidden sm:flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 text-xl font-bold shrink-0 border border-white/10">
-                        {initials}
+                    <div className="flex items-center justify-center rounded-2xl">
+                      <img 
+                        src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
+                        alt={user.name}
+                        className="h-14 w-14 shrink-0 rounded-full border-2 border-yellow-400 object-cover md:h-20 md:w-20"
+                      />
                     </div>
                 </div>
                 {/* Quick links */}
@@ -181,68 +209,74 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
                     ))}
                 </div>
                 {/* Decorative */}
-                <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/5" />
-                <div className="pointer-events-none absolute -bottom-12 -right-4 h-64 w-64 rounded-full bg-white/3" />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-red-100/20" />
+                <div className="pointer-events-none absolute -bottom-12 -right-4 h-64 w-64 rounded-full bg-red-100/20" />
             </div>
 
             {/* ── Stats Grid ── */}
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-7">
+            <div className="grid grid-cols-2 items-stretch gap-4 md:grid-cols-3 xl:grid-cols-7">
                 <StatCard
                     label="Total Users"
                     value={stats?.total_users ?? 0}
+                    tone="highlight"
                     icon={Users}
-                    iconBg="bg-blue-50 dark:bg-blue-900/20"
-                    iconColor="text-blue-600 dark:text-blue-400"
-                    borderColor="border-blue-100 dark:border-blue-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-transparent"
                 />
                 <StatCard
                     label="Trainers"
                     value={stats?.total_trainers ?? 0}
+                    tone="highlight"
                     icon={Award}
-                    iconBg="bg-purple-50 dark:bg-purple-900/20"
-                    iconColor="text-purple-600 dark:text-purple-400"
-                    borderColor="border-purple-100 dark:border-purple-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
                 <StatCard
                     label="Students"
                     value={stats?.total_students ?? 0}
+                    tone="highlight"
                     icon={GraduationCap}
-                    iconBg="bg-emerald-50 dark:bg-emerald-900/20"
-                    iconColor="text-emerald-600 dark:text-emerald-400"
-                    borderColor="border-emerald-100 dark:border-emerald-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
                 <StatCard
                     label="Total Courses"
                     value={stats?.total_courses ?? 0}
+                    tone="highlight"
                     icon={BookOpen}
-                    iconBg="bg-amber-50 dark:bg-amber-900/20"
-                    iconColor="text-amber-600 dark:text-amber-400"
-                    borderColor="border-amber-100 dark:border-amber-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
                 <StatCard
                     label="Enrollments"
                     value={stats?.total_enrollments ?? 0}
+                    tone="highlight"
                     icon={Activity}
-                    iconBg="bg-rose-50 dark:bg-rose-900/20"
-                    iconColor="text-rose-600 dark:text-rose-400"
-                    borderColor="border-rose-100 dark:border-rose-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
                 <StatCard
                     label="Completion Rate"
                     value={`${stats?.completion_rate ?? 0}%`}
-                    sub={`${stats?.completed_enrollments ?? 0} completed`}
+                    tone="highlight"
                     icon={CheckCircle}
-                    iconBg="bg-teal-50 dark:bg-teal-900/20"
-                    iconColor="text-teal-600 dark:text-teal-400"
-                    borderColor="border-teal-100 dark:border-teal-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
                 <StatCard
                     label="Avg Platform Rating"
                     value={stats?.platform_avg_rating ? `${stats.platform_avg_rating} / 5` : 'No ratings'}
+                    tone="highlight"
                     icon={Star}
-                    iconBg="bg-amber-50 dark:bg-amber-900/20"
-                    iconColor="text-amber-600 dark:text-amber-400"
-                    borderColor="border-amber-100 dark:border-amber-900/40"
+                    iconBg="border-gray-200 bg-white dark:border-white/10 dark:bg-neutral-800"
+                    iconColor="text-red-500 dark:text-red-400"
+                    borderColor="border-gray-100 dark:border-white/10"
                 />
             </div>
 
@@ -260,21 +294,25 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
                             <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                     </div>
-                    <div className="flex h-36 items-end gap-2">
+                    <div className="grid h-40 grid-cols-6 items-end gap-3">
                         {monthlyData.map(([key, val]) => {
                             const pct = Math.round((val / maxMonthly) * 100);
+                            const barHeight = val > 0 ? Math.max(pct, 8) : 0;
                             return (
-                                <div key={key} className="group flex flex-1 flex-col items-center gap-1.5">
-                                    <span className="hidden text-[10px] font-semibold text-gray-700 dark:text-gray-300 group-hover:block">
-                                        {val}
-                                    </span>
-                                    <div className="relative w-full overflow-hidden rounded-t-md bg-blue-100 dark:bg-blue-900/20" style={{ height: '100px' }}>
-                                        <div
-                                            className="absolute bottom-0 w-full rounded-t-md bg-blue-500 dark:bg-blue-600 transition-all duration-500"
-                                            style={{ height: `${pct}%` }}
-                                        />
+                                <div key={key} className="group flex h-full flex-col items-center justify-end gap-2">
+                                    <div className="relative flex w-full flex-1 items-end">
+                                        <span className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 rounded-md bg-gray-900 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-white dark:text-gray-900">
+                                            {val}
+                                        </span>
+                                        <div className="relative h-27.5 w-full overflow-hidden rounded-md">
+                                            <div className="absolute bottom-0 h-px w-full bg-blue-100 dark:bg-blue-900/30" />
+                                            <div
+                                                className="absolute bottom-0 w-full rounded-md bg-blue-500 transition-all duration-500 dark:bg-blue-600"
+                                                style={{ height: `${barHeight}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <span className="text-[10px] font-medium text-muted-foreground">{formatMonth(key)}</span>
+                                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{formatMonth(key)}</span>
                                 </div>
                             );
                         })}

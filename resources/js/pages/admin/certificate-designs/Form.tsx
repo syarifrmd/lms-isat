@@ -87,7 +87,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
             setData('layout_data', JSON.stringify({ elements, canvasWidth, canvasHeight }));
         }, 300);
         return () => clearTimeout(timer);
-    }, [elements, canvasWidth, canvasHeight]);
+    }, [elements, canvasWidth, canvasHeight, setData]);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -155,7 +155,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
         return (
             <AppLayout>
                 <Head title={template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'} />
-                <div className="max-w-4xl mx-auto space-y-6">
+                <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
                     <Button
                         variant="ghost"
                         onClick={() => router.get(certificateTemplates.index.url())}
@@ -165,9 +165,9 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                         Kembali
                     </Button>
 
-                    <Card>
+                    <Card className="rounded-2xl border-gray-100 shadow-sm dark:border-gray-700">
                         <CardHeader>
-                            <CardTitle>{template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'}</CardTitle>
+                            <CardTitle className="text-xl">{template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'}</CardTitle>
                             <CardDescription>
                                 Unggah gambar background sertifikat untuk memulai
                             </CardDescription>
@@ -191,7 +191,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                 <div>
                                     <Label>Background Sertifikat</Label>
                                     <div
-                                        className="mt-2 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50"
+                                        className="mt-2 cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
                                         onClick={() => fileInputRef.current?.click()}
                                     >
                                         <Camera className="h-8 w-8 mx-auto mb-2 text-gray-400" />
@@ -220,7 +220,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
     return (
         <AppLayout>
             <Head title={template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'} />
-            <div className="max-w-7xl mx-auto space-y-6">
+            <div className="mx-auto max-w-8xl space-y-6 px-4 py-6">
                 <Button
                     variant="ghost"
                     onClick={() => router.get(certificateTemplates.index.url())}
@@ -231,27 +231,30 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                 </Button>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    <Card>
+                    <Card className="rounded-2xl border-gray-100 shadow-sm dark:border-gray-700">
                         <CardHeader>
-                            <CardTitle>{template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'}</CardTitle>
+                            <CardTitle className="text-xl">{template ? 'Edit Desain Sertifikat' : 'Buat Desain Sertifikat'}</CardTitle>
+                            <CardDescription>
+                                Atur nama template dan background sebelum mengedit posisi elemen.
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-4">
-                                <div>
+                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                <div className="space-y-2">
                                     <Label htmlFor="name">Nama Desain</Label>
                                     <Input
                                         id="name"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
                                         placeholder="Contoh: Desain Sertifikat 2026"
-                                        className="mt-2"
+                                        className="mt-1"
                                     />
                                 </div>
 
-                                <div>
+                                <div className="space-y-2">
                                     <Label>Ganti Background (Opsional)</Label>
                                     <div
-                                        className="mt-2 border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-gray-50"
+                                        className="mt-1 cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-6 text-center transition-colors hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
                                         onClick={() => fileInputRef.current?.click()}
                                     >
                                         <Camera className="h-8 w-8 mx-auto mb-2 text-gray-400" />
@@ -273,19 +276,19 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Canvas Area */}
                         <div className="lg:col-span-3">
-                            <Card>
+                            <Card className="rounded-2xl border-gray-100 shadow-sm dark:border-gray-700">
                                 <CardHeader>
                                     <CardTitle className="text-lg">Editor Tata Letak</CardTitle>
                                     <CardDescription>
-                                        Drag elemen atau ubah nilai di panel kanan untuk preview real-time
+                                        Drag elemen di kanvas atau ubah properti di panel kanan.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div
-                                        className="border-2 border-gray-300 rounded-lg mx-auto relative bg-gray-100"
+                                        className="relative mx-auto rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900"
                                         style={{
                                             width: '100%',
-                                            maxHeight: '600px',
+                                            maxHeight: '68vh',
                                             overflow: 'auto',
                                         }}
                                     >
@@ -344,8 +347,8 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                     <div
                                                         className={`flex items-center justify-center font-semibold text-xs cursor-move select-none border-2 transition ${
                                                             selectedElement === element.id
-                                                                ? 'border-blue-500 bg-blue-400 bg-opacity-80 text-white'
-                                                                : 'border-gray-400 bg-gray-600 bg-opacity-50 text-white hover:bg-opacity-70'
+                                                                ? 'border-sky-500 bg-sky-500/85 text-white'
+                                                                : 'border-gray-500 bg-gray-700/55 text-white hover:bg-gray-700/70'
                                                         }`}
                                                         style={{
                                                             width: '100%',
@@ -353,9 +356,9 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                             fontSize: `${Math.max(9, Math.min((element.fontSize || 16) / 3, 14))}px`,
                                                         }}
                                                     >
-                                                        <span className="px-1 text-center whitespace-pre-wrap break-words leading-tight">
+                                                        <span className="px-1 text-center whitespace-pre-wrap wrap-break-word leading-tight">
                                                             {element.type === 'qrcode'
-                                                                ? '📱 QR'
+                                                                ? 'QR Code'
                                                                 : element.id === 'customMessage' || element.id.startsWith('customMessage_')
                                                                   ? (element.value || 'Pesan Custom').substring(0, 60)
                                                                   : element.label.substring(0, 20)}
@@ -370,10 +373,10 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                         </div>
 
                         {/* Properties Panel */}
-                        <div className="space-y-4">
-                            <Card>
+                        <div className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+                            <Card className="rounded-2xl border-gray-100 shadow-sm dark:border-gray-700">
                                 <CardHeader>
-                                    <CardTitle className="text-base">Elemen</CardTitle>
+                                    <CardTitle className="text-base">Daftar Elemen</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-2 max-h-96 overflow-y-auto">
                                     {elements.map((element) => (
@@ -382,8 +385,8 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                             onClick={() => setSelectedElement(element.id)}
                                             className={`p-3 rounded-lg cursor-pointer border-2 transition ${
                                                 selectedElement === element.id
-                                                    ? 'border-blue-500 bg-blue-50'
-                                                    : 'border-gray-200 hover:border-gray-300'
+                                                    ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
+                                                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between">
@@ -418,15 +421,15 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                         onClick={handleAddElement}
                                     >
                                         <Plus className="h-3 w-3 mr-2" />
-                                        Tambah
+                                        Tambah Elemen Teks
                                     </Button>
                                 </CardContent>
                             </Card>
 
                             {selectedElement && (
-                                <Card className="bg-blue-50 border-blue-200">
+                                <Card className="rounded-2xl border-gray-100 shadow-sm dark:border-gray-700">
                                     <CardHeader>
-                                        <CardTitle className="text-base">📍 Properti</CardTitle>
+                                        <CardTitle className="text-base">Properti Elemen</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
                                         {(() => {
@@ -435,14 +438,14 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
 
                                             return (
                                                 <>
-                                                    <div className="bg-white p-2 rounded border border-blue-200 text-xs">
-                                                        <p className="font-semibold text-blue-700">{element.label}</p>
-                                                        <p className="text-gray-500">{element.type === 'text' ? '📝 Elemen Teks' : '📱 QR Code'}</p>
+                                                    <div className="rounded-md border border-gray-200 bg-gray-50 p-2 text-xs dark:border-gray-700 dark:bg-gray-900">
+                                                        <p className="font-semibold text-gray-800 dark:text-gray-100">{element.label}</p>
+                                                        <p className="text-gray-500">{element.type === 'text' ? 'Elemen Teks' : 'QR Code'}</p>
                                                     </div>
 
-                                                    <div className="bg-white p-2 rounded border border-blue-200 text-xs space-y-1">
-                                                        <p className="text-gray-700">📍 Pos: <span className="font-mono font-bold text-blue-600">({Math.round(element.x)}, {Math.round(element.y)})</span></p>
-                                                        <p className="text-gray-700">📦 Ukr: <span className="font-mono font-bold text-green-600">{Math.round(element.width)}×{Math.round(element.height)}</span></p>
+                                                    <div className="rounded-md border border-gray-200 bg-gray-50 p-2 text-xs space-y-1 dark:border-gray-700 dark:bg-gray-900">
+                                                        <p className="text-gray-700 dark:text-gray-300">Posisi: <span className="font-mono font-bold text-sky-600">({Math.round(element.x)}, {Math.round(element.y)})</span></p>
+                                                        <p className="text-gray-700 dark:text-gray-300">Ukuran: <span className="font-mono font-bold text-emerald-600">{Math.round(element.width)} x {Math.round(element.height)}</span></p>
                                                     </div>
 
                                                     <div>
@@ -471,7 +474,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                     })
                                                                 }
                                                                 placeholder="Contoh: Dengan hormat diberikan kepada..."
-                                                                className="mt-1 text-xs min-h-[88px]"
+                                                                className="mt-1 text-xs min-h-22"
                                                             />
                                                             <p className="text-[11px] text-gray-500 mt-1">
                                                                 Isi ini akan tampil di sertifikat user.
@@ -479,7 +482,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                         </div>
                                                     )}
 
-                                                    <div className="border-t border-blue-200 pt-2">
+                                                    <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
                                                         <Label className="text-xs font-semibold block mb-2">Posisi (X, Y)</Label>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
@@ -493,7 +496,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                         })
                                                                     }
                                                                     min="0"
-                                                                    className="mt-1 text-xs h-8 border-blue-300 focus:ring-blue-400"
+                                                                    className="mt-1 text-xs h-8"
                                                                 />
                                                             </div>
                                                             <div>
@@ -507,14 +510,14 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                         })
                                                                     }
                                                                     min="0"
-                                                                    className="mt-1 text-xs h-8 border-blue-300 focus:ring-blue-400"
+                                                                    className="mt-1 text-xs h-8"
                                                                 />
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="border-t border-blue-200 pt-2">
-                                                        <Label className="text-xs font-semibold block mb-2">Ukuran (Lebar × Tinggi)</Label>
+                                                    <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
+                                                        <Label className="text-xs font-semibold block mb-2">Ukuran (Lebar x Tinggi)</Label>
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <div>
                                                                 <Label className="text-xs text-gray-600">Lebar</Label>
@@ -527,7 +530,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                         })
                                                                     }
                                                                     min="50"
-                                                                    className="mt-1 text-xs h-8 border-green-300 focus:ring-green-400"
+                                                                    className="mt-1 text-xs h-8"
                                                                 />
                                                             </div>
                                                             <div>
@@ -541,15 +544,15 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                         })
                                                                     }
                                                                     min="30"
-                                                                    className="mt-1 text-xs h-8 border-green-300 focus:ring-green-400"
+                                                                    className="mt-1 text-xs h-8"
                                                                 />
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     {element.fontSize && (
-                                                        <div className="border-t border-blue-200 pt-2">
-                                                            <Label className="text-xs font-semibold">🔤 Ukuran Font</Label>
+                                                        <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
+                                                            <Label className="text-xs font-semibold">Ukuran Font</Label>
                                                             <Input
                                                                 type="number"
                                                                 value={element.fontSize}
@@ -560,14 +563,14 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                 }
                                                                 min="8"
                                                                 max="72"
-                                                                className="mt-1 text-xs h-8 border-purple-300 focus:ring-purple-400"
+                                                                className="mt-1 text-xs h-8"
                                                             />
                                                         </div>
                                                     )}
 
                                                     {element.color && (
-                                                        <div className="border-t border-blue-200 pt-2">
-                                                            <Label className="text-xs font-semibold">🎨 Warna Teks</Label>
+                                                        <div className="border-t border-gray-200 pt-2 dark:border-gray-700">
+                                                            <Label className="text-xs font-semibold">Warna Teks</Label>
                                                             <div className="flex items-center mt-2 gap-2">
                                                                 <input
                                                                     type="color"
@@ -577,7 +580,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                                                             color: e.target.value,
                                                                         })
                                                                     }
-                                                                    className="w-10 h-10 rounded cursor-pointer border-2 border-gray-300"
+                                                                    className="h-10 w-10 cursor-pointer rounded border-2 border-gray-300"
                                                                 />
                                                                 <span className="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-300">{element.color}</span>
                                                             </div>
@@ -592,17 +595,16 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                         </div>
                     </div>
 
-                    <div className="flex gap-3 justify-end">
+                    <div className="flex justify-end gap-3">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => router.get(certificateTemplates.index.url())}
                             disabled={processing}
-                            size="sm"
                         >
                             Batal
                         </Button>
-                        <Button disabled={processing || !data.name} size="sm">
+                        <Button disabled={processing || !data.name} className="bg-sky-600 text-white hover:bg-sky-700">
                             {processing ? 'Menyimpan...' : template ? 'Perbarui' : 'Buat'}
                         </Button>
                     </div>

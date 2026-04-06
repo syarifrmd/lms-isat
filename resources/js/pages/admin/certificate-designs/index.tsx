@@ -34,6 +34,7 @@ import {
     Edit,
     Trash2,
     CheckCircle,
+    Palette
 } from 'lucide-react';
 interface CertificateTemplate {
     id: number;
@@ -61,106 +62,191 @@ export default function Index() {
     return (
         <AppLayout>
             <Head title="Desain Sertifikat" />
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Desain Sertifikat</h1>
-                        <p className="text-muted-foreground mt-2">
-                            Kelola desain sertifikat yang akan ditampilkan kepada peserta didik
-                        </p>
+            <div className="mx-auto flex max-w-8xl flex-col gap-6 px-4 py-6">
+                <div className="rounded-2xl border border-sky-100 bg-linear-to-br from-sky-50 to-white p-5 shadow-sm dark:border-sky-900 dark:from-sky-950 dark:to-gray-900">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-900 dark:text-sky-300">
+                                <Palette className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Admin Panel</p>
+                                <h1 className="mt-0.5 text-2xl font-bold text-sky-600">Desain Sertifikat</h1>
+                                <p className="mt-1 text-sm text-muted-foreground">Kelola template sertifikat agar tampil konsisten untuk seluruh peserta.</p>
+                            </div>
+                        </div>
+                        <div className="text-left lg:text-right">
+                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total Template</p>
+                            <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{templates.length}</p>
+                        </div>
                     </div>
-                    <Button 
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                    <Button
                         onClick={() => router.get(certificateTemplates.create.url())}
-                        className="flex items-center gap-2"
+                        className="bg-sky-600 text-white hover:bg-sky-700"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="mr-2 h-4 w-4" />
                         Tambah Desain
                     </Button>
                 </div>
 
-                <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nama Desain</TableHead>
-                                <TableHead>Preview</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Dibuat Pada</TableHead>
-                                <TableHead className="w-12">Aksi</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {templates && templates.length > 0 ? (
-                                templates.map((template: CertificateTemplate) => (
-                                    <TableRow key={template.id}>
-                                        <TableCell className="font-medium">{template.name}</TableCell>
-                                        <TableCell>
-                                            <img 
-                                                src={`/storage/${template.background_image_path}`}
-                                                alt={template.name}
-                                                className="h-16 w-auto object-cover rounded"
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            {template.is_active ? (
-                                                <Badge className="bg-green-100 text-green-800">
-                                                    Aktif
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="outline">Tidak Aktif</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-sm">
-                                            {new Date(template.created_at).toLocaleDateString('id-ID')}
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() => router.get(certificateTemplates.edit.url({ certificateTemplate: template.id }))}
-                                                        className="cursor-pointer"
-                                                    >
-                                                        <Edit className="h-4 w-4 mr-2" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    {!template.is_active && (
+                {/* Desktop table */}
+                <div className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm md:block dark:border-gray-700 dark:bg-gray-800">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 dark:bg-gray-900/40 dark:hover:bg-gray-900/40">
+                                    <TableHead>Nama Desain</TableHead>
+                                    <TableHead>Preview</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Dibuat Pada</TableHead>
+                                    <TableHead className="w-12">Aksi</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {templates.length > 0 ? (
+                                    templates.map((template: CertificateTemplate) => (
+                                        <TableRow key={template.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-900/30">
+                                            <TableCell className="font-medium">{template.name}</TableCell>
+                                            <TableCell>
+                                                <img
+                                                    src={`/storage/${template.background_image_path}`}
+                                                    alt={template.name}
+                                                    className="h-16 w-32 rounded-md border border-gray-100 object-cover dark:border-gray-700"
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                {template.is_active ? (
+                                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                                        Aktif
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline">Tidak Aktif</Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-sm">
+                                                {new Date(template.created_at).toLocaleDateString('id-ID')}
+                                            </TableCell>
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="sm">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
                                                         <DropdownMenuItem
-                                                            onClick={() => handleActivate(template.id)}
+                                                            onClick={() => router.get(certificateTemplates.edit.url({ certificateTemplate: template.id }))}
                                                             className="cursor-pointer"
                                                         >
-                                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                                            Gunakan Desain Ini
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            Edit
                                                         </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        onClick={() => setDeleteDialog({ open: true, id: template.id })}
-                                                        className="cursor-pointer text-red-600"
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Hapus
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                        {!template.is_active && (
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleActivate(template.id)}
+                                                                className="cursor-pointer"
+                                                            >
+                                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                                Gunakan Desain Ini
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={() => setDeleteDialog({ open: true, id: template.id })}
+                                                            className="cursor-pointer text-red-600"
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Hapus
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                                            Belum ada desain sertifikat. Buat desain baru untuk memulai.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        Belum ada desain sertifikat. Buat desain baru untuk memulai.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                    {templates.length > 0 ? (
+                        templates.map((template) => (
+                            <div key={template.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <div className="mb-3 flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{template.name}</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {new Date(template.created_at).toLocaleDateString('id-ID')}
+                                        </p>
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => router.get(certificateTemplates.edit.url({ certificateTemplate: template.id }))}
+                                                className="cursor-pointer"
+                                            >
+                                                <Edit className="mr-2 h-4 w-4" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                            {!template.is_active && (
+                                                <DropdownMenuItem
+                                                    onClick={() => handleActivate(template.id)}
+                                                    className="cursor-pointer"
+                                                >
+                                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                                    Gunakan Desain Ini
+                                                </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                                onClick={() => setDeleteDialog({ open: true, id: template.id })}
+                                                className="cursor-pointer text-red-600"
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Hapus
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+
+                                <img
+                                    src={`/storage/${template.background_image_path}`}
+                                    alt={template.name}
+                                    className="mb-3 h-32 w-full rounded-lg border border-gray-100 object-cover dark:border-gray-700"
+                                />
+
+                                {template.is_active ? (
+                                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Aktif</Badge>
+                                ) : (
+                                    <Badge variant="outline">Tidak Aktif</Badge>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-muted-foreground dark:border-gray-700 dark:bg-gray-800">
+                            Belum ada desain sertifikat. Buat desain baru untuk memulai.
+                        </div>
+                    )}
                 </div>
             </div>
 

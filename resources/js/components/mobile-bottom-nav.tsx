@@ -7,9 +7,9 @@ import {
     BookOpen,
     GraduationCap,
     LayoutDashboard,
-    Settings,
     Trophy,
     Users,
+    Palette,
 } from 'lucide-react';
 
 interface NavItem {
@@ -31,7 +31,8 @@ export function MobileBottomNav() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'Users', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
-                    { title: 'Settings', href: '/settings', icon: Settings },
+                    { title: 'Assessments', href: '/assessments', icon: Award },
+                    { title: 'Sertifikat', href: '/admin/certificate-templates', icon: Palette },
                 ];
             case 'trainer':
                 return [

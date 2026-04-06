@@ -109,9 +109,6 @@ export default function StudentsShow({ course, enrollments }: Props) {
                                     <span>Selesai: {profileUser.completed_at ?? '-'}</span>
                                 </div>
                             </div>
-                            <a href={`/students/${profileUser.user_id}`} className="text-center text-xs text-sky-500 hover:text-sky-600 dark:text-sky-400 dark:hover:text-sky-300 transition">
-                                Lihat halaman profil lengkap →
-                            </a>
                         </div>
                     )}
                 </DialogContent>

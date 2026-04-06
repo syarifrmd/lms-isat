@@ -18,6 +18,7 @@ use App\Http\Controllers\CourseRatingController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\LeaderboardController;
 use App\Http\Controllers\SessionPingController;
+use App\Http\Controllers\TrainerVideoUploadController;
 use App\Http\Controllers\Admin\CertificateTemplateController;
 
 Route::get('/', function () {
@@ -59,6 +60,8 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::put('/courses/{course}', [CourseController::class, 'update'])->name('courses.update');
     Route::post('/courses/{course}/reorder-modules', [CourseController::class, 'reorderModules'])->name('courses.reorder-modules');
     Route::delete('/courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+    Route::get('/trainer/video-upload', [TrainerVideoUploadController::class, 'create'])->name('trainer.video-upload.create');
+    Route::post('/trainer/video-upload', [TrainerVideoUploadController::class, 'store'])->name('trainer.video-upload.store');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

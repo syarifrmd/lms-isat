@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { GraduationCap, Award, TrendingUp, Users, ChevronRight, Play, BookOpen, Trophy, Zap, Target, Languages } from 'lucide-react';
+import { Award, TrendingUp, Users, ChevronRight, BookOpen, Trophy, Zap, Target, Languages } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Head, router } from '@inertiajs/react';
 import { register } from '@/routes';
@@ -21,7 +21,6 @@ const translations = {
       titleLine2: 'Tingkatkan Karir',
       description: 'Bergabunglah dengan platform pembelajaran komprehensif Indosat Ooredoo Hutchison yang dirancang khusus untuk Eksekutif Penjualan Langsung (DSE). Belajar sesuai kecepatanmu, raih sertifikasi, dan jadilah juara penjualan.',
       ctaPrimary: 'Mulai Belajar',
-      ctaSecondary: 'Tonton Demo',
       stats: [
         { value: '500+', label: 'Pelajar Aktif' },
         { value: '50+', label: 'Modul Pelatihan' },
@@ -99,7 +98,6 @@ const translations = {
       titleLine2: 'Elevate Your Career',
       description: 'Join Indosat Ooredoo Hutchison\'s comprehensive learning platform designed exclusively for Direct Sales Executives. Learn at your own pace, earn certifications, and become a sales champion.',
       ctaPrimary: 'Start Learning Now',
-      ctaSecondary: 'Watch Demo',
       stats: [
         { value: '500+', label: 'Active Learners' },
         { value: '50+', label: 'Training Modules' },
@@ -295,14 +293,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLan
                   <ChevronRight className="w-5 h-5" />
                 </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:border-yellow-400 transition-all duration-300 flex items-center justify-center space-x-2"
-                >
-                  <Play className="w-5 h-5" />
-                  <span>{t.hero.ctaSecondary}</span>
-                </motion.button>
               </div>
 
               {/* Stats */}

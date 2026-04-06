@@ -1,7 +1,6 @@
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem, type SharedData, type TrainerDashboardData, type UserDashboardData } from '@/types';
+import { type SharedData, type TrainerDashboardData, type UserDashboardData } from '@/types';
 import { Head, usePage } from '@inertiajs/react';
 import AdminDashboard from './admin/AdminDashboard';
 import TrainerDashboard from './trainer/TrainerDashboard';
@@ -48,13 +47,6 @@ interface DashboardPageProps extends SharedData {
     youtube_connected: boolean;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-];
-
 export default function Dashboard({ youtube_connected }: { youtube_connected: boolean }) {
     const { auth, dashboardData, adminData, userData } = usePage<DashboardPageProps>().props;
     const role = auth.user.role?.toUpperCase();
@@ -94,7 +86,7 @@ export default function Dashboard({ youtube_connected }: { youtube_connected: bo
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppLayout>
             <Head title="Dashboard" />
             {renderDashboardContent()}
         </AppLayout>

@@ -32,6 +32,8 @@ const statusColors: Record<string, string> = {
 export default function TrainerDashboard({ data, youtube_connected }: TrainerDashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
+    const quickLinkClass =
+        'inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 text-xs font-medium text-slate-100 transition-colors hover:bg-white/20';
 
     const stats = [
         {
@@ -77,7 +79,7 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
             icon: Video,
             color: 'text-blue-600',
             bg: 'bg-blue-50 dark:bg-blue-900/20',
-            href: '/courses/create',
+            href: '/trainer/video-upload',
         },
         {
             label: 'Create Quiz',
@@ -97,37 +99,40 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
         },
     ];
 
-    const initials = (user.full_name || user.name || 'T')
-        .split(' ')
-        .slice(0, 2)
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase();
 
     return (
         <div className="space-y-6 p-4 md:p-6">
             {/* ── Hero greeting ── */}
-            <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 md:p-8 shadow-sm">
-                <div className="flex items-center justify-between">
+            <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-red-500 to-red-700 p-6 md:p-8 text-white shadow-lg">
+                <div className="relative z-10 flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-sky-400">Selamat datang kembali 👋</p>
-                        <h1 className="mt-1 text-2xl md:text-3xl font-bold leading-tight text-gray-800 dark:text-gray-100">
+                        <p className="text-sm font-medium text-white">Selamat datang kembali</p>
+                        <h1 className="mt-1 text-2xl md:text-3xl font-bold leading-tight text-white">
                             {user.full_name || user.name}
                         </h1>
-                        <span className="mt-2 inline-block rounded-full bg-sky-100 dark:bg-sky-900/40 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">
+                        <span className="mt-2 inline-block rounded-full border border-white/20 bg-white/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-100">
                             Trainer
                         </span>
                     </div>
-                    <div className="hidden sm:flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/40 text-xl font-bold shrink-0 text-sky-600 dark:text-sky-300">
-                        {initials}
+                    <div className="flex items-center justify-center rounded-2xl">
+                      <img 
+                        src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
+                        alt={user.name}
+                        className="h-14 w-14 shrink-0 rounded-full border-2 border-yellow-400 object-cover md:h-20 md:w-20"
+                      />
                     </div>
                 </div>
 
-                {/* YouTube badge */}
-                <div className="mt-4">
+                {/* Quick links */}
+                <div className="relative z-10 mt-6 flex flex-wrap gap-2">
+                    <Link href="/settings/profile"
+                          className={quickLinkClass}>
+                        Edit Profil
+                    </Link>
+
                     {youtube_connected ? (
                         <Menu as="div" className="relative inline-block">
-                            <Menu.Button className="flex items-center gap-2 rounded-full bg-sky-100 dark:bg-sky-900/40 hover:bg-sky-200 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 px-3 py-1.5 text-sm font-medium text-sky-700 dark:text-sky-300 transition-colors">
+                            <Menu.Button className={quickLinkClass}>
                                 <CheckCircle className="h-4 w-4 text-emerald-500" />
                                 YouTube Connected
                                 <ChevronDown className="h-3.5 w-3.5" />
@@ -163,13 +168,27 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                     ) : (
                         <a
                             href="/auth/google"
-                            className="inline-flex items-center gap-2 rounded-full bg-sky-100 dark:bg-sky-900/40 hover:bg-sky-200 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 px-3 py-1.5 text-sm font-medium text-sky-700 dark:text-sky-300 transition-colors"
+                            className={quickLinkClass}
                         >
                             <Youtube className="h-4 w-4" />
                             Hubungkan YouTube
                         </a>
                     )}
+
+                    <Link
+                        href={logout().url}
+                        method="post"
+                        as="button"
+                        className={quickLinkClass}
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Keluar
+                    </Link>
                 </div>
+
+                {/* Decorative */}
+                <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-red-100/20" />
+                <div className="pointer-events-none absolute -bottom-12 -right-4 h-64 w-64 rounded-full bg-red-100/20" />
             </div>
 
             {/* ── Stats grid ── */}
@@ -285,30 +304,7 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                 )}
             </div>
 
-            {/* ── Account section with logout ── */}
-            <div className="rounded-2xl border border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 shadow-sm">
-                <h2 className="mb-4 text-base font-semibold text-gray-900 dark:text-white">Akun</h2>
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/30 text-sm font-bold text-sky-700 dark:text-sky-400">
-                        {initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-white truncate">
-                            {user.full_name || user.name}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
-                    </div>
-                </div>
-                <Link
-                    href={logout().url}
-                    method="post"
-                    as="button"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-100 dark:border-sky-900/40 bg-sky-50 dark:bg-sky-900/10 py-2.5 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/20 transition-colors"
-                >
-                    <LogOut className="h-4 w-4" />
-                    Keluar
-                </Link>
-            </div>
+
         </div>
     );
 }
