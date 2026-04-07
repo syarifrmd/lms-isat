@@ -105,13 +105,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 });
 
-// Trainer & Admin - Students Monitoring
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
-    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
-});
 
-// Trainer Only Routes - Modules & Assessments
+
+// Trainer Only Routes
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     // Module Management
     Route::get('/courses/{course}/modules/create', [ModuleController::class, 'create'])->name('modules.create');
@@ -120,6 +116,10 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::put('/courses/{course}/modules/{module}', [ModuleController::class, 'update'])->name('modules.update');
     Route::delete('/courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('modules.destroy');
     Route::get('/modules/youtube-channel-videos', [ModuleController::class, 'channelVideos'])->name('modules.youtube-videos');
+
+    // Student Management within Course
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 
     // Assessments Management
     Route::prefix('/assessments')->name('assessments.')->group(function () {

@@ -347,15 +347,19 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                         </div>
                                                         {!module.is_video_watched && !isTrainer && (
                                                             <div className="mt-2 flex justify-end">
-                                                                <Button size="sm" onClick={() => handleMarkVideoWatched(module.id)}>
-                                                                    <CheckCircle className="w-4 h-4 mr-2" /> Mark Video as Watched
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-7 px-2 text-[11px]"
+                                                                    onClick={() => handleMarkVideoWatched(module.id)}
+                                                                >
+                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Mark Video as Watched
                                                                 </Button>
                                                             </div>
                                                         )}
                                                         {module.is_video_watched && !isTrainer && (
                                                             <div className="mt-2 flex justify-end">
-                                                                <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
-                                                                    <CheckCircle className="w-4 h-4 mr-2" /> Video Watched
+                                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
+                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Video Watched
                                                                 </span>
                                                             </div>
                                                         )}
@@ -397,15 +401,19 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                             dangerouslySetInnerHTML={{ __html: module.content_text }} />
                                                         {!module.is_text_read && !isTrainer && (
                                                             <div className="mt-4 flex justify-end">
-                                                                <Button size="sm" onClick={() => handleMarkTextRead(module.id)}>
-                                                                    <CheckCircle className="w-4 h-4 mr-2" /> Mark as Read
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-7 px-2 text-[11px]"
+                                                                    onClick={() => handleMarkTextRead(module.id)}
+                                                                >
+                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Mark as Read
                                                                 </Button>
                                                             </div>
                                                         )}
                                                         {module.is_text_read && !isTrainer && (
                                                             <div className="mt-4 flex justify-end">
-                                                                <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
-                                                                    <CheckCircle className="w-4 h-4 mr-2" /> Read
+                                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
+                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Read
                                                                 </span>
                                                             </div>
                                                         )}
@@ -457,17 +465,17 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                         const attempts = q.attempts_count || 0;
                                                                         if (q.is_passed) return (
                                                                             <Button size="sm" variant="outline"
-                                                                                className="text-emerald-600 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 cursor-default">
-                                                                                <CheckCircle className="w-4 h-4 mr-2" /> Lulus
+                                                                                className="h-7 px-2 text-[11px] text-emerald-600 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 cursor-default">
+                                                                                <CheckCircle className="w-3 h-3 mr-1" /> Lulus
                                                                             </Button>
                                                                         );
                                                                         if (attempts >= 3) return (
-                                                                            <Button size="sm" variant="destructive" disabled className="opacity-75 cursor-not-allowed">
-                                                                                <AlertCircle className="w-4 h-4 mr-2" /> Tidak lulus
+                                                                            <Button size="sm" variant="destructive" disabled className="h-7 px-2 text-[11px] opacity-75 cursor-not-allowed">
+                                                                                <AlertCircle className="w-3 h-3 mr-1" /> Tidak lulus
                                                                             </Button>
                                                                         );
                                                                         return (
-                                                                            <Button size="sm" onClick={() => setConfirmQuiz(quiz)}>
+                                                                            <Button size="sm" className="h-7 px-2 text-[11px]" onClick={() => setConfirmQuiz(quiz)}>
                                                                                 Start Quiz
                                                                             </Button>
                                                                         );

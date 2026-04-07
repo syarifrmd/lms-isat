@@ -188,10 +188,18 @@ class DashboardController extends Controller
             ->where('xp', '>', $xp)
             ->count() + 1;
 
-        // Active (in-progress) enrollments
+        // Active enrollments for dashboard cards (exclude completed/dropped)
         $activeCourses = Enrollment::where('user_id', $userId)
-            ->whereNull('completed_at')
+            ->whereIn('status', ['enrolled', 'in_progress'])
+            ->where(function ($q) {
+                $q->whereNull('completed_at')
+                    ->orWhere('progress_percentage', '<', 100);
+            })
+            ->whereHas('course', function ($q) {
+                $q->where('status', 'published');
+            })
             ->with(['course:id,title,cover_url,category,created_by', 'course.creator:id,name'])
+            ->orderByRaw("CASE WHEN status = 'in_progress' THEN 0 ELSE 1 END")
             ->orderByDesc('enrollment_at')
             ->limit(4)
             ->get()

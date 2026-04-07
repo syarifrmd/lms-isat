@@ -31,6 +31,7 @@ interface Course {
         name: string;
     };
     is_enrolled?: boolean;
+    is_completed?: boolean;
 }
 
 export default function CoursesIndex({ courses }: { courses: Course[] }) {
@@ -162,6 +163,13 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                                                             View
                                                         </Link>
                                                     </>
+                                                ) : course.is_completed ? (
+                                                        <Link
+                                                            href={`/courses/${course.id}`}
+                                                            className="inline-flex items-center px-2.5 py-1 rounded-xl border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/40 text-xs font-medium transition-colors"
+                                                        >
+                                                            Telah Selesai
+                                                        </Link>
                                                 ) : course.is_enrolled ? (
                                                     <Link
                                                         href={`/courses/${course.id}`}

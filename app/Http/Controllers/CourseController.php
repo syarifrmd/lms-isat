@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\CourseRating;
 use App\Models\Module;
-use App\Models\Enrollment; // Pastikan import ini ada
-use App\Models\ModuleProgress; // Pastikan import ini ada
+use App\Models\Enrollment; 
+use App\Models\ModuleProgress; 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -20,8 +20,17 @@ class CourseController extends Controller
 
         $query = Course::with('creator')
             ->withExists(['enrollments as is_enrolled' => function ($query) {
-                $query->where('user_id', Auth::id());
+                $query->where('user_id', Auth::id())
+                    ->whereIn('status', ['enrolled', 'in_progress']);
+            }])
+            ->withExists(['enrollments as is_completed' => function ($query) {
+                $query->where('user_id', Auth::id())
+                    ->where(function ($q) {
+                        $q->where('status', 'completed')
+                            ->orWhereNotNull('completed_at');
+                    });
             }]);
+            
 
         // Trainer & admin see all statuses; regular users only see published
         if (!$user || !in_array($user->role, ['trainer', 'admin'])) {
@@ -129,13 +138,16 @@ class CourseController extends Controller
             // Logika "Completed": Modul selesai jika SEMUA konten yang ada sudah diselesaikan
             $textRequirementMet = empty($module->content_text) || $isTextRead;
             $videoRequirementMet = empty($module->video_url) || $isVideoWatched;
+            $quizRequirementMet = $module->quizzes->isEmpty()
+                || $module->quizzes->every(fn ($quiz) => (bool) ($quiz->is_passed ?? false));
 
-            $isCompleted = $textRequirementMet && $videoRequirementMet;
+            $isCompleted = $textRequirementMet && $videoRequirementMet && $quizRequirementMet;
 
             // 2. Set Status untuk Frontend
             $module->is_completed = $isCompleted;
             $module->is_text_read = $isTextRead;
             $module->is_video_watched = $isVideoWatched;
+            $module->is_quiz_passed = $quizRequirementMet;
             
             // 3. Set Lock Status
             // Modul ini terkunci KECUALI modul sebelumnya sudah selesai, atau user adalah trainer
