@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CertificateTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class CertificateTemplateController extends Controller
@@ -29,14 +30,19 @@ class CertificateTemplateController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'background_image' => 'required|image|mimes:jpeg,png,jpg|max:10240',
+            'signature_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'layout_data' => 'required|json',
         ]);
 
         $imagePath = $request->file('background_image')->store('certificates', 'public');
+        $signatureImagePath = $request->hasFile('signature_image')
+            ? $request->file('signature_image')->store('certificates/signatures', 'public')
+            : null;
 
         CertificateTemplate::create([
             'name' => $validated['name'],
             'background_image_path' => $imagePath,
+            'signature_image_path' => $signatureImagePath,
             'layout_data' => json_decode($validated['layout_data'], true),
         ]);
 
@@ -55,6 +61,7 @@ class CertificateTemplateController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'background_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'signature_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'layout_data' => 'required|json',
         ]);
 
@@ -63,8 +70,17 @@ class CertificateTemplateController extends Controller
             $certificateTemplate->background_image_path = $imagePath;
         }
 
+        if ($request->hasFile('signature_image')) {
+            if ($certificateTemplate->signature_image_path) {
+                Storage::disk('public')->delete($certificateTemplate->signature_image_path);
+            }
+
+            $certificateTemplate->signature_image_path = $request->file('signature_image')->store('certificates/signatures', 'public');
+        }
+
         $certificateTemplate->update([
             'name' => $validated['name'],
+            'signature_image_path' => $certificateTemplate->signature_image_path,
             'layout_data' => json_decode($validated['layout_data'], true),
         ]);
 

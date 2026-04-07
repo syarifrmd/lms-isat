@@ -3,9 +3,6 @@
 namespace App\Services;
 
 use Fpdf\Fpdf; // Pastikan Anda menggunakan wrapper atau FPDF native
-use BaconQrCode\Renderer\GDLibRenderer;
-use BaconQrCode\Writer;
-use Illuminate\Support\Facades\Http; // Tambahkan ini
 use Illuminate\Support\Str;
 use App\Models\CertificateTemplate;
 
@@ -41,15 +38,13 @@ class CertificateService
             $this->pdf->Image($templatePath, 0, 0, 297, 210);
         }
 
-        // 2. Generate QR Code
-        $signature = hash_hmac('sha256', $user->id . '-' . $course->id . '-' . $user->email, config('app.key'));
-        
-        $qrContent = "Nama: " . $user->name . "\n" .
-                     "Course: " . $course->title . "\n" .
-                     "Digital Signature: " . substr($signature, 0, 16) . "\n" .
-                     "Verifikasi: " . $verificationUrl;
-
-        $qrTempFile = $this->generateQrImage($qrContent);
+        $signatureImagePath = null;
+        if (!empty($template->signature_image_path)) {
+            $candidatePath = storage_path('app/public/' . $template->signature_image_path);
+            if (file_exists($candidatePath)) {
+                $signatureImagePath = $candidatePath;
+            }
+        }
 
         // 3. Parse Layout Data dari Template
         $layoutData = $template->layout_data ?? ['elements' => []];
@@ -111,15 +106,9 @@ class CertificateService
                 $this->pdf->SetXY($x, $textY);
                 $this->pdf->Cell($width, $lineHeightMm, $textValue, 0, 0, 'C');
 
-            } elseif ($element['type'] === 'qrcode' && $qrTempFile) {
-                // Render QR Code dengan scaling yang benar
-                $this->pdf->Image($qrTempFile, $x, $y, $width, $height);
+            } elseif ($element['type'] === 'signature' && $signatureImagePath) {
+                $this->pdf->Image($signatureImagePath, $x, $y, $width, $height);
             }
-        }
-
-        // Bersihkan file temporary QR
-        if ($qrTempFile && file_exists($qrTempFile)) {
-            unlink($qrTempFile);
         }
 
         // 6. Output PDF
@@ -170,77 +159,4 @@ class CertificateService
         return ['r' => 0, 'g' => 0, 'b' => 0];
     }
             
-    private function generateQrImage($content)
-    {
-        try {
-            // Generate PNG 8-bit via GD backend so it is compatible with FPDF image handling.
-            $writer = new Writer(new GDLibRenderer(300));
-            $qrPng = $writer->writeString($content);
-
-            $tempFile = storage_path('app/public/qr_' . Str::random(10) . '.png');
-            file_put_contents($tempFile, $qrPng);
-
-            // Ubah area putih QR menjadi transparan agar blend dengan background sertifikat.
-            $this->makePngBackgroundTransparent($tempFile);
-
-            return $tempFile;
-        } catch (\Exception $e) {
-            // Fallback: Jika Imagick error/tidak ada, gunakan API Online untuk generate QR
-            try {
-                $tempFile = storage_path('app/public/qr_online_' . Str::random(10) . '.png');
-                // Menggunakan layanan qrserver.com
-                $response = Http::get('https://api.qrserver.com/v1/create-qr-code/', [
-                    'size' => '400x400',
-                    'data' => $content
-                ]);
-                
-                if ($response->successful()) {
-                    file_put_contents($tempFile, $response->body());
-                    $this->makePngBackgroundTransparent($tempFile);
-                    return $tempFile;
-                }
-            } catch (\Exception $ex) {
-                // Silent fail
-            }
-            return null;
-        }
-    }
-
-    /**
-     * Make near-white pixels transparent in a PNG file.
-     */
-    private function makePngBackgroundTransparent(string $filePath): void
-    {
-        if (!extension_loaded('gd') || !file_exists($filePath)) {
-            return;
-        }
-
-        $img = @imagecreatefrompng($filePath);
-        if (!$img) {
-            return;
-        }
-
-        imagealphablending($img, false);
-        imagesavealpha($img, true);
-
-        $width = imagesx($img);
-        $height = imagesy($img);
-
-        // Transparent color for white-ish background.
-        $transparent = imagecolorallocatealpha($img, 255, 255, 255, 127);
-
-        for ($y = 0; $y < $height; $y++) {
-            for ($x = 0; $x < $width; $x++) {
-                $index = imagecolorat($img, $x, $y);
-                $rgba = imagecolorsforindex($img, $index);
-
-                if ($rgba['red'] >= 245 && $rgba['green'] >= 245 && $rgba['blue'] >= 245) {
-                    imagesetpixel($img, $x, $y, $transparent);
-                }
-            }
-        }
-
-        imagepng($img, $filePath);
-        imagedestroy($img);
-    }
 }
