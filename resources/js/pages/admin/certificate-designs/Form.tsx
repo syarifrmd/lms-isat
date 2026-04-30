@@ -239,9 +239,13 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
         }
 
         if (template) {
-            put(certificateTemplates.update.url({ certificateTemplate: template.id }));
+            put(certificateTemplates.update.url({ certificateTemplate: template.id }), {
+                forceFormData: true,
+            });
         } else {
-            post(certificateTemplates.store.url());
+            post(certificateTemplates.store.url(), {
+                forceFormData: true,
+            });
         }
     };
 

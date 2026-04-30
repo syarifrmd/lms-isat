@@ -34,19 +34,25 @@ class CertificateTemplateController extends Controller
             'layout_data' => 'required|json',
         ]);
 
-        $imagePath = $request->file('background_image')->store('certificates', 'public');
-        $signatureImagePath = $request->hasFile('signature_image')
-            ? $request->file('signature_image')->store('certificates/signatures', 'public')
-            : null;
+        try {
+            $imagePath = $request->file('background_image')->store('certificates', 'public');
+            $signatureImagePath = null;
 
-        CertificateTemplate::create([
-            'name' => $validated['name'],
-            'background_image_path' => $imagePath,
-            'signature_image_path' => $signatureImagePath,
-            'layout_data' => json_decode($validated['layout_data'], true),
-        ]);
+            if ($request->hasFile('signature_image')) {
+                $signatureImagePath = $request->file('signature_image')->store('certificates/signatures', 'public');
+            }
 
-        return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil dibuat');
+            CertificateTemplate::create([
+                'name' => $validated['name'],
+                'background_image_path' => $imagePath,
+                'signature_image_path' => $signatureImagePath,
+                'layout_data' => json_decode($validated['layout_data'], true),
+            ]);
+
+            return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil dibuat');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Gagal membuat template sertifikat: ' . $e->getMessage()]);
+        }
     }
 
     public function edit(CertificateTemplate $certificateTemplate)
@@ -65,24 +71,42 @@ class CertificateTemplateController extends Controller
             'layout_data' => 'required|json',
         ]);
 
-        if ($request->hasFile('background_image')) {
-            $imagePath = $request->file('background_image')->store('certificates', 'public');
-            $certificateTemplate->background_image_path = $imagePath;
-        }
-
-        if ($request->hasFile('signature_image')) {
-            if ($certificateTemplate->signature_image_path) {
-                Storage::disk('public')->delete($certificateTemplate->signature_image_path);
-            }
-
-            $certificateTemplate->signature_image_path = $request->file('signature_image')->store('certificates/signatures', 'public');
-        }
-
-        $certificateTemplate->update([
+        $updateData = [
             'name' => $validated['name'],
-            'signature_image_path' => $certificateTemplate->signature_image_path,
             'layout_data' => json_decode($validated['layout_data'], true),
-        ]);
+        ];
+
+        // Handle background image upload
+        if ($request->hasFile('background_image')) {
+            try {
+                // Hapus file background lama jika ada
+                if ($certificateTemplate->background_image_path && Storage::disk('public')->exists($certificateTemplate->background_image_path)) {
+                    Storage::disk('public')->delete($certificateTemplate->background_image_path);
+                }
+                
+                $imagePath = $request->file('background_image')->store('certificates', 'public');
+                $updateData['background_image_path'] = $imagePath;
+            } catch (\Exception $e) {
+                return back()->withErrors(['background_image' => 'Gagal menyimpan gambar background: ' . $e->getMessage()]);
+            }
+        }
+
+        // Handle signature image upload
+        if ($request->hasFile('signature_image')) {
+            try {
+                // Hapus file signature lama jika ada
+                if ($certificateTemplate->signature_image_path && Storage::disk('public')->exists($certificateTemplate->signature_image_path)) {
+                    Storage::disk('public')->delete($certificateTemplate->signature_image_path);
+                }
+
+                $signaturePath = $request->file('signature_image')->store('certificates/signatures', 'public');
+                $updateData['signature_image_path'] = $signaturePath;
+            } catch (\Exception $e) {
+                return back()->withErrors(['signature_image' => 'Gagal menyimpan gambar tanda tangan: ' . $e->getMessage()]);
+            }
+        }
+
+        $certificateTemplate->update($updateData);
 
         return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil diperbarui');
     }
