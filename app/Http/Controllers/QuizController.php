@@ -13,10 +13,21 @@ use Inertia\Inertia;
 class QuizController extends Controller
 {
     /**
+     * Ensure only learner role can take or submit quizzes.
+     */
+    private function ensureLearnerRole(): void
+    {
+        if (!Auth::check() || Auth::user()->role !== 'user') {
+            abort(403, 'Hanya user yang dapat mengerjakan quiz.');
+        }
+    }
+
+    /**
      * Display the quiz for taking.
      */
     public function show(Quiz $quiz)
     {
+        $this->ensureLearnerRole();
 
         $attemptsCount = UserQuizAttempt::where('user_id', auth()->id())
         ->where('quiz_id', $quiz->id)
@@ -57,6 +68,8 @@ class QuizController extends Controller
      */
     public function submit(Request $request, Quiz $quiz)
     {
+        $this->ensureLearnerRole();
+
         // Check max attempts
         $attemptsCount = UserQuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $quiz->id)
@@ -172,6 +185,8 @@ class QuizController extends Controller
      */
     public function result(UserQuizAttempt $attempt)
     {
+        $this->ensureLearnerRole();
+
         // Verify user owns this attempt
         if ($attempt->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');

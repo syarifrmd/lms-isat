@@ -168,6 +168,7 @@ export default function QuizResult({ attempt, quiz, course }: ResultProps) {
                                                 className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-relaxed mb-4
                                                     [&_img]:rounded-lg [&_img]:my-2 [&_img]:max-w-full
                                                     [&_p]:my-1 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5
+                                                    [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-5 [&_ol]:pl-5
                                                     [&_pre]:bg-muted [&_pre]:rounded [&_pre]:p-3 [&_pre]:overflow-x-auto [&_pre]:text-sm
                                                     [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_code]:text-sm"
                                                 dangerouslySetInnerHTML={{ __html: question.question_text }}

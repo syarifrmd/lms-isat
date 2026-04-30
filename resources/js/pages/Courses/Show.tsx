@@ -64,6 +64,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const { auth } = usePage<SharedData>().props;
     const isAdmin = auth.user.role === 'admin';
     const isTrainer = auth.user.role === 'trainer' || isAdmin;
+    const canTakeQuiz = auth.user.role === 'user';
     const isCreator = course.created_by === auth.user.id;
     const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
     const trainerName = course?.creator?.name || 'Instructor';
@@ -463,6 +464,11 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                     {(() => {
                                                                         const q = quiz;
                                                                         const attempts = q.attempts_count || 0;
+                                                                        if (!canTakeQuiz) return (
+                                                                            <Button size="sm" variant="outline" disabled className="h-7 px-2 text-[11px] cursor-not-allowed">
+                                                                                <Lock className="w-3 h-3 mr-1" /> Khusus User
+                                                                            </Button>
+                                                                        );
                                                                         if (q.is_passed) return (
                                                                             <Button size="sm" variant="outline"
                                                                                 className="h-7 px-2 text-[11px] text-emerald-600 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 cursor-default">
