@@ -312,7 +312,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-red-500 rounded-3xl transform rotate-6"></div>
                 <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1758691736067-b309ee3ef7b9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHRyYWluaW5nJTIwdGVhbXxlbnwxfHx8fDE3NjYwNTA5Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                  src="/assets/team.jpg"
                   alt="Team Training"
                   className="relative rounded-3xl shadow-2xl w-full h-auto object-cover"
                 />
