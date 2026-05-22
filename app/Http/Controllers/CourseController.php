@@ -7,6 +7,7 @@ use App\Models\CourseRating;
 use App\Models\Module;
 use App\Models\Enrollment; 
 use App\Models\ModuleProgress; 
+use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\Auth;
 
 class CourseController extends Controller
 {
+    public function __construct(private readonly ModuleProgressService $progressService)
+    {
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -125,36 +130,21 @@ class CourseController extends Controller
                     ->get();
             }
 
-            // 1. Cek User Progress untuk modul ini
-            // Modified to handle multiple progress rows (checklist items)
-            $isTextRead = $progresses->contains(function ($p) {
-                return $p->is_text_read;
-            });
-            
-            $isVideoWatched = $progresses->contains(function ($p) {
-                return $p->is_video_watched;
-            });
-            
-            // Logika "Completed": Modul selesai jika SEMUA konten yang ada sudah diselesaikan
-            $textRequirementMet = empty($module->content_text) || $isTextRead;
-            $videoRequirementMet = empty($module->video_url) || $isVideoWatched;
-            $quizRequirementMet = $module->quizzes->isEmpty()
-                || $module->quizzes->every(fn ($quiz) => (bool) ($quiz->is_passed ?? false));
-
-            $isCompleted = $textRequirementMet && $videoRequirementMet && $quizRequirementMet;
+            $moduleState = $this->progressService->evaluateModule($module, $progresses);
 
             // 2. Set Status untuk Frontend
-            $module->is_completed = $isCompleted;
-            $module->is_text_read = $isTextRead;
-            $module->is_video_watched = $isVideoWatched;
-            $module->is_quiz_passed = $quizRequirementMet;
+            $module->is_completed = $moduleState['is_completed'];
+            $module->is_text_read = $moduleState['is_text_read'];
+            $module->is_video_watched = $moduleState['is_video_watched'];
+            $module->is_document_read = $moduleState['is_document_read'];
+            $module->is_quiz_passed = $moduleState['is_quiz_passed'];
             
             // 3. Set Lock Status
             // Modul ini terkunci KECUALI modul sebelumnya sudah selesai, atau user adalah trainer
             $module->is_locked = !$previousModuleCompleted && !$isTrainer;
 
             // Update tracker looping: status modul ini menjadi penentu modul berikutnya
-            $previousModuleCompleted = $isCompleted;
+            $previousModuleCompleted = $moduleState['is_completed'];
         }
 
         return Inertia::render('Courses/Show', [

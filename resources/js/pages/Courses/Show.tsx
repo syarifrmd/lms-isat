@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2 } from 'lucide-react';
+import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { Quiz, SharedData } from '@/types';
-import { useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 interface Module {
     id: number;
@@ -14,10 +16,12 @@ interface Module {
     doc_url: string;
     content_text: string;
     order_sequence: number;
+    duration_minutes?: number;
     is_completed?: boolean;
     is_locked?: boolean;
     is_text_read?: boolean;
     is_video_watched?: boolean;
+    is_document_read?: boolean;
     quizzes?: QuizWithProgress[];
 }
 
@@ -60,6 +64,51 @@ interface ShowProps {
     ratingData?: RatingData;
 }
 
+let youtubeApiPromise: Promise<void> | null = null;
+
+const loadYouTubeApi = () => {
+    if (typeof window === 'undefined') {
+        return Promise.resolve();
+    }
+
+    const ytWindow = window as Window & {
+        YT?: any;
+        onYouTubeIframeAPIReady?: (() => void) | null;
+    };
+
+    if (ytWindow.YT?.Player) {
+        return Promise.resolve();
+    }
+
+    if (!youtubeApiPromise) {
+        youtubeApiPromise = new Promise<void>((resolve) => {
+            const existingScript = document.getElementById('youtube-iframe-api');
+
+            const onReady = () => {
+                resolve();
+            };
+
+            if (!existingScript) {
+                const script = document.createElement('script');
+                script.id = 'youtube-iframe-api';
+                script.src = 'https://www.youtube.com/iframe_api';
+                document.body.appendChild(script);
+            }
+
+            const previousReady = ytWindow.onYouTubeIframeAPIReady;
+            ytWindow.onYouTubeIframeAPIReady = () => {
+                if (previousReady) {
+                    previousReady();
+                }
+
+                onReady();
+            };
+        });
+    }
+
+    return youtubeApiPromise;
+};
+
 export default function CourseShow({ course, userProgress = 0, isEnrolled = false, ratingData }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const isAdmin = auth.user.role === 'admin';
@@ -80,22 +129,6 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const [activeModuleItem, setActiveModuleItem] = useState<string>('');
     const [previewModuleId, setPreviewModuleId] = useState<number | null>(null);
 
-    const handleMarkTextRead = (moduleId: number) => {
-        router.post(`/modules/${moduleId}/progress/text`, {}, {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Ideally this would be handled by Inertia reloading props, 
-                // but we can also show a toast here if we had one.
-            }
-        });
-    };
-
-    const handleMarkVideoWatched = (moduleId: number) => {
-        router.post(`/modules/${moduleId}/progress/video`, {}, {
-            preserveScroll: true,
-        });
-    };
-
     // ── Quiz confirmation modal ──────────────────────────────────────────────
     const [confirmQuiz, setConfirmQuiz] = useState<QuizWithProgress | null>(null);
 
@@ -111,7 +144,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         review: ratingData?.user_rating?.review ?? '',
     });
 
-    const submitRating = (e: React.FormEvent) => {
+    const submitRating = (e: FormEvent) => {
         e.preventDefault();
         postRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
     };
@@ -141,6 +174,105 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const getOfficePreviewUrl = (url: string) => {
         return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     };
+
+    // Configure pdfjs worker from CDN
+    try {
+        // @ts-ignore
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+    } catch (e) {
+        // ignore in non-browser env
+    }
+
+    function PdfViewer({ url, onPageChange }: { url: string; onPageChange?: (current: number, total: number) => void }) {
+        const [numPages, setNumPages] = useState<number>(0);
+        const [currentPage, setCurrentPage] = useState<number>(1);
+        const containerRef = useRef<HTMLDivElement | null>(null);
+        const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+        const debounceRef = useRef<number | null>(null);
+
+        useEffect(() => {
+            return () => {
+                if (debounceRef.current) {
+                    window.clearTimeout(debounceRef.current);
+                    debounceRef.current = null;
+                }
+            };
+        }, []);
+
+        useEffect(() => {
+            if (!containerRef.current || numPages <= 0) return;
+
+            const root = containerRef.current;
+            let observed = false;
+
+            const observer = new IntersectionObserver(
+                (entries) => {
+                    // find the entry with largest intersectionRatio
+                    let best: IntersectionObserverEntry | null = null;
+                    for (const e of entries) {
+                        if (!best || e.intersectionRatio > best.intersectionRatio) best = e;
+                    }
+
+                    if (best && best.isIntersecting) {
+                        const pageStr = best.target.getAttribute('data-page-number');
+                        const pageNum = pageStr ? Number(pageStr) : 1;
+                        if (pageNum !== currentPage) {
+                            setCurrentPage(pageNum);
+                            if (onPageChange) {
+                                if (debounceRef.current) window.clearTimeout(debounceRef.current);
+                                debounceRef.current = window.setTimeout(() => {
+                                    onPageChange(pageNum, numPages);
+                                }, 700) as unknown as number;
+                            }
+                        }
+                    }
+                },
+                { root, threshold: [0.45, 0.6, 0.9] }
+            );
+
+            for (let i = 1; i <= numPages; i++) {
+                const el = pageRefs.current[i];
+                if (el) {
+                    observer.observe(el);
+                    observed = true;
+                }
+            }
+
+            return () => {
+                if (observed) observer.disconnect();
+            };
+        }, [numPages, onPageChange, currentPage]);
+
+        const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+            setNumPages(numPages);
+            setCurrentPage(1);
+            if (onPageChange) {
+                // initial notify
+                onPageChange(1, numPages);
+            }
+        };
+
+        return (
+            <div ref={containerRef} className="h-full overflow-y-auto">
+                <Document file={url} onLoadSuccess={onDocumentLoadSuccess}>
+                    {Array.from({ length: numPages || 0 }, (_, i) => {
+                        const pageNumber = i + 1;
+                        return (
+                            <div
+                                key={`page-${pageNumber}`}
+                                data-page-number={String(pageNumber)}
+                                ref={(el) => { pageRefs.current[pageNumber] = el; }}
+                                className="mb-4"
+                            >
+                                <Page pageNumber={pageNumber} renderTextLayer={false} renderAnnotationLayer={false} />
+                            </div>
+                        );
+                    })}
+                </Document>
+                <div className="mt-2 text-xs text-gray-400">Halaman: {currentPage}/{numPages}</div>
+            </div>
+        );
+    }
 
     const renderDocPreview = (docUrl: string, moduleId: number) => {
         const fullUrl = getPreviewUri(docUrl);
@@ -182,12 +314,9 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
 
         if (isPdf) {
             return (
-                <iframe
-                    src={fullUrl}
-                    title={getFileName(docUrl)}
-                    className="h-130 w-full"
-                    loading="lazy"
-                />
+                <div className="h-130 w-full">
+                    <PdfViewer url={fullUrl} />
+                </div>
             );
         }
 
@@ -211,6 +340,444 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                     </a>
                 </Button>
             </div>
+        );
+    };
+
+    const ModuleProgressTracker = ({ module }: { module: Module }) => {
+        const isUser = !isTrainer;
+
+        const videoContainerRef = useRef<HTMLDivElement | null>(null);
+        const videoPlayerRef = useRef<any>(null);
+        const videoStateRef = useRef({ currentTime: 0, maxTime: 0, duration: 0 });
+        const videoTimerRef = useRef<number | null>(null);
+        const videoCompletionSentRef = useRef(false);
+
+        const textContainerRef = useRef<HTMLDivElement | null>(null);
+        const textElapsedRef = useRef(0);
+        const textCompletionSentRef = useRef(false);
+        const [textElapsedSeconds, setTextElapsedSeconds] = useState(0);
+        const [textScrollPercentage, setTextScrollPercentage] = useState(0);
+
+        const docContainerRef = useRef<HTMLDivElement | null>(null);
+        const docCompletionSentRef = useRef(false);
+        const [docScrollPercentage, setDocScrollPercentage] = useState(0);
+        const docLastPageRef = useRef<number>(0);
+
+        const postProgress = (path: string, payload: Record<string, number>) => {
+            router.post(path, payload, {
+                preserveScroll: true,
+                preserveState: true,
+            });
+        };
+
+        useEffect(() => {
+            if (!isUser || !module.video_url || !videoContainerRef.current) {
+                return;
+            }
+
+            let cancelled = false;
+
+            const clearTimer = () => {
+                if (videoTimerRef.current) {
+                    window.clearInterval(videoTimerRef.current);
+                    videoTimerRef.current = null;
+                }
+            };
+
+            const maybeCompleteVideo = () => {
+                const duration = videoStateRef.current.duration || (module.duration_minutes ? module.duration_minutes * 60 : 0);
+
+                if (duration <= 0) {
+                    return;
+                }
+
+                const threshold = Math.max(duration - 2, 0);
+                const { currentTime, maxTime } = videoStateRef.current;
+
+                if (!videoCompletionSentRef.current && currentTime >= threshold && maxTime >= threshold) {
+                    videoCompletionSentRef.current = true;
+                    postProgress(`/modules/${module.id}/progress/video`, {
+                        current_time_seconds: currentTime,
+                        max_position_seconds: maxTime,
+                        duration_seconds: duration,
+                    });
+                }
+            };
+
+            const tick = () => {
+                const player = videoPlayerRef.current;
+
+                if (!player || typeof player.getCurrentTime !== 'function') {
+                    return;
+                }
+
+                const currentTime = Number(player.getCurrentTime() || 0);
+                const playerDuration = typeof player.getDuration === 'function' ? Number(player.getDuration() || 0) : 0;
+                const duration = playerDuration > 0 ? playerDuration : (module.duration_minutes ?? 0) * 60;
+                const maxTime = Math.max(videoStateRef.current.maxTime, currentTime);
+
+                if (currentTime > maxTime + 2 && typeof player.seekTo === 'function') {
+                    player.seekTo(maxTime, true);
+                    return;
+                }
+
+                videoStateRef.current = {
+                    currentTime,
+                    maxTime,
+                    duration: duration || videoStateRef.current.duration,
+                };
+
+                maybeCompleteVideo();
+            };
+
+            const initPlayer = async () => {
+                await loadYouTubeApi();
+
+                const ytWindow = window as Window & { YT?: any };
+
+                if (cancelled || !videoContainerRef.current || !ytWindow.YT?.Player) {
+                    return;
+                }
+
+                const YT = ytWindow.YT;
+
+                if (videoPlayerRef.current?.destroy) {
+                    videoPlayerRef.current.destroy();
+                }
+
+                videoPlayerRef.current = new YT.Player(videoContainerRef.current, {
+                    videoId: module.video_url,
+                    playerVars: {
+                        controls: 1,
+                        rel: 0,
+                        modestbranding: 1,
+                        fs: 1,
+                        playsinline: 1,
+                        disablekb: 1,
+                        origin: window.location.origin,
+                        enablejsapi: 1,
+                    },
+                    events: {
+                        onReady: (event: any) => {
+                            videoStateRef.current.duration = Number(event.target.getDuration?.() || 0) || (module.duration_minutes ? module.duration_minutes * 60 : 0);
+                        },
+                        onStateChange: (event: any) => {
+                            if (event.data === YT.PlayerState.PLAYING) {
+                                clearTimer();
+                                videoTimerRef.current = window.setInterval(tick, 1000);
+                            }
+
+                            if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                                clearTimer();
+                                tick();
+                                if (event.data === YT.PlayerState.ENDED) {
+                                    videoStateRef.current.maxTime = Math.max(videoStateRef.current.maxTime, videoStateRef.current.duration);
+                                    videoStateRef.current.currentTime = Math.max(videoStateRef.current.currentTime, videoStateRef.current.duration);
+                                    maybeCompleteVideo();
+                                }
+                            }
+                        },
+                    },
+                });
+            };
+
+            initPlayer();
+
+            return () => {
+                cancelled = true;
+                clearTimer();
+
+                if (videoPlayerRef.current?.destroy) {
+                    videoPlayerRef.current.destroy();
+                    videoPlayerRef.current = null;
+                }
+            };
+        }, [module.id, module.video_url, module.duration_minutes, isUser]);
+
+        useEffect(() => {
+            if (!isUser || !module.content_text || !textContainerRef.current) {
+                return;
+            }
+
+            const container = textContainerRef.current;
+
+            const evaluateText = () => {
+                const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
+                const scrollPercentage = scrollableHeight <= 0
+                    ? 100
+                    : Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+
+                setTextScrollPercentage(scrollPercentage);
+
+                if (!textCompletionSentRef.current && textElapsedRef.current >= 15 && scrollPercentage >= 99) {
+                    textCompletionSentRef.current = true;
+                    postProgress(`/modules/${module.id}/progress/text`, {
+                        elapsed_seconds: textElapsedRef.current,
+                        scroll_percentage: scrollPercentage,
+                    });
+                }
+            };
+
+            const onScroll = () => {
+                evaluateText();
+            };
+
+            const timer = window.setInterval(() => {
+                textElapsedRef.current += 1;
+                setTextElapsedSeconds(textElapsedRef.current);
+                evaluateText();
+            }, 1000);
+
+            container.addEventListener('scroll', onScroll, { passive: true });
+            evaluateText();
+
+            return () => {
+                window.clearInterval(timer);
+                container.removeEventListener('scroll', onScroll);
+            };
+        }, [module.id, module.content_text, isUser]);
+
+        useEffect(() => {
+            if (!isUser || !module.doc_url || !docContainerRef.current) {
+                return;
+            }
+
+            const container = docContainerRef.current;
+
+            const evaluateDocument = () => {
+                const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
+                const scrollPercentage = scrollableHeight <= 0
+                    ? 100
+                    : Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+
+                setDocScrollPercentage(scrollPercentage);
+
+                if (!docCompletionSentRef.current && scrollPercentage >= 99) {
+                    const estimatedPages = Math.max(1, Math.ceil(container.scrollHeight / Math.max(container.clientHeight, 1)));
+                    docCompletionSentRef.current = true;
+                    postProgress(`/modules/${module.id}/progress/document`, {
+                        current_page: estimatedPages,
+                        total_pages: estimatedPages,
+                    });
+                }
+            };
+
+            const onScroll = () => {
+                evaluateDocument();
+            };
+
+            container.addEventListener('scroll', onScroll, { passive: true });
+            evaluateDocument();
+
+            return () => {
+                container.removeEventListener('scroll', onScroll);
+            };
+        }, [module.id, module.doc_url, isUser, previewModuleId]);
+
+        useEffect(() => {
+            if (!isUser || !module.doc_url) return;
+
+            const sendFinal = () => {
+                const current = docLastPageRef.current || 0;
+                if (!current) return;
+                // best-effort: use navigator.sendBeacon or fetch keepalive
+                const totalEstimate = Math.max(1, Math.round((docScrollPercentage / 100) * (current || 1)));
+                try {
+                    const url = `/modules/${module.id}/progress/document`;
+                    const payload = JSON.stringify({ current_page: current, total_pages: totalEstimate });
+                    if (navigator && typeof navigator.sendBeacon === 'function') {
+                        const blob = new Blob([payload], { type: 'application/json' });
+                        navigator.sendBeacon(url, blob);
+                    } else {
+                        fetch(url, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' }, keepalive: true });
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            };
+
+            const onBeforeUnload = () => sendFinal();
+            const onVisibilityChange = () => {
+                if (document.visibilityState === 'hidden') sendFinal();
+            };
+
+            window.addEventListener('beforeunload', onBeforeUnload);
+            document.addEventListener('visibilitychange', onVisibilityChange);
+
+            return () => {
+                window.removeEventListener('beforeunload', onBeforeUnload);
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+            };
+        }, [isUser, module.doc_url, module.id, docScrollPercentage]);
+
+        if (!isUser) {
+            return (
+                <>
+                    {module.video_url && (
+                        <div className="mb-4">
+                            <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
+                                <iframe
+                                    width="100%"
+                                    height="100%"
+                                    src={`https://www.youtube.com/embed/${module.video_url}`}
+                                    title={module.title}
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    className="absolute top-0 left-0 w-full h-full"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {module.doc_url && (
+                        <div className="mb-4 space-y-3">
+                            <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="bg-sky-100 dark:bg-sky-900/40 p-2 rounded-lg shrink-0">
+                                        <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+                                        <p className="text-xs text-gray-400 truncate">
+                                            {module.doc_url.startsWith('/storage/')
+                                                ? getFileName(module.doc_url)
+                                                : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button variant="outline" size="sm" asChild className="shrink-0">
+                                    <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
+                                        Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
+                                    </a>
+                                </Button>
+                            </div>
+
+                            <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+                                {renderDocPreview(module.doc_url, module.id)}
+                            </div>
+                        </div>
+                    )}
+
+                    {module.content_text && (
+                        <div className="mt-2">
+                            <div className="prose prose-sm dark:prose-invert max-w-none rich-text-content"
+                                dangerouslySetInnerHTML={{ __html: module.content_text }} />
+                        </div>
+                    )}
+                </>
+            );
+        }
+
+        return (
+            <>
+                {module.video_url && (
+                    <div className="mb-4">
+                        <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
+                            <div ref={videoContainerRef} className="absolute inset-0" />
+                        </div>
+                        {!module.is_video_watched && (
+                            <p className="mt-2 text-xs text-gray-400">
+                                Video akan terkunci dari skip maju dan otomatis selesai setelah sampai akhir.
+                            </p>
+                        )}
+                        {module.is_video_watched && (
+                            <div className="mt-2 flex justify-end">
+                                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
+                                    <CheckCircle className="w-3 h-3 mr-1" /> Video Watched
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {module.doc_url && (
+                    <div className="mb-4 space-y-3">
+                        <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="bg-sky-100 dark:bg-sky-900/40 p-2 rounded-lg shrink-0">
+                                    <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+                                    <p className="text-xs text-gray-400 truncate">
+                                        {module.doc_url.startsWith('/storage/')
+                                            ? getFileName(module.doc_url)
+                                            : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button variant="outline" size="sm" asChild className="shrink-0">
+                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
+                                    Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
+                                </a>
+                            </Button>
+                        </div>
+
+                        <div ref={docContainerRef} className="h-136 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+                            {!previewModuleId || previewModuleId !== module.id ? (
+                                <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+                                    <div className="rounded-full bg-sky-100 p-3 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300">
+                                        <FileIcon className="h-5 w-5" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Preview dokumen dimuat saat dibutuhkan</p>
+                                        <p className="text-xs text-gray-400 dark:text-gray-500">Scroll sampai bawah untuk menandai dokumen selesai dibaca.</p>
+                                    </div>
+                                    <Button size="sm" onClick={() => setPreviewModuleId(module.id)}>
+                                        Tampilkan Preview
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="h-full p-3">
+                                    {getFileExtension(module.doc_url) === 'pdf' ? (
+                                        <PdfViewer
+                                            url={getPreviewUri(module.doc_url)}
+                                            onPageChange={(current, total) => {
+                                                docLastPageRef.current = current;
+                                                setDocScrollPercentage((current / Math.max(total, 1)) * 100);
+                                                if (!docCompletionSentRef.current) {
+                                                    postProgress(`/modules/${module.id}/progress/document`, {
+                                                        current_page: current,
+                                                        total_pages: total,
+                                                    });
+
+                                                    if (current >= total) {
+                                                        docCompletionSentRef.current = true;
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    ) : (
+                                        <DocViewer
+                                            documents={[{ uri: getPreviewUri(module.doc_url), fileName: getFileName(module.doc_url) }]}
+                                            pluginRenderers={DocViewerRenderers}
+                                            config={{ header: { disableHeader: true } }}
+                                            style={{ height: '100%' }}
+                                        />
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-400">
+                            Progress dokumen: {Math.round(docScrollPercentage)}%.
+                        </p>
+                    </div>
+                )}
+
+                {module.content_text && (
+                    <div className="mt-2">
+                        <div ref={textContainerRef} className="max-h-136 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                            <div className="prose prose-sm dark:prose-invert max-w-none rich-text-content"
+                                dangerouslySetInnerHTML={{ __html: module.content_text }} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
+                            <span>Timer baca: {textElapsedSeconds} detik</span>
+                            <span>Scroll: {Math.round(textScrollPercentage)}%</span>
+                        </div>
+                    </div>
+                )}
+            </>
         );
     };
 
@@ -333,93 +900,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                             </AccordionTrigger>
 
                                             <AccordionContent className="px-5 py-4 bg-gray-50/50 dark:bg-gray-700/20">
-                                                {module.video_url && (
-                                                    <div className="mb-4">
-                                                        <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
-                                                            <iframe
-                                                                width="100%" height="100%"
-                                                                src={`https://www.youtube.com/embed/${module.video_url}`}
-                                                                title={module.title}
-                                                                frameBorder="0"
-                                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                allowFullScreen
-                                                                className="absolute top-0 left-0 w-full h-full"
-                                                            />
-                                                        </div>
-                                                        {!module.is_video_watched && !isTrainer && (
-                                                            <div className="mt-2 flex justify-end">
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="h-7 px-2 text-[11px]"
-                                                                    onClick={() => handleMarkVideoWatched(module.id)}
-                                                                >
-                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Mark Video as Watched
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                        {module.is_video_watched && !isTrainer && (
-                                                            <div className="mt-2 flex justify-end">
-                                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
-                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Video Watched
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {module.doc_url && (
-                                                    <div className="mb-4 space-y-3">
-                                                        <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
-                                                            <div className="flex items-center gap-3 min-w-0">
-                                                                <div className="bg-sky-100 dark:bg-sky-900/40 p-2 rounded-lg shrink-0">
-                                                                    <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                                                                </div>
-                                                                <div className="min-w-0">
-                                                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
-                                                                    <p className="text-xs text-gray-400 truncate">
-                                                                        {module.doc_url.startsWith('/storage/')
-                                                                            ? getFileName(module.doc_url)
-                                                                            : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <Button variant="outline" size="sm" asChild className="shrink-0">
-                                                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
-                                                                    Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
-                                                                </a>
-                                                            </Button>
-                                                        </div>
-
-                                                        <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                                                            {renderDocPreview(module.doc_url, module.id)}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {module.content_text && (
-                                                    <div className="mt-2">
-                                                        <div className="prose prose-sm dark:prose-invert max-w-none rich-text-content"
-                                                            dangerouslySetInnerHTML={{ __html: module.content_text }} />
-                                                        {!module.is_text_read && !isTrainer && (
-                                                            <div className="mt-4 flex justify-end">
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="h-7 px-2 text-[11px]"
-                                                                    onClick={() => handleMarkTextRead(module.id)}
-                                                                >
-                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Mark as Read
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                        {module.is_text_read && !isTrainer && (
-                                                            <div className="mt-4 flex justify-end">
-                                                                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium">
-                                                                    <CheckCircle className="w-3 h-3 mr-1" /> Read
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <ModuleProgressTracker module={module} />
 
                                                 {((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0) && (
                                                     <div className="mt-5 border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">

@@ -84,7 +84,7 @@ class UserManagementController extends Controller
             'password' => $validated['password'] ? Hash::make($validated['password']) : null,
             'role' => $validated['role'],
             'region' => $validated['region'] ?? null,
-            'is_registered' => true,
+            'is_registered' => false,
             'email_verified_at' => now(),
         ]);
 

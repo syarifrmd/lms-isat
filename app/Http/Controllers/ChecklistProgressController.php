@@ -6,11 +6,16 @@ use App\Models\Module;
 use App\Models\ModuleChecklistItem;
 use App\Models\ModuleProgress;
 use App\Models\Enrollment;
+use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ChecklistProgressController extends Controller
 {
+    public function __construct(private readonly ModuleProgressService $progressService)
+    {
+    }
+
     /**
      * Mark a checklist item as completed
      */
@@ -55,7 +60,7 @@ class ChecklistProgressController extends Controller
         }
 
         // Update overall enrollment progress
-        $this->updateEnrollmentProgress($enrollment);
+        $this->progressService->recalculateEnrollmentProgress($enrollment);
 
         return back()->with('success', 'Checklist item marked as completed');
     }
@@ -91,77 +96,9 @@ class ChecklistProgressController extends Controller
             ]
         );
 
-        $this->updateEnrollmentProgress($enrollment);
+        $this->progressService->recalculateEnrollmentProgress($enrollment);
 
         return back()->with('success', 'Quiz score recorded');
-    }
-
-    /**
-     * Calculate and update enrollment progress percentage
-     */
-    private function updateEnrollmentProgress(Enrollment $enrollment)
-    {
-        // Get all modules in the course
-        $modules = Module::where('course_id', $enrollment->course_id)->get();
-        
-        $totalChecklists = 0;
-        $completedChecklists = 0;
-
-        foreach ($modules as $module) {
-            // Get all checklist items for this module
-            $checklistItems = $module->checklistItems;
-            $count = $checklistItems->count();
-
-            if ($count > 0) {
-                $totalChecklists += $count;
-    
-                foreach ($checklistItems as $item) {
-                    $progress = ModuleProgress::where('enrollment_id', $enrollment->id)
-                        ->where('checklist_item_id', $item->id)
-                        ->where('is_completed', true)
-                        ->first();
-    
-                    if ($progress) {
-                        $completedChecklists++;
-                    }
-                }
-            } else {
-                 // FALLBACK: Module-based virtual items for consistency
-                $hasText = !empty($module->content_text);
-                $hasVideo = !empty($module->video_url);
-
-                $prog = ModuleProgress::where('enrollment_id', $enrollment->id)
-                            ->where('module_id', $module->id)
-                            ->first();
-
-                if ($hasText) {
-                    $totalChecklists++;
-                    if ($prog && $prog->is_text_read) $completedChecklists++;
-                }
-                
-                if ($hasVideo) {
-                    $totalChecklists++;
-                    if ($prog && $prog->is_video_watched) $completedChecklists++;
-                }
-            }
-        }
-
-        // Calculate percentage
-        $percentage = $totalChecklists > 0 
-            ? round(($completedChecklists / $totalChecklists) * 100, 2)
-            : 0;
-
-        $enrollment->progress_percentage = $percentage;
-        
-        // Update status if 100% complete
-        if ($percentage >= 100 && $enrollment->status !== 'completed') {
-            $enrollment->status = 'completed';
-            $enrollment->completed_at = now();
-        } elseif ($percentage > 0 && $percentage < 100) {
-            $enrollment->status = 'in_progress';
-        }
-        
-        $enrollment->save();
     }
 
     /**
