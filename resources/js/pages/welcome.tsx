@@ -16,10 +16,10 @@ const translations = {
       getStarted: 'Mulai Sekarang',
     },
     hero: {
-      badge: 'Memberdayakan Keunggulan Penjualan Langsung',
-      titleLine1: 'Kuasai Keahlian,',
-      titleLine2: 'Tingkatkan Karir',
-      description: 'Bergabunglah dengan platform pembelajaran komprehensif Indosat Ooredoo Hutchison yang dirancang khusus untuk Eksekutif Penjualan Langsung (DSE). Belajar sesuai kecepatanmu, raih sertifikasi, dan jadilah juara penjualan.',
+      badge: 'Circle Java Learning Hub',
+      titleLine1: 'Empowering People,',
+      titleLine2: 'Driving Excellence',
+      description: 'Platform pembelajaran resmi Circle Java untuk mendukung pengembangan kompetensi, leadership dan performa kerja secara berkelanjutan.',
       ctaPrimary: 'Mulai Belajar',
       stats: [
         { value: '500+', label: 'Pelajar Aktif' },
@@ -36,23 +36,23 @@ const translations = {
     },
     features: {
       title: 'Mengapa Memilih Indosat LMS?',
-      subtitle: 'Segala yang Anda butuhkan untuk unggul sebagai Eksekutif Penjualan Langsung, semua dalam satu platform',
+      subtitle: 'Belajar lebih mudah, berkembang lebih cepat, dan bertumbuh bersama dalam satu ekosistem pembelajaran digital.',
       items: [
         {
           title: 'Pembelajaran Komprehensif',
-          description: 'Akses kursus terstruktur yang dirancang khusus untuk Eksekutif Penjualan Langsung',
+          description: 'Akses materi dan program pembelajaran terstruktur untuk mendukung pengembangan kompetensi dan kinerja profesional.',
         },
         {
           title: 'Gamifikasi & Hadiah',
-          description: 'Raih lencana, panjat papan peringkat, dan dapatkan sertifikasi seiring kemajuan Anda',
+          description: 'Raih sertifikasi dan apresiasi sebagai bentuk pengakuan atas perkembangan kemampuan dan pembelajaran Anda.',
         },
         {
           title: 'Pelatihan Interaktif',
-          description: 'Video tutorial, kuis, dan latihan praktis untuk pembelajaran yang lebih baik',
+          description: 'Materi pembelajaran berbasis video, kuis, dan simulasi praktik untuk mendukung pengembangan kompetensi secara optimal.',
         },
         {
           title: 'Pantau Progres Anda',
-          description: 'Monitor perjalanan belajar Anda dengan analitik dan wawasan mendetail',
+          description: 'Pantau perkembangan pembelajaran Anda melalui analitik dan insight yang komprehensif.',
         },
       ]
     },
@@ -61,8 +61,8 @@ const translations = {
       subtitle: 'Mulai perjalanan belajar Anda dalam tiga langkah sederhana',
       steps: [
         {
-          title: 'Daftar & Jelajahi',
-          description: 'Buat akun Anda dan telusuri katalog kursus komprehensif kami yang disesuaikan untuk profesional DSE.',
+          title: 'Daftar & Mulai Belajar',
+          description: 'Buat akun Anda dan jelajahi berbagai program pembelajaran yang dirancang untuk mendukung pengembangan kompetensi profesional.',
         },
         {
           title: 'Belajar & Berlatih',
@@ -75,9 +75,8 @@ const translations = {
       ]
     },
     cta: {
-      title: 'Siap Mengubah Karir Anda?',
-      subtitle: 'Bergabunglah dengan ratusan Eksekutif Penjualan Langsung yang sudah memajukan karir mereka dengan Indosat LMS',
-      button: 'Mulai Gratis Sekarang'
+      title: 'Siap Mengembangkan Potensi Anda??',
+      subtitle: 'Bergabunglah dalam platform pembelajaran Indosat Ooredoo Hutchison untuk meningkatkan kompetensi, memperluas wawasan, dan mendukung performa terbaik Anda.',
     },
     footer: {
       about: 'Tentang',
@@ -168,12 +167,10 @@ const translations = {
 
 interface LandingPageProps {
   onGetStarted: () => void;
-  lang: Language;
-  toggleLang: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLang }) => {
-  const t = translations[lang];
+const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+  const t = translations['id'];
 
   // Feature icons mapping remains static
   const featureIcons = [
@@ -224,15 +221,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLan
             </motion.div>
 
             <div className="flex items-center space-x-3">
-              {/* Language Switcher */}
-              <button 
-                onClick={toggleLang}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors flex items-center space-x-1 text-gray-600 font-medium text-sm"
-              >
-                <Languages className="w-4 h-4" />
-                <span>{lang === 'id' ? 'ID' : 'EN'}</span>
-              </button>
-
               <motion.button
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -473,15 +461,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLan
           <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10">
             {t.cta.subtitle}
           </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onGetStarted}
-            className="bg-white text-red-600 px-8 sm:px-12 py-4 sm:py-5 rounded-xl font-bold text-base sm:text-lg shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center space-x-2 mx-auto"
-          >
-            <span>{t.cta.button}</span>
-            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-          </motion.button>
         </motion.div>
       </section>
 
@@ -533,13 +512,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, lang, toggleLan
 
 // Main Welcome component that wraps the LandingPage
 export default function Welcome() {
-  // Setup state bahasa, default 'id' (Indonesia)
-  const [lang, setLang] = useState<Language>('id');
-
-  const toggleLang = () => {
-    setLang(prev => prev === 'id' ? 'en' : 'id');
-  };
-
   const handleGetStarted = () => {
     router.visit(register.url());
   };
@@ -547,11 +519,7 @@ export default function Welcome() {
   return (
     <>
       <Head title="Welcome to Indosat LMS" />
-      <LandingPage 
-        onGetStarted={handleGetStarted} 
-        lang={lang} 
-        toggleLang={toggleLang}
-      />
+      <LandingPage onGetStarted={handleGetStarted} />
     </>
   );
 }
