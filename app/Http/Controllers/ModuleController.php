@@ -66,10 +66,10 @@ class ModuleController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'video_mode' => 'nullable|in:upload,link,channel',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/avi,video/mpeg,video/webm|max:5242880', // 5GB limit
             'video_link' => 'nullable|string|max:500',
             'youtube_video_id' => 'nullable|string|max:20',
-            'doc_file' => 'nullable|file|max:51200',
+            'doc_file' => 'nullable|file|mimes:pdf,pptx|max:51200',
             'doc_url' => 'nullable|string',
             'content_text' => 'nullable|string',
         ]);
@@ -173,10 +173,10 @@ class ModuleController extends Controller
         $request->validate([
             'title' => 'required|string|max:255',
             'video_mode' => 'nullable|in:upload,link,channel',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime|max:5242880', // 5GB limit
+            'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/avi,video/mpeg,video/webm|max:5242880', // 5GB limit
             'video_link' => 'nullable|string|max:500',
             'youtube_video_id' => 'nullable|string|max:20',
-            'doc_file' => 'nullable|file|max:51200', // 50MB
+            'doc_file' => 'nullable|file|mimes:pdf,pptx|max:51200', // 50MB
             'doc_url' => 'nullable|url',
             'content_text' => 'nullable|string',
         ]);

@@ -135,7 +135,7 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
                                         <Input
                                             id="video"
                                             type="file"
-                                            accept="video/mp4,video/quicktime"
+                                            accept="video/mp4,video/quicktime,video/x-matroska,video/avi,video/mpeg,video/webm,video/*"
                                             onChange={(e) => setData('video', e.target.files ? e.target.files[0] : null)}
                                         />
                                         <InputError message={errors.video} />
@@ -221,9 +221,10 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
                                         <Input
                                             id="doc_file"
                                             type="file"
+                                            accept=".pdf,.pptx"
                                             onChange={(e) => setData('doc_file', e.target.files ? e.target.files[0] : null)}
                                         />
-                                        <p className="text-xs text-muted-foreground">Upload a PDF, Docx, etc.</p>
+                                        <p className="text-xs text-muted-foreground">Upload a PDF or PPTX file.</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
