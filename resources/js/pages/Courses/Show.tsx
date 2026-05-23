@@ -3,11 +3,11 @@ import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2 } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2, Volume2, VolumeX, Maximize, Minimize, Play, Pause } from 'lucide-react';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { PDFViewer, PDFViewerRef } from '@embedpdf/react-pdf-viewer';
 import { Quiz, SharedData } from '@/types';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState, useMemo } from 'react';
 
 interface Module {
     id: number;
@@ -23,6 +23,8 @@ interface Module {
     is_video_watched?: boolean;
     is_document_read?: boolean;
     quizzes?: QuizWithProgress[];
+    doc_current_page?: number;
+    doc_total_pages?: number;
 }
 
 interface QuizWithProgress extends Quiz {
@@ -129,6 +131,18 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const [activeModuleItem, setActiveModuleItem] = useState<string>('');
     const [previewModuleId, setPreviewModuleId] = useState<number | null>(null);
 
+    // Dynamic AJAX states
+    const [localModules, setLocalModules] = useState<Module[]>(course.modules);
+    const [currentProgress, setCurrentProgress] = useState<number>(userProgress);
+
+    useEffect(() => {
+        setLocalModules(course.modules);
+    }, [course.modules]);
+
+    useEffect(() => {
+        setCurrentProgress(userProgress);
+    }, [userProgress]);
+
     // ── Quiz confirmation modal ──────────────────────────────────────────────
     const [confirmQuiz, setConfirmQuiz] = useState<QuizWithProgress | null>(null);
 
@@ -175,101 +189,529 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     };
 
-    // Configure pdfjs worker from CDN
-    try {
-        // @ts-ignore
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-    } catch (e) {
-        // ignore in non-browser env
+    function PdfViewer({ url, onPageChange }: { url: string; onPageChange?: (current: number, total: number) => void }) {
+        const viewerRef = useRef<PDFViewerRef>(null);
+        const [currentPage, setCurrentPage] = useState(1);
+        const [themePreference, setThemePreference] = useState<'light' | 'dark'>('light');
+
+        // Dynamic theme detection and listener
+        useEffect(() => {
+            const isDark = document.documentElement.classList.contains('dark');
+            setThemePreference(isDark ? 'dark' : 'light');
+
+            const observer = new MutationObserver(() => {
+                const isDark = document.documentElement.classList.contains('dark');
+                const pref = isDark ? 'dark' : 'light';
+                setThemePreference(pref);
+                viewerRef.current?.container?.setTheme({ preference: pref });
+            });
+
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class'],
+            });
+
+            return () => observer.disconnect();
+        }, []);
+
+        // Also update theme when viewerRef loads or themePreference changes
+        useEffect(() => {
+            if (viewerRef.current?.container) {
+                viewerRef.current.container.setTheme({ preference: themePreference });
+            }
+        }, [themePreference]);
+
+        // Subscription to page changes
+        useEffect(() => {
+            let unsubscribe: (() => void) | undefined;
+            let loadingTimeout: number | null = null;
+            let hasReported = false;
+
+            const setupPageTracking = async () => {
+                if (!viewerRef.current) return;
+                
+                // Get the registry from the ref
+                const registry = await viewerRef.current.registry;
+                if (!registry) return;
+
+                const scrollPlugin: any = registry.getPlugin('scroll');
+                const scrollCapability = scrollPlugin?.provides();
+
+                if (scrollCapability) {
+                    const handlePageChange = (current: number, total: number) => {
+                        setCurrentPage(current);
+                        if (!onPageChange) return;
+
+                        if (total > 1) {
+                            if (loadingTimeout) {
+                                window.clearTimeout(loadingTimeout);
+                                loadingTimeout = null;
+                            }
+                            hasReported = true;
+                            onPageChange(current, total);
+                        } else {
+                            if (hasReported) {
+                                onPageChange(current, total);
+                            }
+                        }
+                    };
+
+                    // Subscribe to subsequent changes
+                    unsubscribe = scrollCapability.onPageChange((event: any) => {
+                        handlePageChange(event.pageNumber, event.totalPages);
+                    });
+
+                    // Get initial pages
+                    const current = scrollCapability.getCurrentPage() || 1;
+                    const total = scrollCapability.getTotalPages() || 1;
+
+                    if (total > 1) {
+                        handlePageChange(current, total);
+                    } else {
+                        // Settle timer: if after 2 seconds total is still 1, it really is a 1-page doc!
+                        loadingTimeout = window.setTimeout(() => {
+                            if (!viewerRef.current) return;
+                            const settledCurrent = scrollCapability.getCurrentPage() || 1;
+                            const settledTotal = scrollCapability.getTotalPages() || 1;
+                            hasReported = true;
+                            handlePageChange(settledCurrent, settledTotal);
+                        }, 2000);
+                    }
+                }
+            };
+
+            setupPageTracking();
+
+            return () => {
+                if (unsubscribe) {
+                    unsubscribe();
+                }
+                if (loadingTimeout) {
+                    window.clearTimeout(loadingTimeout);
+                }
+            };
+        }, [url, onPageChange]);
+
+        return (
+            <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
+                <div className="flex-1 h-0 w-full">
+                    <PDFViewer
+                        ref={viewerRef}
+                        config={{
+                            src: url,
+                            theme: { preference: themePreference },
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                    />
+                </div>
+                <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+                    <span>Halaman aktif: {currentPage}</span>
+                </div>
+            </div>
+        );
     }
 
-    function PdfViewer({ url, onPageChange }: { url: string; onPageChange?: (current: number, total: number) => void }) {
-        const [numPages, setNumPages] = useState<number>(0);
-        const [currentPage, setCurrentPage] = useState<number>(1);
+    function PremiumVideoPlayer({
+        videoId,
+        isCompletedInitial,
+        durationMinutes,
+        onProgressUpdate,
+    }: {
+        videoId: string;
+        isCompletedInitial: boolean;
+        durationMinutes?: number;
+        onProgressUpdate: (currentTime: number, maxTime: number, duration: number) => void;
+    }) {
+        const [isPlaying, setIsPlaying] = useState(false);
+        const [currentTime, setCurrentTime] = useState(0);
+        const [duration, setDuration] = useState(durationMinutes ? durationMinutes * 60 : 0);
+        const [maxTime, setMaxTime] = useState(isCompletedInitial ? 999999 : 0);
+        const [volume, setVolume] = useState(100);
+        const [isMuted, setIsMuted] = useState(false);
+        const [isFullscreen, setIsFullscreen] = useState(false);
+        const [showControls, setShowControls] = useState(true);
+        const [seekAlert, setSeekAlert] = useState(false);
+
         const containerRef = useRef<HTMLDivElement | null>(null);
-        const pageRefs = useRef<Record<number, HTMLDivElement | null>>({});
-        const debounceRef = useRef<number | null>(null);
+        const iframeRef = useRef<HTMLDivElement | null>(null);
+        const playerRef = useRef<any>(null);
+        const controlsTimeoutRef = useRef<number | null>(null);
+        const maxTimeRef = useRef(maxTime);
+
+        useEffect(() => {
+            maxTimeRef.current = maxTime;
+        }, [maxTime]);
+
+        const formatTime = (secs: number) => {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        };
+
+        useEffect(() => {
+            let cancelled = false;
+            let timer: number | null = null;
+
+            const initPlayer = async () => {
+                await loadYouTubeApi();
+                const ytWindow = window as any;
+                if (cancelled || !iframeRef.current || !ytWindow.YT?.Player) return;
+
+                if (playerRef.current?.destroy) {
+                    playerRef.current.destroy();
+                }
+
+                playerRef.current = new ytWindow.YT.Player(iframeRef.current, {
+                    videoId: videoId,
+                    playerVars: {
+                        controls: 0,
+                        rel: 0,
+                        modestbranding: 1,
+                        fs: 0,
+                        playsinline: 1,
+                        disablekb: 1,
+                        origin: window.location.origin,
+                        enablejsapi: 1,
+                    },
+                    events: {
+                        onReady: (event: any) => {
+                            const dur = Number(event.target.getDuration?.() || 0);
+                            if (dur > 0) {
+                                setDuration(dur);
+                                if (isCompletedInitial) {
+                                    setMaxTime(dur);
+                                }
+                            }
+                            event.target.setVolume(volume);
+                            if (isMuted) event.target.mute();
+                        },
+                        onStateChange: (event: any) => {
+                            const state = event.data;
+                            if (state === ytWindow.YT.PlayerState.PLAYING) {
+                                setIsPlaying(true);
+                                startTimer();
+                            } else {
+                                setIsPlaying(false);
+                                stopTimer();
+                            }
+                        }
+                    }
+                });
+            };
+
+            const tick = () => {
+                const player = playerRef.current;
+                if (!player || typeof player.getCurrentTime !== 'function') return;
+
+                const curr = player.getCurrentTime();
+                const dur = player.getDuration();
+                if (dur > 0 && dur !== duration) {
+                    setDuration(dur);
+                }
+
+                setCurrentTime(curr);
+
+                if (curr > maxTimeRef.current + 2) {
+                    player.seekTo(maxTimeRef.current, true);
+                    setSeekAlert(true);
+                    setTimeout(() => setSeekAlert(false), 2000);
+                } else {
+                    if (curr > maxTimeRef.current) {
+                        setMaxTime(curr);
+                    }
+                    onProgressUpdate(curr, Math.max(maxTimeRef.current, curr), dur || duration);
+                }
+            };
+
+            const startTimer = () => {
+                stopTimer();
+                timer = window.setInterval(tick, 250);
+            };
+
+            const stopTimer = () => {
+                if (timer) {
+                    window.clearInterval(timer);
+                    timer = null;
+                }
+            };
+
+            initPlayer();
+
+            return () => {
+                cancelled = true;
+                stopTimer();
+                if (playerRef.current?.destroy) {
+                    playerRef.current.destroy();
+                    playerRef.current = null;
+                }
+            };
+        }, [videoId, isCompletedInitial]);
+
+        const togglePlay = () => {
+            const player = playerRef.current;
+            if (!player) return;
+            if (isPlaying) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        };
+
+        const toggleMute = () => {
+            const player = playerRef.current;
+            if (!player) return;
+            if (isMuted) {
+                player.unMute();
+                setIsMuted(false);
+                player.setVolume(volume);
+            } else {
+                player.mute();
+                setIsMuted(true);
+            }
+        };
+
+        const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const val = Number(e.target.value);
+            setVolume(val);
+            const player = playerRef.current;
+            if (player) {
+                player.setVolume(val);
+                if (val > 0 && isMuted) {
+                    player.unMute();
+                    setIsMuted(false);
+                } else if (val === 0 && !isMuted) {
+                    player.mute();
+                    setIsMuted(true);
+                }
+            }
+        };
+
+        const toggleFullscreen = () => {
+            const container = containerRef.current;
+            if (!container) return;
+
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    setIsFullscreen(true);
+                }).catch(err => {
+                    console.error("Fullscreen error:", err);
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    setIsFullscreen(false);
+                });
+            }
+        };
+
+        useEffect(() => {
+            const handleFullscreenChange = () => {
+                setIsFullscreen(!!document.fullscreenElement);
+            };
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        }, []);
+
+        const handleMouseMove = () => {
+            setShowControls(true);
+            if (controlsTimeoutRef.current) {
+                window.clearTimeout(controlsTimeoutRef.current);
+            }
+            controlsTimeoutRef.current = window.setTimeout(() => {
+                if (isPlaying) {
+                    setShowControls(false);
+                }
+            }, 2500);
+        };
 
         useEffect(() => {
             return () => {
-                if (debounceRef.current) {
-                    window.clearTimeout(debounceRef.current);
-                    debounceRef.current = null;
+                if (controlsTimeoutRef.current) {
+                    window.clearTimeout(controlsTimeoutRef.current);
                 }
             };
         }, []);
 
-        useEffect(() => {
-            if (!containerRef.current || numPages <= 0) return;
+        const handleSeekBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+            const player = playerRef.current;
+            if (!player || duration <= 0) return;
 
-            const root = containerRef.current;
-            let observed = false;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = rect.width;
+            const targetPercent = clickX / width;
+            const targetTime = targetPercent * duration;
 
-            const observer = new IntersectionObserver(
-                (entries) => {
-                    // find the entry with largest intersectionRatio
-                    let best: IntersectionObserverEntry | null = null;
-                    for (const e of entries) {
-                        if (!best || e.intersectionRatio > best.intersectionRatio) best = e;
-                    }
-
-                    if (best && best.isIntersecting) {
-                        const pageStr = best.target.getAttribute('data-page-number');
-                        const pageNum = pageStr ? Number(pageStr) : 1;
-                        if (pageNum !== currentPage) {
-                            setCurrentPage(pageNum);
-                            if (onPageChange) {
-                                if (debounceRef.current) window.clearTimeout(debounceRef.current);
-                                debounceRef.current = window.setTimeout(() => {
-                                    onPageChange(pageNum, numPages);
-                                }, 700) as unknown as number;
-                            }
-                        }
-                    }
-                },
-                { root, threshold: [0.45, 0.6, 0.9] }
-            );
-
-            for (let i = 1; i <= numPages; i++) {
-                const el = pageRefs.current[i];
-                if (el) {
-                    observer.observe(el);
-                    observed = true;
-                }
-            }
-
-            return () => {
-                if (observed) observer.disconnect();
-            };
-        }, [numPages, onPageChange, currentPage]);
-
-        const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-            setNumPages(numPages);
-            setCurrentPage(1);
-            if (onPageChange) {
-                // initial notify
-                onPageChange(1, numPages);
+            if (targetTime > maxTime) {
+                setSeekAlert(true);
+                setTimeout(() => setSeekAlert(false), 2000);
+                player.seekTo(maxTime, true);
+            } else {
+                player.seekTo(targetTime, true);
+                setCurrentTime(targetTime);
             }
         };
 
         return (
-            <div ref={containerRef} className="h-full overflow-y-auto">
-                <Document file={url} onLoadSuccess={onDocumentLoadSuccess}>
-                    {Array.from({ length: numPages || 0 }, (_, i) => {
-                        const pageNumber = i + 1;
-                        return (
-                            <div
-                                key={`page-${pageNumber}`}
-                                data-page-number={String(pageNumber)}
-                                ref={(el) => { pageRefs.current[pageNumber] = el; }}
-                                className="mb-4"
+            <div 
+                ref={containerRef}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={() => isPlaying && setShowControls(false)}
+                className="group relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-gray-800"
+            >
+                <div className="absolute inset-0 w-full h-full pointer-events-none">
+                    <div ref={iframeRef} className="w-full h-full" />
+                </div>
+
+                <div 
+                    className="absolute inset-0 z-10 cursor-pointer" 
+                    onClick={togglePlay}
+                />
+
+                {seekAlert && (
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/80 backdrop-blur-md border border-amber-500/50 rounded-xl text-[11px] font-medium text-amber-400 flex items-center gap-2 animate-bounce shadow-2xl z-30">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        Selesaikan bagian sebelumnya terlebih dahulu sebelum melompat ke depan!
+                    </div>
+                )}
+
+                {(!isPlaying || showControls) && (
+                    <div 
+                        onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                        className="absolute inset-0 flex items-center justify-center bg-black/30 z-20 transition-opacity"
+                    >
+                        <button className="h-14 w-14 flex items-center justify-center rounded-full bg-white/25 backdrop-blur-md border border-white/30 text-white hover:scale-110 active:scale-95 transition-all shadow-xl">
+                            {isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-0.5" />}
+                        </button>
+                    </div>
+                )}
+
+                <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-all duration-300 z-30 flex flex-col ${
+                        showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
+                    }`}
+                >
+                    <div 
+                        className="relative w-full h-1.5 bg-white/20 rounded-full cursor-pointer hover:h-2 group/seek transition-all flex items-center mb-3"
+                        onClick={handleSeekBarClick}
+                    >
+                        <div 
+                            className="absolute left-0 top-0 bottom-0 bg-white/20 rounded-full"
+                            style={{ width: `${(maxTime / Math.max(duration, 1)) * 100}%` }}
+                        />
+                        <div 
+                            className="absolute left-0 top-0 bottom-0 bg-sky-500 rounded-full"
+                            style={{ width: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
+                        />
+                        <div 
+                            className="absolute h-3 w-3 bg-white border border-sky-600 rounded-full shadow-lg -translate-x-1/2 opacity-0 group-hover/seek:opacity-100 transition-opacity"
+                            style={{ left: `${(currentTime / Math.max(duration, 1)) * 100}%` }}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={togglePlay}
+                                className="text-white hover:text-sky-400 transition-colors p-1"
                             >
-                                <Page pageNumber={pageNumber} renderTextLayer={false} renderAnnotationLayer={false} />
+                                {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white" />}
+                            </button>
+
+                            <div className="flex items-center gap-2 group/volume">
+                                <button 
+                                    onClick={toggleMute}
+                                    className="text-white hover:text-sky-400 transition-colors p-1"
+                                >
+                                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                </button>
+                                <input 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    value={isMuted ? 0 : volume}
+                                    onChange={handleVolumeChange}
+                                    className="w-0 group-hover/volume:w-16 h-1 bg-white/30 rounded-lg appearance-none cursor-pointer focus:outline-none transition-all duration-300 accent-sky-500 overflow-hidden"
+                                />
                             </div>
-                        );
-                    })}
-                </Document>
-                <div className="mt-2 text-xs text-gray-400">Halaman: {currentPage}/{numPages}</div>
+
+                            <span className="text-[11px] font-semibold text-gray-200 select-none">
+                                {formatTime(currentTime)} / {formatTime(duration)}
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={toggleFullscreen}
+                                className="text-white hover:text-sky-400 transition-colors p-1"
+                            >
+                                {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
+        const [currentPage, setCurrentPage] = useState(initialPage || 1);
+
+        useEffect(() => {
+            if (initialPage && initialPage !== currentPage) {
+                setCurrentPage(initialPage);
+            }
+        }, [initialPage]);
+
+        const handlePrev = () => {
+            if (currentPage > 1) {
+                const nextPage = currentPage - 1;
+                setCurrentPage(nextPage);
+                onPageChange(nextPage, totalPages);
+            }
+        };
+
+        const handleNext = () => {
+            if (currentPage < totalPages) {
+                const nextPage = currentPage + 1;
+                setCurrentPage(nextPage);
+                onPageChange(nextPage, totalPages);
+            }
+        };
+
+        return (
+            <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
+                <div className="flex-1 h-0 w-full relative">
+                    <iframe
+                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+                        title="Office Document"
+                        className="w-full h-full border-0 absolute inset-0"
+                        loading="lazy"
+                    />
+                </div>
+                <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrev}
+                        disabled={currentPage <= 1}
+                        className="h-8 text-xs select-none gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                        Sebelumnya
+                    </Button>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 select-none">
+                        Slide / Halaman aktif: {currentPage} dari {totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNext}
+                        disabled={currentPage >= totalPages}
+                        className="h-8 text-xs select-none gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                        Selanjutnya
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -360,139 +802,67 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
 
         const docContainerRef = useRef<HTMLDivElement | null>(null);
         const docCompletionSentRef = useRef(false);
-        const [docScrollPercentage, setDocScrollPercentage] = useState(0);
-        const docLastPageRef = useRef<number>(0);
+        const [docScrollPercentage, setDocScrollPercentage] = useState(() => {
+            if (module.is_document_read) return 100;
+            if (module.doc_current_page && module.doc_total_pages) {
+                return (module.doc_current_page / module.doc_total_pages) * 100;
+            }
+            return 0;
+        });
+        const docLastPageRef = useRef<number>(module.doc_current_page || 1);
 
-        const postProgress = (path: string, payload: Record<string, number>) => {
-            router.post(path, payload, {
-                preserveScroll: true,
-                preserveState: true,
-            });
+        const postProgress = (path: string, payload: Record<string, number>, onCompleted?: (data: any) => void) => {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            fetch(path, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {})
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.progress_percentage !== undefined) {
+                        setCurrentProgress(data.progress_percentage);
+                    }
+                    
+                    setLocalModules(prev => {
+                        const updated = prev.map(m => m.id === module.id ? {
+                            ...m,
+                            is_completed: data.is_completed ?? m.is_completed,
+                            is_text_read: data.is_text_read ?? m.is_text_read,
+                            is_video_watched: data.is_video_watched ?? m.is_video_watched,
+                            is_document_read: data.is_document_read ?? m.is_document_read,
+                        } : m);
+                        
+                        if (isTrainer) return updated;
+                        
+                        let previousCompleted = true;
+                        return updated.map(m => {
+                            const isLocked = !previousCompleted;
+                            previousCompleted = !!m.is_completed;
+                            return { ...m, is_locked: isLocked };
+                        });
+                    });
+
+                    if (onCompleted) {
+                        onCompleted(data);
+                    }
+                }
+            })
+            .catch(e => console.error('Tracking Error:', e));
         };
 
         useEffect(() => {
-            if (!isUser || !module.video_url || !videoContainerRef.current) {
-                return;
-            }
-
-            let cancelled = false;
-
-            const clearTimer = () => {
-                if (videoTimerRef.current) {
-                    window.clearInterval(videoTimerRef.current);
-                    videoTimerRef.current = null;
-                }
-            };
-
-            const maybeCompleteVideo = () => {
-                const duration = videoStateRef.current.duration || (module.duration_minutes ? module.duration_minutes * 60 : 0);
-
-                if (duration <= 0) {
-                    return;
-                }
-
-                const threshold = Math.max(duration - 2, 0);
-                const { currentTime, maxTime } = videoStateRef.current;
-
-                if (!videoCompletionSentRef.current && currentTime >= threshold && maxTime >= threshold) {
-                    videoCompletionSentRef.current = true;
-                    postProgress(`/modules/${module.id}/progress/video`, {
-                        current_time_seconds: currentTime,
-                        max_position_seconds: maxTime,
-                        duration_seconds: duration,
-                    });
-                }
-            };
-
-            const tick = () => {
-                const player = videoPlayerRef.current;
-
-                if (!player || typeof player.getCurrentTime !== 'function') {
-                    return;
-                }
-
-                const currentTime = Number(player.getCurrentTime() || 0);
-                const playerDuration = typeof player.getDuration === 'function' ? Number(player.getDuration() || 0) : 0;
-                const duration = playerDuration > 0 ? playerDuration : (module.duration_minutes ?? 0) * 60;
-                const maxTime = Math.max(videoStateRef.current.maxTime, currentTime);
-
-                if (currentTime > maxTime + 2 && typeof player.seekTo === 'function') {
-                    player.seekTo(maxTime, true);
-                    return;
-                }
-
-                videoStateRef.current = {
-                    currentTime,
-                    maxTime,
-                    duration: duration || videoStateRef.current.duration,
-                };
-
-                maybeCompleteVideo();
-            };
-
-            const initPlayer = async () => {
-                await loadYouTubeApi();
-
-                const ytWindow = window as Window & { YT?: any };
-
-                if (cancelled || !videoContainerRef.current || !ytWindow.YT?.Player) {
-                    return;
-                }
-
-                const YT = ytWindow.YT;
-
-                if (videoPlayerRef.current?.destroy) {
-                    videoPlayerRef.current.destroy();
-                }
-
-                videoPlayerRef.current = new YT.Player(videoContainerRef.current, {
-                    videoId: module.video_url,
-                    playerVars: {
-                        controls: 1,
-                        rel: 0,
-                        modestbranding: 1,
-                        fs: 1,
-                        playsinline: 1,
-                        disablekb: 1,
-                        origin: window.location.origin,
-                        enablejsapi: 1,
-                    },
-                    events: {
-                        onReady: (event: any) => {
-                            videoStateRef.current.duration = Number(event.target.getDuration?.() || 0) || (module.duration_minutes ? module.duration_minutes * 60 : 0);
-                        },
-                        onStateChange: (event: any) => {
-                            if (event.data === YT.PlayerState.PLAYING) {
-                                clearTimer();
-                                videoTimerRef.current = window.setInterval(tick, 1000);
-                            }
-
-                            if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
-                                clearTimer();
-                                tick();
-                                if (event.data === YT.PlayerState.ENDED) {
-                                    videoStateRef.current.maxTime = Math.max(videoStateRef.current.maxTime, videoStateRef.current.duration);
-                                    videoStateRef.current.currentTime = Math.max(videoStateRef.current.currentTime, videoStateRef.current.duration);
-                                    maybeCompleteVideo();
-                                }
-                            }
-                        },
-                    },
-                });
-            };
-
-            initPlayer();
-
-            return () => {
-                cancelled = true;
-                clearTimer();
-
-                if (videoPlayerRef.current?.destroy) {
-                    videoPlayerRef.current.destroy();
-                    videoPlayerRef.current = null;
-                }
-            };
-        }, [module.id, module.video_url, module.duration_minutes, isUser]);
+            videoCompletionSentRef.current = !!module.is_video_watched;
+            textCompletionSentRef.current = !!module.is_text_read;
+            docCompletionSentRef.current = !!module.is_document_read;
+        }, [module.id, module.is_video_watched, module.is_text_read, module.is_document_read]);
 
         useEffect(() => {
             if (!isUser || !module.content_text || !textContainerRef.current) {
@@ -538,7 +908,12 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         }, [module.id, module.content_text, isUser]);
 
         useEffect(() => {
-            if (!isUser || !module.doc_url || !docContainerRef.current) {
+            if (!isUser || !module.doc_url || !docContainerRef.current || previewModuleId !== module.id) {
+                return;
+            }
+
+            const extension = getFileExtension(module.doc_url);
+            if (['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'].includes(extension)) {
                 return;
             }
 
@@ -673,9 +1048,22 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
             <>
                 {module.video_url && (
                     <div className="mb-4">
-                        <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
-                            <div ref={videoContainerRef} className="absolute inset-0" />
-                        </div>
+                        <PremiumVideoPlayer
+                            videoId={module.video_url}
+                            isCompletedInitial={!!module.is_video_watched}
+                            durationMinutes={module.duration_minutes}
+                            onProgressUpdate={(currentTime, maxTime, duration) => {
+                                const threshold = Math.max(duration - 2, 0);
+                                if (!videoCompletionSentRef.current && currentTime >= threshold && maxTime >= threshold) {
+                                    videoCompletionSentRef.current = true;
+                                    postProgress(`/modules/${module.id}/progress/video`, {
+                                        current_time_seconds: currentTime,
+                                        max_position_seconds: maxTime,
+                                        duration_seconds: duration,
+                                    });
+                                }
+                            }}
+                        />
                         {!module.is_video_watched && (
                             <p className="mt-2 text-xs text-gray-400">
                                 Video akan terkunci dari skip maju dan otomatis selesai setelah sampai akhir.
@@ -733,6 +1121,26 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                     {getFileExtension(module.doc_url) === 'pdf' ? (
                                         <PdfViewer
                                             url={getPreviewUri(module.doc_url)}
+                                            onPageChange={(current, total) => {
+                                                docLastPageRef.current = current;
+                                                setDocScrollPercentage((current / Math.max(total, 1)) * 100);
+                                                if (!docCompletionSentRef.current) {
+                                                    postProgress(`/modules/${module.id}/progress/document`, {
+                                                        current_page: current,
+                                                        total_pages: total,
+                                                    });
+
+                                                    if (current >= total) {
+                                                        docCompletionSentRef.current = true;
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    ) : ['ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx'].includes(getFileExtension(module.doc_url)) ? (
+                                        <OfficeViewer
+                                            url={getPreviewUri(module.doc_url)}
+                                            totalPages={module.doc_total_pages || 5}
+                                            currentPage={module.doc_current_page || 1}
                                             onPageChange={(current, total) => {
                                                 docLastPageRef.current = current;
                                                 setDocScrollPercentage((current / Math.max(total, 1)) * 100);
@@ -823,7 +1231,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
                                 Course Modules
                                 <span className="ml-2 text-gray-300 dark:text-gray-600 normal-case tracking-normal font-normal">
-                                    ({course.modules.length})
+                                    ({localModules.length})
                                 </span>
                             </p>
                             {isTrainer && canManage && (
@@ -848,8 +1256,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                     setPreviewModuleId(null);
                                 }}
                             >
-                                {course.modules.length > 0 ? (
-                                    course.modules.map((module, index) => (
+                                {localModules.length > 0 ? (
+                                    localModules.map((module, index) => (
                                         <AccordionItem key={module.id} value={`item-${module.id}`} disabled={module.is_locked}
                                             className="border-b border-gray-50 dark:border-gray-700/60 last:border-0">
                                             <AccordionTrigger className={`px-5 py-4 hover:no-underline hover:bg-gray-50/60 dark:hover:bg-gray-700/40 transition-colors ${module.is_locked ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -992,16 +1400,16 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-linear-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm p-4 lg:p-5">
                                 <div className="flex items-center justify-between mb-3">
                                     <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-sky-400">Progress Belajar</p>
-                                    <span className="text-2xl lg:text-xl font-bold text-sky-600 leading-none">{userProgress}%</span>
+                                    <span className="text-2xl lg:text-xl font-bold text-sky-600 leading-none">{currentProgress}%</span>
                                 </div>
                                 <div className="w-full bg-sky-100 dark:bg-sky-900/40 rounded-full h-2.5">
                                     <div
                                         className="bg-sky-500 h-2.5 rounded-full transition-all duration-500"
-                                        style={{ width: `${userProgress}%` }}
+                                        style={{ width: `${currentProgress}%` }}
                                     />
                                 </div>
-                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{userProgress < 100 ? 'Selesaikan semua modul untuk mendapat sertifikat' : ''}</p>
-                                {userProgress === 100 && (
+                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{currentProgress < 100 ? 'Selesaikan semua modul untuk mendapat sertifikat' : ''}</p>
+                                {currentProgress === 100 && (
                                     <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-semibold flex items-center gap-1.5">
                                         <CheckCircle className="w-4 h-4" /> Kursus Selesai!
                                     </p>

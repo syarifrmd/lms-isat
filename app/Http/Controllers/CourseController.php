@@ -91,7 +91,7 @@ class CourseController extends Controller
         // Load course dengan modul yang urut berdasarkan sequence
         $course = Course::with(['creator', 'modules' => function($query) {
             $query->orderBy('order_sequence', 'asc');
-        }, 'modules.quizzes' => function($query) {
+        }, 'modules.checklistItems', 'modules.quizzes' => function($query) {
             // Regular users only see published quizzes; trainers/admins see all
             $isTrainer = Auth::check() && in_array(Auth::user()->role, ['trainer', 'admin']);
             if (!$isTrainer) {
@@ -138,6 +138,41 @@ class CourseController extends Controller
             $module->is_video_watched = $moduleState['is_video_watched'];
             $module->is_document_read = $moduleState['is_document_read'];
             $module->is_quiz_passed = $moduleState['is_quiz_passed'];
+            
+            // Extract doc progress pages
+            $docProgress = $progresses->first();
+            $module->doc_current_page = $docProgress ? (int) $docProgress->doc_current_page : 0;
+            
+            $docTotalPages = 0;
+            if ($docProgress && $docProgress->doc_total_pages > 0) {
+                $docTotalPages = (int) $docProgress->doc_total_pages;
+            } else {
+                // If it is a PPTX file, dynamically try to extract slide count
+                $docUrl = $module->doc_url;
+                if ($docUrl && preg_match('/\.pptx$/i', $docUrl)) {
+                    $filePath = null;
+                    if (str_starts_with($docUrl, '/storage/')) {
+                        $filePath = storage_path('app/public/' . str_replace('/storage/', '', $docUrl));
+                    }
+                    if ($filePath && file_exists($filePath)) {
+                        $zip = new \ZipArchive();
+                        if ($zip->open($filePath) === true) {
+                            $slideCount = 0;
+                            for ($i = 0; $i < $zip->numFiles; $i++) {
+                                $entryName = $zip->getNameIndex($i);
+                                if (preg_match('/^ppt\/slides\/slide\d+\.xml$/i', $entryName)) {
+                                    $slideCount++;
+                                }
+                            }
+                            $zip->close();
+                            if ($slideCount > 0) {
+                                $docTotalPages = $slideCount;
+                            }
+                        }
+                    }
+                }
+            }
+            $module->doc_total_pages = $docTotalPages;
             
             // 3. Set Lock Status
             // Modul ini terkunci KECUALI modul sebelumnya sudah selesai, atau user adalah trainer

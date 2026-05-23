@@ -31,16 +31,29 @@ class ModuleProgressService
                 || $module->quizzes->every(fn ($quiz) => (bool) ($quiz->is_passed ?? false));
         }
 
-        $textRequirementMet = empty($module->content_text) || $isTextRead;
+        $checklistRequirementMet = true;
+        if ($module->relationLoaded('checklistItems') && $module->checklistItems->isNotEmpty()) {
+            $checklistRequirementMet = $module->checklistItems->every(function ($item) use ($progresses) {
+                return $progresses->contains(function ($progress) use ($item) {
+                    return $progress->checklist_item_id === $item->id && (bool) $progress->is_completed;
+                });
+            });
+        }
+
+        $textRequirementMet = empty(trim(strip_tags($module->content_text ?? ''))) || $isTextRead;
         $videoRequirementMet = empty($module->video_url) || $isVideoWatched;
         $documentRequirementMet = empty($module->doc_url) || $isDocumentRead;
 
+        $baseCompleted = $textRequirementMet && $videoRequirementMet && $documentRequirementMet && $quizRequirementMet;
+
+        // If module has checklist items, ALL checklists must be completed.
+        // Or if it only has base requirements, they must be satisfied.
         return [
             'is_text_read' => $isTextRead,
             'is_video_watched' => $isVideoWatched,
             'is_document_read' => $isDocumentRead,
             'is_quiz_passed' => $quizRequirementMet,
-            'is_completed' => $textRequirementMet && $videoRequirementMet && $documentRequirementMet && $quizRequirementMet,
+            'is_completed' => $baseCompleted && $checklistRequirementMet,
         ];
     }
 
