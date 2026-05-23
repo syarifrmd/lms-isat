@@ -48,6 +48,17 @@ class ModuleProgressController extends Controller
 
         $this->progressService->recalculateEnrollmentProgress($enrollment);
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'progress_percentage' => (float) $enrollment->progress_percentage,
+                'is_completed' => (bool) $progress->is_completed,
+                'is_text_read' => (bool) $progress->is_text_read,
+                'is_video_watched' => (bool) $progress->is_video_watched,
+                'is_document_read' => (bool) $progress->is_document_read,
+            ]);
+        }
+
         return back()->with('success', $progress->is_text_read ? 'Module marked as read' : 'Text progress tracked');
     }
 
@@ -85,6 +96,17 @@ class ModuleProgressController extends Controller
 
         $this->progressService->recalculateEnrollmentProgress($enrollment);
 
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'progress_percentage' => (float) $enrollment->progress_percentage,
+                'is_completed' => (bool) $progress->is_completed,
+                'is_text_read' => (bool) $progress->is_text_read,
+                'is_video_watched' => (bool) $progress->is_video_watched,
+                'is_document_read' => (bool) $progress->is_document_read,
+            ]);
+        }
+
         return back()->with('success', $progress->is_video_watched ? 'Video marked as watched' : 'Video progress tracked');
     }
 
@@ -119,6 +141,17 @@ class ModuleProgressController extends Controller
         $progress->save();
 
         $this->progressService->recalculateEnrollmentProgress($enrollment);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'progress_percentage' => (float) $enrollment->progress_percentage,
+                'is_completed' => (bool) $progress->is_completed,
+                'is_text_read' => (bool) $progress->is_text_read,
+                'is_video_watched' => (bool) $progress->is_video_watched,
+                'is_document_read' => (bool) $progress->is_document_read,
+            ]);
+        }
 
         return back()->with('success', $progress->is_document_read ? 'Document marked as read' : 'Document progress tracked');
     }
