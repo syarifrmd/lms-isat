@@ -154,7 +154,7 @@ class CourseController extends Controller
                     if (str_starts_with($docUrl, '/storage/')) {
                         $filePath = storage_path('app/public/' . str_replace('/storage/', '', $docUrl));
                     }
-                    if ($filePath && file_exists($filePath)) {
+                    if ($filePath && file_exists($filePath) && class_exists('\ZipArchive')) {
                         $zip = new \ZipArchive();
                         if ($zip->open($filePath) === true) {
                             $slideCount = 0;

@@ -19,6 +19,36 @@ class ModuleController extends Controller
         $this->youtube = $youtube;
     }
 
+    public function uploadDocument(Request $request)
+    {
+        $request->validate([
+            'doc_file' => [
+                'required',
+                'file',
+                'max:51200',
+                function ($attribute, $value, $fail) {
+                    $ext = strtolower($value->getClientOriginalExtension());
+                    if (!in_array($ext, ['pdf', 'ppt', 'pptx', 'doc', 'docx'])) {
+                        $fail('The document must be a PDF, PPT, PPTX, DOC, or DOCX file.');
+                    }
+                },
+            ],
+        ]);
+
+        if ($request->hasFile('doc_file')) {
+            $file = $request->file('doc_file');
+            $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('module_docs', $filename, 'public');
+            
+            return response()->json([
+                'url' => Storage::url($path),
+                'message' => 'File uploaded successfully'
+            ]);
+        }
+
+        return response()->json(['error' => 'No file uploaded'], 400);
+    }
+
     public function create($courseId)
     {
         $course = Course::findOrFail($courseId);
@@ -69,7 +99,19 @@ class ModuleController extends Controller
             'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/avi,video/mpeg,video/webm|max:5242880', // 5GB limit
             'video_link' => 'nullable|string|max:500',
             'youtube_video_id' => 'nullable|string|max:20',
-            'doc_file' => 'nullable|file|mimes:pdf,pptx|max:51200',
+            'doc_file' => [
+                'nullable',
+                'file',
+                'max:51200',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $ext = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($ext, ['pdf', 'ppt', 'pptx', 'doc', 'docx'])) {
+                            $fail('The document must be a PDF, PPT, PPTX, DOC, or DOCX file.');
+                        }
+                    }
+                },
+            ],
             'doc_url' => 'nullable|string',
             'content_text' => 'nullable|string',
         ]);
@@ -176,8 +218,20 @@ class ModuleController extends Controller
             'video' => 'nullable|file|mimetypes:video/mp4,video/quicktime,video/x-matroska,video/avi,video/mpeg,video/webm|max:5242880', // 5GB limit
             'video_link' => 'nullable|string|max:500',
             'youtube_video_id' => 'nullable|string|max:20',
-            'doc_file' => 'nullable|file|mimes:pdf,pptx|max:51200', // 50MB
-            'doc_url' => 'nullable|url',
+            'doc_file' => [
+                'nullable',
+                'file',
+                'max:51200',
+                function ($attribute, $value, $fail) {
+                    if ($value) {
+                        $ext = strtolower($value->getClientOriginalExtension());
+                        if (!in_array($ext, ['pdf', 'ppt', 'pptx', 'doc', 'docx'])) {
+                            $fail('The document must be a PDF, PPT, PPTX, DOC, or DOCX file.');
+                        }
+                    }
+                },
+            ], // 50MB
+            'doc_url' => 'nullable|string',
             'content_text' => 'nullable|string',
         ]);
 

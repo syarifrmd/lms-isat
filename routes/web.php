@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::put('/courses/{course}/modules/{module}', [ModuleController::class, 'update'])->name('modules.update');
     Route::delete('/courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('modules.destroy');
     Route::get('/modules/youtube-channel-videos', [ModuleController::class, 'channelVideos'])->name('modules.youtube-videos');
+    Route::post('/modules/upload-document', [ModuleController::class, 'uploadDocument'])->name('modules.upload-document');
 
     // Student Management within Course
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');

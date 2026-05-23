@@ -9,6 +9,7 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import RichTextEditor from '@/components/rich-text-editor';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import axios from 'axios';
 
 interface Course {
     id: number;
@@ -29,8 +30,18 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
 }) {
     const [docType, setDocType] = useState<'upload' | 'link'>('upload');
     const [videoMode, setVideoMode] = useState<'upload' | 'link' | 'channel'>('upload');
-    
-    const { data, setData, post, processing, errors, progress } = useForm({
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+    const [docUploadProgress, setDocUploadProgress] = useState(0);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 4000);
+    };
+
+    const { data, setData, post, processing, errors, progress, clearErrors } = useForm({
         title: '',
         content_text: '',
         video_mode: 'upload' as 'upload' | 'link' | 'channel',
@@ -40,6 +51,39 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
         doc_file: null as File | null,
         doc_url: '',
     });
+
+    const handleDocUpload = async () => {
+        if (!data.doc_file) {
+            showToast('Please select a file first.', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('doc_file', data.doc_file);
+
+        setIsUploadingDoc(true);
+        setDocUploadProgress(0);
+
+        try {
+            const response = await axios.post('/modules/upload-document', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                onUploadProgress: (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+                    setDocUploadProgress(percentCompleted);
+                },
+            });
+
+            setData('doc_url', response.data.url);
+            setData('doc_file', null); // clear the selected file
+            showToast('Document uploaded successfully!', 'success');
+        } catch (error: any) {
+            showToast(error.response?.data?.error || error.response?.data?.message || 'Failed to upload document.', 'error');
+        } finally {
+            setIsUploadingDoc(false);
+        }
+    };
 
     const handleVideoModeChange = (mode: 'upload' | 'link' | 'channel') => {
         setVideoMode(mode);
@@ -217,14 +261,102 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
                                 </RadioGroup>
 
                                 {docType === 'upload' ? (
-                                    <div className="space-y-2">
-                                        <Input
-                                            id="doc_file"
-                                            type="file"
-                                            accept=".pdf,.pptx"
-                                            onChange={(e) => setData('doc_file', e.target.files ? e.target.files[0] : null)}
-                                        />
-                                        <p className="text-xs text-muted-foreground">Upload a PDF or PPTX file.</p>
+                                    <div className="space-y-4">
+                                        {data.doc_url ? (
+                                            <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full">
+                                                        <CheckCircle className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-green-800 dark:text-green-300">Document Attached Successfully</p>
+                                                        <p className="text-xs text-green-600 dark:text-green-400">File is uploaded and ready. Submit the form to save changes.</p>
+                                                        {data.doc_url && (
+                                                            <a 
+                                                                href={data.doc_url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer" 
+                                                                className="text-xs text-primary hover:underline mt-1 block"
+                                                            >
+                                                                View uploaded file
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <Button 
+                                                    type="button" 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    onClick={() => {
+                                                        setData('doc_url', '');
+                                                        setData('doc_file', null);
+                                                    }}
+                                                    className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                >
+                                                    Remove File
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="flex flex-col gap-4">
+                                                    <div className="flex-1">
+                                                        <Input
+                                                            id="doc_file"
+                                                            type="file"
+                                                            accept=".pdf,.ppt,.pptx,.doc,.docx"
+                                                            onChange={(e) => setData('doc_file', e.target.files ? e.target.files[0] : null)}
+                                                        />
+                                                    </div>
+                                                    {data.doc_file && (
+                                                        <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                            <div className="flex items-center gap-2.5">
+                                                                <Upload className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                <div className="text-left">
+                                                                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                                                        File selected: <span className="font-semibold break-all">{data.doc_file.name}</span>
+                                                                    </p>
+                                                                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                                                                        Don't forget to click the upload button to attach it!
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <Button 
+                                                                type="button" 
+                                                                onClick={handleDocUpload}
+                                                                disabled={isUploadingDoc}
+                                                                className="bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-2 shadow-md shrink-0 self-end sm:self-center"
+                                                            >
+                                                                {isUploadingDoc ? (
+                                                                    <>Uploading...</>
+                                                                ) : (
+                                                                    <>
+                                                                        <Upload className="w-4 h-4" />
+                                                                        Upload File Now
+                                                                    </>
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {isUploadingDoc && (
+                                                    <div className="w-full space-y-1">
+                                                        <div className="flex justify-between text-xs text-muted-foreground">
+                                                            <span>Uploading Document...</span>
+                                                            <span>{docUploadProgress}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-secondary rounded-full h-2.5">
+                                                            <div 
+                                                                className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                                                                style={{ width: `${docUploadProgress}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                <p className="text-xs text-muted-foreground">Please select a document file (PDF, PPT, DOC) and click Upload. Maximum file size is 50MB.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -265,6 +397,24 @@ export default function ModuleCreate({ course, youtube_connected, youtube_videos
                     </CardContent>
                 </Card>
             </div>
+
+            {toast && (
+                <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 p-4 rounded-lg shadow-xl border bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-sm animate-in fade-in slide-in-from-bottom-5 duration-300">
+                    {toast.type === 'success' ? (
+                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                    ) : (
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    )}
+                    <span className="font-medium text-zinc-800 dark:text-zinc-200">{toast.message}</span>
+                    <button 
+                        type="button" 
+                        onClick={() => setToast(null)}
+                        className="ml-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 focus:outline-none font-bold"
+                    >
+                        &times;
+                    </button>
+                </div>
+            )}
         </AppLayout>
     );
 }
