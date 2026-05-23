@@ -1,4 +1,14 @@
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
@@ -11,7 +21,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard, logout } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
+import { useState } from 'react';
 import {
     Award,
     BookOpen,
@@ -25,6 +36,7 @@ import {
 } from 'lucide-react';
 
 export function AppSidebar() {
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const { props, url } = usePage<SharedData>();
     const { auth } = props;
     const role = auth.user.role?.toLowerCase();
@@ -167,14 +179,31 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild tooltip="Logout">
-                            <Link href={logout().url} method="post" as="button">
+                            <button onClick={() => setIsLogoutModalOpen(true)} className="w-full flex items-center">
                                 <LogOut />
                                 <span>Logout</span>
-                            </Link>
+                            </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
+
+            <AlertDialog open={isLogoutModalOpen} onOpenChange={setIsLogoutModalOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi Keluar</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Apakah Anda yakin ingin keluar dari aplikasi?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => router.post(logout().url)}>
+                            Ya, Keluar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </Sidebar>
     );
 }
