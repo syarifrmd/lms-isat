@@ -1,8 +1,32 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, ChevronDown, ChevronRight, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
+
+interface QuizResult {
+    quiz_id: number;
+    quiz_title: string;
+    passing_score: number;
+    attempts_count: number;
+    is_passed: boolean;
+    highest_score: number | null;
+    last_attempt_at: string | null;
+}
+
+interface ModuleProgress {
+    module_id: number;
+    module_title: string;
+    order_sequence: number;
+    has_video: boolean;
+    has_text: boolean;
+    has_document: boolean;
+    is_video_watched: boolean;
+    is_text_read: boolean;
+    is_document_read: boolean;
+    is_completed: boolean;
+    quizzes: QuizResult[];
+}
 
 interface Enrollment {
     user_id: string;
@@ -14,6 +38,7 @@ interface Enrollment {
     progress_percentage: number;
     enrollment_at?: string;
     completed_at?: string;
+    modules_progress?: ModuleProgress[];
 }
 
 interface Course {
@@ -29,9 +54,35 @@ interface Props {
     enrollments: Enrollment[];
 }
 
+function StatusCheckIcon({ done, label }: { done: boolean; label: string }) {
+    return (
+        <div className="flex items-center gap-1.5">
+            {done ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+            ) : (
+                <XCircle className="h-3.5 w-3.5 text-gray-300 dark:text-gray-600 shrink-0" />
+            )}
+            <span className={`text-xs ${done ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>{label}</span>
+        </div>
+    );
+}
+
 export default function StudentsShow({ course, enrollments }: Props) {
     const [search, setSearch] = useState('');
     const [profileUser, setProfileUser] = useState<Enrollment | null>(null);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+    const toggleRow = (userId: string) => {
+        setExpandedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(userId)) {
+                next.delete(userId);
+            } else {
+                next.add(userId);
+            }
+            return next;
+        });
+    };
 
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -186,6 +237,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             <thead>
                                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">
                                     <th className="px-5 py-3 w-10">#</th>
+                                    <th className="px-5 py-3 w-8"></th>
                                     <th className="px-5 py-3">Nama</th>
                                     <th className="px-5 py-3">Email</th>
                                     <th className="px-5 py-3">NIK</th>
@@ -199,43 +251,180 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             </thead>
                             <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
                                 {filtered.length > 0 ? (
-                                    filtered.map((enrollment, index) => (
-                                        <tr key={enrollment.user_id} className="hover:bg-gray-50/60 dark:hover:bg-gray-700/40 transition-colors">
-                                            <td className="px-5 py-3 text-gray-300 dark:text-gray-600">{index + 1}</td>
-                                            <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-100">{enrollment.name}</td>
-                                            <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.email}</td>
-                                            <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.employee_id ?? '-'}</td>
-                                            <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.region ?? '-'}</td>
-                                            <td className="px-5 py-3">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-24 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                                                        <div className="h-1.5 rounded-full bg-sky-500 transition-all" style={{ width: `${enrollment.progress_percentage ?? 0}%` }} />
-                                                    </div>
-                                                    <span className="text-xs text-gray-400">{enrollment.progress_percentage ?? 0}%</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-3">
-                                                {enrollment.completed_at ? (
-                                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Selesai</span>
-                                                ) : (
-                                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Dalam Proses</span>
+                                    filtered.map((enrollment, index) => {
+                                        const isExpanded = expandedRows.has(enrollment.user_id);
+                                        const hasModulesData = enrollment.modules_progress && enrollment.modules_progress.length > 0;
+
+                                        return (
+                                            <>
+                                                <tr key={enrollment.user_id} className={`hover:bg-gray-50/60 dark:hover:bg-gray-700/40 transition-colors ${isExpanded ? 'bg-sky-50/40 dark:bg-sky-950/20' : ''}`}>
+                                                    <td className="px-5 py-3 text-gray-300 dark:text-gray-600">{index + 1}</td>
+                                                    <td className="px-2 py-3">
+                                                        {hasModulesData && (
+                                                            <button
+                                                                onClick={() => toggleRow(enrollment.user_id)}
+                                                                className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-sky-500 transition-colors"
+                                                            >
+                                                                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 font-medium text-gray-800 dark:text-gray-100">{enrollment.name}</td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.email}</td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.employee_id ?? '-'}</td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.region ?? '-'}</td>
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-1.5 w-24 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                                                <div className="h-1.5 rounded-full bg-sky-500 transition-all" style={{ width: `${enrollment.progress_percentage ?? 0}%` }} />
+                                                            </div>
+                                                            <span className="text-xs text-gray-400">{enrollment.progress_percentage ?? 0}%</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-5 py-3">
+                                                        {enrollment.completed_at ? (
+                                                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Selesai</span>
+                                                        ) : (
+                                                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Dalam Proses</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.enrollment_at ?? '-'}</td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.completed_at ?? '-'}</td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <button
+                                                            onClick={() => setProfileUser(enrollment)}
+                                                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 dark:hover:bg-sky-900/30 dark:hover:border-sky-800 dark:hover:text-sky-400 transition"
+                                                        >
+                                                            Lihat Profil
+                                                        </button>
+                                                    </td>
+                                                </tr>
+
+                                                {/* ── Expandable Progress Detail Row ── */}
+                                                {isExpanded && hasModulesData && (
+                                                    <tr key={`${enrollment.user_id}-detail`}>
+                                                        <td colSpan={11} className="p-0">
+                                                            <div className="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+                                                                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+                                                                    Detail Progress — {enrollment.name}
+                                                                </p>
+
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                                    {enrollment.modules_progress!.map((mod) => {
+                                                                        const completedItems = [
+                                                                            mod.has_video && mod.is_video_watched,
+                                                                            mod.has_text && mod.is_text_read,
+                                                                            mod.has_document && mod.is_document_read,
+                                                                        ].filter(Boolean).length;
+                                                                        const totalItems = [mod.has_video, mod.has_text, mod.has_document].filter(Boolean).length;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={mod.module_id}
+                                                                                className={`rounded-xl border p-3.5 transition-all ${
+                                                                                    mod.is_completed
+                                                                                        ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+                                                                                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                                                                                }`}
+                                                                            >
+                                                                                {/* Module header */}
+                                                                                <div className="flex items-start justify-between gap-2 mb-2.5">
+                                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                                        <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                                                                            mod.is_completed
+                                                                                                ? 'bg-emerald-500 text-white'
+                                                                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                                                                        }`}>
+                                                                                            {mod.is_completed ? '✓' : mod.order_sequence}
+                                                                                        </div>
+                                                                                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{mod.module_title}</p>
+                                                                                    </div>
+                                                                                    {totalItems > 0 && (
+                                                                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                                                                            completedItems >= totalItems
+                                                                                                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                                                                : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                                                                                        }`}>
+                                                                                            {completedItems}/{totalItems}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                {/* Content checklist */}
+                                                                                {totalItems > 0 && (
+                                                                                    <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                                                                                        {mod.has_video && <StatusCheckIcon done={mod.is_video_watched} label="Video" />}
+                                                                                        {mod.has_text && <StatusCheckIcon done={mod.is_text_read} label="Text" />}
+                                                                                        {mod.has_document && <StatusCheckIcon done={mod.is_document_read} label="Dokumen" />}
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Quizzes */}
+                                                                                {mod.quizzes.length > 0 && (
+                                                                                    <div className="mt-2 space-y-2">
+                                                                                        {mod.quizzes.map((quiz) => (
+                                                                                            <div
+                                                                                                key={quiz.quiz_id}
+                                                                                                className={`rounded-lg border p-2.5 ${
+                                                                                                    quiz.is_passed
+                                                                                                        ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20'
+                                                                                                        : quiz.attempts_count > 0
+                                                                                                          ? 'border-red-200 dark:border-red-800/40 bg-red-50/40 dark:bg-red-950/20'
+                                                                                                          : 'border-gray-150 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+                                                                                                }`}
+                                                                                            >
+                                                                                                <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                                                        <Award className={`h-3.5 w-3.5 shrink-0 ${quiz.is_passed ? 'text-emerald-500' : 'text-gray-400'}`} />
+                                                                                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">{quiz.quiz_title}</span>
+                                                                                                    </div>
+                                                                                                    {quiz.is_passed ? (
+                                                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 shrink-0">
+                                                                                                            LULUS
+                                                                                                        </span>
+                                                                                                    ) : quiz.attempts_count > 0 ? (
+                                                                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 shrink-0">
+                                                                                                            BELUM LULUS
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 shrink-0">
+                                                                                                            BELUM DIKERJAKAN
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                                                                                    {quiz.highest_score !== null && (
+                                                                                                        <span className="flex items-center gap-1">
+                                                                                                            <Trophy className={`h-3 w-3 ${quiz.is_passed ? 'text-amber-500' : 'text-gray-400'}`} />
+                                                                                                            Nilai: <strong className={quiz.is_passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>{quiz.highest_score}</strong>
+                                                                                                            {quiz.passing_score > 0 && <span className="text-gray-400">/ {quiz.passing_score}</span>}
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                    {quiz.attempts_count > 0 && (
+                                                                                                        <span>{quiz.attempts_count}x percobaan</span>
+                                                                                                    )}
+                                                                                                    {quiz.last_attempt_at && (
+                                                                                                        <span>Terakhir: {quiz.last_attempt_at}</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
                                                 )}
-                                            </td>
-                                            <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.enrollment_at ?? '-'}</td>
-                                            <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.completed_at ?? '-'}</td>
-                                            <td className="px-5 py-3 text-center">
-                                                <button
-                                                    onClick={() => setProfileUser(enrollment)}
-                                                    className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-sky-50 hover:border-sky-200 hover:text-sky-600 dark:hover:bg-sky-900/30 dark:hover:border-sky-800 dark:hover:text-sky-400 transition"
-                                                >
-                                                    Lihat Profil
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
+                                            </>
+                                        );
+                                    })
                                 ) : (
                                     <tr>
-                                        <td colSpan={10} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                        <td colSpan={11} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
                                             {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada student yang terdaftar.'}
                                         </td>
                                     </tr>

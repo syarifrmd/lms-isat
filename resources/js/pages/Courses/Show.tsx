@@ -3,8 +3,9 @@ import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2, Volume2, VolumeX, Maximize, Minimize, Play, Pause } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Terminal, Download } from 'lucide-react';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
+import PptxSlideViewer from '@/components/PptxSlideViewer';
 import { PDFViewer, PDFViewerRef } from '@embedpdf/react-pdf-viewer';
 import { Quiz, SharedData } from '@/types';
 import { type FormEvent, useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
@@ -135,6 +136,116 @@ const loadYouTubeApi = () => {
     const getOfficePreviewUrl = (url: string) => {
         return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     };
+
+    const isLocalUrl = (url: string) => {
+        if (!url) return false;
+        try {
+            const hostname = new URL(url).hostname;
+            return (
+                hostname === 'localhost' ||
+                hostname === '127.0.0.1' ||
+                hostname === '[::1]' ||
+                hostname.endsWith('.test') ||
+                hostname.endsWith('.local')
+            );
+        } catch (e) {
+            if (typeof window !== 'undefined') {
+                const hostname = window.location.hostname;
+                return (
+                    hostname === 'localhost' ||
+                    hostname === '127.0.0.1' ||
+                    hostname === '[::1]' ||
+                    hostname.endsWith('.test') ||
+                    hostname.endsWith('.local')
+                );
+            }
+            return false;
+        }
+    };
+
+    interface LocalOfficePlaceholderProps {
+        url: string;
+        fileName: string;
+        isStudentView?: boolean;
+        onSimulateComplete?: () => void;
+        isCompleted?: boolean;
+    }
+
+    const LocalOfficePlaceholder = memo(function LocalOfficePlaceholder({
+        url,
+        fileName,
+        isStudentView = false,
+        onSimulateComplete,
+        isCompleted = false
+    }: LocalOfficePlaceholderProps) {
+        const [showInstructions, setShowInstructions] = useState(false);
+
+        return (
+            <div className="flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/40 dark:to-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl min-h-72 select-none my-2">
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 text-amber-500 rounded-2xl mb-3">
+                    <AlertCircle className="w-8 h-8" />
+                </div>
+                
+                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                    Preview PPTX/Office Terbatas di Localhost
+                </h3>
+                
+                <p className="max-w-md text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed px-4">
+                    Dokumen <span className="font-semibold text-sky-600 dark:text-sky-400">{fileName}</span> menggunakan Microsoft Office Web Viewer yang membutuhkan URL publik. Server Microsoft tidak dapat mengakses alamat <span className="font-mono bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded text-[10px]">localhost</span> komputer Anda.
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-xs mb-2">
+                    <Button size="sm" asChild className="gap-1.5 flex-1 shadow-sm h-9">
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                            <Download className="w-3.5 h-3.5" />
+                            Buka / Unduh File
+                        </a>
+                    </Button>
+
+                    {isStudentView && !isCompleted && onSimulateComplete && (
+                        <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={onSimulateComplete}
+                            className="gap-1.5 flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:border-emerald-500/30 h-9"
+                        >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                            Simulasi Selesai
+                        </Button>
+                    )}
+                </div>
+
+                {isStudentView && isCompleted && (
+                    <div className="mt-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        Dokumen selesai dibaca (Simulasi)
+                    </div>
+                )}
+
+                <div className="mt-5 w-full max-w-sm border-t border-gray-100 dark:border-gray-800/80 pt-3">
+                    <button
+                        onClick={() => setShowInstructions(!showInstructions)}
+                        className="text-xs font-semibold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1 mx-auto transition-colors focus:outline-none"
+                    >
+                        <Terminal className="w-3.5 h-3.5" />
+                        {showInstructions ? 'Sembunyikan panduan' : 'Bagaimana menampilkan preview asli?'}
+                    </button>
+
+                    {showInstructions && (
+                        <div className="mt-3 p-3 bg-gray-900 text-left rounded-lg text-gray-300 font-mono text-[10px] leading-relaxed border border-gray-800 shadow-inner select-text">
+                            <p className="text-gray-400 mb-1.5 font-sans font-semibold">Expose server lokal Anda menggunakan tunnel publik:</p>
+                            <div className="bg-black/50 p-2 rounded border border-gray-800 text-amber-400 mb-2 font-mono font-bold select-all">
+                                npx localtunnel --port 8000
+                            </div>
+                            <p className="font-sans text-gray-500 text-[9px]">
+                              * Jalankan perintah di atas di terminal baru Anda, kemudian buka alamat URL publik yang dihasilkan (misalnya: https://xxx.localtunnel.me) di browser Anda untuk melihat preview asli.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    });
 
 
 const PdfViewer = memo(function PdfViewer({ url, onPageChange, onLoaded }: { url: string; onPageChange?: (current: number, total: number) => void; onLoaded?: () => void }) {
@@ -584,11 +695,24 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
 
 
 const OfficeViewer = memo(
-    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
-        const safeTotal = Math.max(totalPages || 1, 1);
+    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange, fileExtension }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void; fileExtension?: string }) {
+        const isPptx = fileExtension === 'pptx' || fileExtension === 'ppt';
+        const [detectedTotal, setDetectedTotal] = useState<number | null>(null);
+
+        // For PPTX: total comes from parsed slides. For others: use totalPages prop.
+        const safeTotal = isPptx
+            ? Math.max(detectedTotal || totalPages || 1, 1)
+            : Math.max(totalPages || 1, 1);
         const [currentPage, setCurrentPage] = useState(() => Math.min(Math.max(initialPage || 1, 1), safeTotal));
-        
-        // Build the iframe src with wdStartOn so Microsoft viewer jumps to the correct slide
+
+        // When detectedTotal updates (after PPTX parse), clamp current page
+        useEffect(() => {
+            if (detectedTotal && detectedTotal > 0) {
+                setCurrentPage(prev => Math.min(prev, detectedTotal));
+            }
+        }, [detectedTotal]);
+
+        // Build the iframe src for non-PPTX office files
         const iframeSrc = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}&wdStartOn=${currentPage}`;
 
         const goToPage = useCallback((page: number) => {
@@ -607,16 +731,60 @@ const OfficeViewer = memo(
 
         const progressPct = Math.round((currentPage / safeTotal) * 100);
 
+        const isLocal = isLocalUrl(url);
+        const isNonPptxOffice = !isPptx;
+
+        const handlePptxLoaded = useCallback((totalSlides: number) => {
+            setDetectedTotal(totalSlides);
+            // Notify parent of the real total
+            onPageChange(Math.min(currentPage, totalSlides), totalSlides);
+        }, [onPageChange, currentPage]);
+
+        // Render content area based on file type
+        const renderContent = () => {
+            if (isPptx) {
+                return (
+                    <PptxSlideViewer
+                        url={url}
+                        currentPage={currentPage}
+                        onPageChange={(current, total) => {
+                            onPageChange(current, total);
+                        }}
+                        onLoaded={handlePptxLoaded}
+                    />
+                );
+            }
+
+            // Non-PPTX office files: use Microsoft viewer or LocalOfficePlaceholder
+            if (isLocal) {
+                return (
+                    <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
+                        <LocalOfficePlaceholder
+                            url={url}
+                            fileName={getFileName(url)}
+                            isStudentView={true}
+                            onSimulateComplete={() => goToPage(safeTotal)}
+                            isCompleted={currentPage >= safeTotal}
+                        />
+                    </div>
+                );
+            }
+
+            return (
+                <iframe
+                    key={currentPage}
+                    src={iframeSrc}
+                    title="Office Document"
+                    className="w-full h-full border-0 absolute inset-0"
+                    loading="eager"
+                />
+            );
+        };
+
         return (
             <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
                 <div className="flex-1 h-0 w-full relative">
-                    <iframe
-                        key={currentPage}
-                        src={iframeSrc}
-                        title="Office Document"
-                        className="w-full h-full border-0 absolute inset-0"
-                        loading="eager"
-                    />
+                    {renderContent()}
                 </div>
                 {/* Custom navigation bar — progress updates when user clicks Next/Prev */}
                 <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-3">
@@ -706,6 +874,26 @@ const OfficeViewer = memo(
         }
 
         if (isOffice) {
+            const isPptx = extension === 'pptx' || extension === 'ppt';
+            if (isPptx) {
+                // Use client-side PPTX viewer for trainer preview (read-only, no progress tracking)
+                return (
+                    <div className="h-130 w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                        <PptxSlideViewer url={fullUrl} />
+                    </div>
+                );
+            }
+            // Non-PPTX office files: use Microsoft viewer or LocalOfficePlaceholder on localhost
+            const isLocal = isLocalUrl(fullUrl);
+            if (isLocal) {
+                return (
+                    <LocalOfficePlaceholder 
+                        url={fullUrl} 
+                        fileName={getFileName(docUrl)} 
+                        isStudentView={false}
+                    />
+                );
+            }
             return (
                 <iframe
                     src={getOfficePreviewUrl(fullUrl)}
@@ -799,6 +987,7 @@ const OfficeViewer = memo(
                     }
                     
                     // Automatically refresh inertia props so that global layout elements (like navbar progress) update
+                    // @ts-ignore
                     router.reload({ preserveScroll: true });
                 }
             })
@@ -1088,6 +1277,7 @@ const OfficeViewer = memo(
                                             url={getPreviewUri(module.doc_url)}
                                             totalPages={module.doc_total_pages || 5}
                                             currentPage={module.doc_current_page || 1}
+                                            fileExtension={getFileExtension(module.doc_url)}
                                             onPageChange={(current, total) => {
                                                 docLastPageRef.current = current;
                                                 setDocScrollPercentage((current / Math.max(total, 1)) * 100);

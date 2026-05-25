@@ -121,7 +121,7 @@ export default function EditUserModal({ open, onOpenChange, user, regions }: Edi
                             </Label>
                              <Select 
                                 value={data.role} 
-                                onValueChange={(value) => setData('role', value)}
+                                onValueChange={(value) => setData('role', value as "user" | "admin" | "trainer")}
                             >
                                 <SelectTrigger className={cn("pl-9 relative", errors.role && "border-destructive")}>
                                     <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
