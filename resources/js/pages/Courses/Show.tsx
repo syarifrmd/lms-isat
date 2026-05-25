@@ -585,34 +585,73 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
 
 const OfficeViewer = memo(
     function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
-        // Simpan referensi onPageChange di useRef agar re-render dari parent (karena timer detik)
-        // tidak me-reset timer 5 detik ini sebelum selesai
-        const onPageChangeRef = useRef(onPageChange);
+        const safeTotal = Math.max(totalPages || 1, 1);
+        const [currentPage, setCurrentPage] = useState(() => Math.min(Math.max(initialPage || 1, 1), safeTotal));
         
-        useEffect(() => {
-            onPageChangeRef.current = onPageChange;
-        }, [onPageChange]);
+        // Build the iframe src with wdStartOn so Microsoft viewer jumps to the correct slide
+        const iframeSrc = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}&wdStartOn=${currentPage}`;
 
-        useEffect(() => {
-            // Automatically complete progress for Office documents after 5 seconds
-            const timer = setTimeout(() => {
-                if (onPageChangeRef.current) {
-                    onPageChangeRef.current(totalPages, totalPages);
-                }
-            }, 5000);
-            
-            return () => clearTimeout(timer);
-        }, [totalPages]); // Hapus onPageChange dari dependency array
+        const goToPage = useCallback((page: number) => {
+            const safePage = Math.min(Math.max(page, 1), safeTotal);
+            setCurrentPage(safePage);
+            onPageChange(safePage, safeTotal);
+        }, [safeTotal, onPageChange]);
+
+        const handlePrev = useCallback(() => {
+            goToPage(currentPage - 1);
+        }, [currentPage, goToPage]);
+
+        const handleNext = useCallback(() => {
+            goToPage(currentPage + 1);
+        }, [currentPage, goToPage]);
+
+        const progressPct = Math.round((currentPage / safeTotal) * 100);
 
         return (
             <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
                 <div className="flex-1 h-0 w-full relative">
                     <iframe
-                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`}
+                        key={currentPage}
+                        src={iframeSrc}
                         title="Office Document"
                         className="w-full h-full border-0 absolute inset-0"
-                        loading="lazy"
+                        loading="eager"
                     />
+                </div>
+                {/* Custom navigation bar — progress updates when user clicks Next/Prev */}
+                <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrev}
+                        disabled={currentPage <= 1}
+                        className="h-8 text-xs gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                        ‹ Sebelumnya
+                    </Button>
+
+                    {/* Progress bar */}
+                    <div className="flex-1 flex flex-col gap-1">
+                        <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                                style={{ width: `${progressPct}%` }}
+                            />
+                        </div>
+                        <span className="text-[11px] text-center text-gray-500 dark:text-gray-400 select-none">
+                            Slide {currentPage} / {safeTotal} &nbsp;·&nbsp; {progressPct}%
+                        </span>
+                    </div>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNext}
+                        disabled={currentPage >= safeTotal}
+                        className="h-8 text-xs gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                        Selanjutnya ›
+                    </Button>
                 </div>
             </div>
         );
