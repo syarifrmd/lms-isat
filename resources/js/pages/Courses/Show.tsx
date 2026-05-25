@@ -585,12 +585,15 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
 
 const OfficeViewer = memo(
     function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
+        const [isSaved, setIsSaved] = useState(false);
+
         useEffect(() => {
-            // Automatically complete progress for Office documents after 15 seconds
+            // Automatically complete progress for Office documents after 5 seconds
             // since we cannot track slide changes inside the cross-origin Microsoft iframe
             const timer = setTimeout(() => {
                 onPageChange(totalPages, totalPages);
-            }, 15000);
+                setIsSaved(true);
+            }, 5000);
             return () => clearTimeout(timer);
         }, [onPageChange, totalPages]);
 
@@ -603,11 +606,6 @@ const OfficeViewer = memo(
                         className="w-full h-full border-0 absolute inset-0"
                         loading="lazy"
                     />
-                </div>
-                <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-4">
-                    <span className="font-medium text-gray-600 dark:text-gray-400 select-none mx-auto text-center">
-                        Info: Silakan gunakan kontrol abu-abu di atas (bawaan Microsoft) untuk mengganti slide. Progress Anda akan otomatis tersimpan setelah 15 detik.
-                    </span>
                 </div>
             </div>
         );
