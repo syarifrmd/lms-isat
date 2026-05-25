@@ -585,17 +585,24 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
 
 const OfficeViewer = memo(
     function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
-        const [isSaved, setIsSaved] = useState(false);
+        // Simpan referensi onPageChange di useRef agar re-render dari parent (karena timer detik)
+        // tidak me-reset timer 5 detik ini sebelum selesai
+        const onPageChangeRef = useRef(onPageChange);
+        
+        useEffect(() => {
+            onPageChangeRef.current = onPageChange;
+        }, [onPageChange]);
 
         useEffect(() => {
             // Automatically complete progress for Office documents after 5 seconds
-            // since we cannot track slide changes inside the cross-origin Microsoft iframe
             const timer = setTimeout(() => {
-                onPageChange(totalPages, totalPages);
-                setIsSaved(true);
+                if (onPageChangeRef.current) {
+                    onPageChangeRef.current(totalPages, totalPages);
+                }
             }, 5000);
+            
             return () => clearTimeout(timer);
-        }, [onPageChange, totalPages]);
+        }, [totalPages]); // Hapus onPageChange dari dependency array
 
         return (
             <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
