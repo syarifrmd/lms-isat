@@ -583,30 +583,16 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
 );
 
 
-const OfficeViewer = memo(    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
-        const [currentPage, setCurrentPage] = useState(initialPage || 1);
-
+const OfficeViewer = memo(
+    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
         useEffect(() => {
-            if (initialPage && initialPage !== currentPage) {
-                setCurrentPage(initialPage);
-            }
-        }, [initialPage]);
-
-        const handlePrev = () => {
-            if (currentPage > 1) {
-                const nextPage = currentPage - 1;
-                setCurrentPage(nextPage);
-                onPageChange(nextPage, totalPages);
-            }
-        };
-
-        const handleNext = () => {
-            if (currentPage < totalPages) {
-                const nextPage = currentPage + 1;
-                setCurrentPage(nextPage);
-                onPageChange(nextPage, totalPages);
-            }
-        };
+            // Automatically complete progress for Office documents after 15 seconds
+            // since we cannot track slide changes inside the cross-origin Microsoft iframe
+            const timer = setTimeout(() => {
+                onPageChange(totalPages, totalPages);
+            }, 15000);
+            return () => clearTimeout(timer);
+        }, [onPageChange, totalPages]);
 
         return (
             <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
@@ -619,27 +605,9 @@ const OfficeViewer = memo(    function OfficeViewer({ url, totalPages, currentPa
                     />
                 </div>
                 <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between gap-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePrev}
-                        disabled={currentPage <= 1}
-                        className="h-8 text-xs select-none gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
-                    >
-                        Sebelumnya
-                    </Button>
-                    <span className="font-semibold text-gray-700 dark:text-gray-300 select-none">
-                        Slide / Halaman aktif: {currentPage} dari {totalPages}
+                    <span className="font-medium text-gray-600 dark:text-gray-400 select-none mx-auto text-center">
+                        Info: Silakan gunakan kontrol abu-abu di atas (bawaan Microsoft) untuk mengganti slide. Progress Anda akan otomatis tersimpan setelah 15 detik.
                     </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNext}
-                        disabled={currentPage >= totalPages}
-                        className="h-8 text-xs select-none gap-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
-                    >
-                        Selanjutnya
-                    </Button>
                 </div>
             </div>
         );
@@ -787,7 +755,7 @@ const OfficeViewer = memo(    function OfficeViewer({ url, totalPages, currentPa
                     }
                     
                     // Automatically refresh inertia props so that global layout elements (like navbar progress) update
-                    router.reload({ preserveState: true, preserveScroll: true });
+                    router.reload({ preserveScroll: true });
                 }
             })
             .catch(e => console.error('Tracking Error:', e));
