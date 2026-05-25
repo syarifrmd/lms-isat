@@ -7,6 +7,8 @@ use App\Models\UserQuizAttempt;
 use App\Models\UserAnswer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Enrollment;
+use App\Services\ModuleProgressService;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -166,6 +168,15 @@ class QuizController extends Controller
                 if (!$alreadyPassed) {
                     Auth::user()->increment('xp', $quiz->xp_bonus);
                 }
+            }
+
+            // Recalculate enrollment progress
+            $enrollment = Enrollment::where('user_id', Auth::id())
+                ->where('course_id', $quiz->course_id)
+                ->first();
+
+            if ($enrollment) {
+                (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
             }
 
             DB::commit();

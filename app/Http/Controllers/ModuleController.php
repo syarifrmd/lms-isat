@@ -156,7 +156,9 @@ class ModuleController extends Controller
             // Handle Document Update
             if ($request->hasFile('doc_file')) {
                 // Delete old file if exists? (Optional, skipping for now)
-                $path = $request->file('doc_file')->store('module_docs', 'public');
+                $file = $request->file('doc_file');
+                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('module_docs', $filename, 'public');
                 $updateData['doc_url'] = Storage::url($path);
             }
 
@@ -268,7 +270,9 @@ class ModuleController extends Controller
             // Handle Document
             $docUrl = $request->doc_url;
             if ($request->hasFile('doc_file')) {
-                $path = $request->file('doc_file')->store('module_docs', 'public');
+                $file = $request->file('doc_file');
+                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('module_docs', $filename, 'public');
                 $docUrl = Storage::url($path);
             }
 

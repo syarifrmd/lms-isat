@@ -191,17 +191,12 @@ class ModuleProgressController extends Controller
 
     private function resolveProgress(Enrollment $enrollment, Module $module, ?ModuleChecklistItem $checklistItem): ModuleProgress
     {
-        $attributes = [
-            'enrollment_id' => $enrollment->id,
-            'module_id' => $module->id,
-        ];
-
-        if ($checklistItem) {
-            $attributes['checklist_item_id'] = $checklistItem->id;
-
-            return ModuleProgress::updateOrCreate($attributes, []);
-        }
-
-        return ModuleProgress::firstOrCreate($attributes);
+        // Always include checklist_item_id so we never accidentally match a row
+        // belonging to a different checklist item (video/text) on the same module.
+        return ModuleProgress::firstOrCreate([
+            'enrollment_id'     => $enrollment->id,
+            'module_id'         => $module->id,
+            'checklist_item_id' => $checklistItem?->id,
+        ]);
     }
 }

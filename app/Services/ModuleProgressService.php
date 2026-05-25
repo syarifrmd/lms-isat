@@ -60,7 +60,7 @@ class ModuleProgressService
     public function recalculateEnrollmentProgress(Enrollment $enrollment): void
     {
         $modules = Module::where('course_id', $enrollment->course_id)
-            ->with(['checklistItems'])
+            ->with(['checklistItems', 'quizzes'])
             ->get();
 
         $totalChecklists = 0;
@@ -101,6 +101,19 @@ class ModuleProgressService
                 $totalChecklists++;
                 if ($progresses->contains(fn ($progress) => (bool) $progress->is_document_read)) {
                     $completedChecklists++;
+                }
+            }
+
+            if ($module->quizzes->isNotEmpty()) {
+                $totalChecklists += $module->quizzes->count();
+                foreach ($module->quizzes as $quiz) {
+                    $passed = \App\Models\UserQuizAttempt::where('user_id', $enrollment->user_id)
+                        ->where('quiz_id', $quiz->id)
+                        ->where('is_passed', true)
+                        ->exists();
+                    if ($passed) {
+                        $completedChecklists++;
+                    }
                 }
             }
         }

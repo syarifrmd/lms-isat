@@ -7,7 +7,7 @@ import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, F
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import { PDFViewer, PDFViewerRef } from '@embedpdf/react-pdf-viewer';
 import { Quiz, SharedData } from '@/types';
-import { type FormEvent, useEffect, useRef, useState, useMemo } from 'react';
+import { type FormEvent, useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 
 interface Module {
     id: number;
@@ -111,62 +111,6 @@ const loadYouTubeApi = () => {
     return youtubeApiPromise;
 };
 
-export default function CourseShow({ course, userProgress = 0, isEnrolled = false, ratingData }: ShowProps) {
-    const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.user.role === 'admin';
-    const isTrainer = auth.user.role === 'trainer' || isAdmin;
-    const canTakeQuiz = auth.user.role === 'user';
-    const isCreator = course.created_by === auth.user.id;
-    const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
-    const trainerName = course?.creator?.name || 'Instructor';
-    const trainerId = course?.creator?.id || 'N/A';
-
-    const trainerInitials = trainerName
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .substring(0, 2);
-
-    const [activeModuleItem, setActiveModuleItem] = useState<string>('');
-    const [previewModuleId, setPreviewModuleId] = useState<number | null>(null);
-
-    // Dynamic AJAX states
-    const [localModules, setLocalModules] = useState<Module[]>(course.modules);
-    const [currentProgress, setCurrentProgress] = useState<number>(userProgress);
-
-    useEffect(() => {
-        setLocalModules(course.modules);
-    }, [course.modules]);
-
-    useEffect(() => {
-        setCurrentProgress(userProgress);
-    }, [userProgress]);
-
-    // ── Quiz confirmation modal ──────────────────────────────────────────────
-    const [confirmQuiz, setConfirmQuiz] = useState<QuizWithProgress | null>(null);
-
-    const startQuiz = () => {
-        if (!confirmQuiz) return;
-        router.visit(`/quiz/${confirmQuiz.id}`);
-    };
-
-    // ── Rating form ─────────────────────────────────────────────────────────
-    const [hovered, setHovered] = useState(0);
-    const { data: ratingForm, setData: setRatingData, post: postRating, delete: deleteRating, processing: ratingProcessing } = useForm({
-        rating: ratingData?.user_rating?.rating ?? 0,
-        review: ratingData?.user_rating?.review ?? '',
-    });
-
-    const submitRating = (e: FormEvent) => {
-        e.preventDefault();
-        postRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
-    };
-
-    const removeRating = () => {
-        deleteRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
-    };
-
     const getPreviewUri = (url: string) => {
         if (!url) return '';
         if (/^https?:\/\//i.test(url)) return url;
@@ -174,144 +118,127 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         return new URL(url, window.location.origin).toString();
     };
 
+
     const getFileName = (url: string) => {
         const clean = url.split('?')[0];
         const name = clean.split('/').pop();
         return name || 'Dokumen';
     };
 
+
     const getFileExtension = (url: string) => {
         const clean = url.split('?')[0].toLowerCase();
         return clean.split('.').pop() || '';
     };
 
+
     const getOfficePreviewUrl = (url: string) => {
         return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
     };
 
-    function PdfViewer({ url, onPageChange }: { url: string; onPageChange?: (current: number, total: number) => void }) {
-        const viewerRef = useRef<PDFViewerRef>(null);
-        const [currentPage, setCurrentPage] = useState(1);
-        const [themePreference, setThemePreference] = useState<'light' | 'dark'>('light');
 
-        // Dynamic theme detection and listener
-        useEffect(() => {
+const PdfViewer = memo(function PdfViewer({ url, onPageChange, onLoaded }: { url: string; onPageChange?: (current: number, total: number) => void; onLoaded?: () => void }) {
+    const viewerRef = useRef<PDFViewerRef>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [themePreference, setThemePreference] = useState<'light' | 'dark'>('light');
+
+    const registryRef = useRef<any>(null);
+    const [isRegistryReady, setIsRegistryReady] = useState(false);
+
+    const onPageChangeRef = useRef(onPageChange);
+    useEffect(() => { onPageChangeRef.current = onPageChange; }, [onPageChange]);
+    
+    const onLoadedRef = useRef(onLoaded);
+    useEffect(() => { onLoadedRef.current = onLoaded; }, [onLoaded]);
+
+    useEffect(() => {
+        const isDark = document.documentElement.classList.contains('dark');
+        setThemePreference(isDark ? 'dark' : 'light');
+        const observer = new MutationObserver(() => {
             const isDark = document.documentElement.classList.contains('dark');
-            setThemePreference(isDark ? 'dark' : 'light');
+            const pref = isDark ? 'dark' : 'light';
+            setThemePreference(pref);
+            viewerRef.current?.container?.setTheme({ preference: pref });
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => observer.disconnect();
+    }, []);
 
-            const observer = new MutationObserver(() => {
-                const isDark = document.documentElement.classList.contains('dark');
-                const pref = isDark ? 'dark' : 'light';
-                setThemePreference(pref);
-                viewerRef.current?.container?.setTheme({ preference: pref });
+    useEffect(() => {
+        if (viewerRef.current?.container) {
+            viewerRef.current.container.setTheme({ preference: themePreference });
+        }
+    }, [themePreference]);
+
+    const handleReady = useCallback((registry: any) => {
+        if (registryRef.current) return;
+        registryRef.current = registry;
+        setIsRegistryReady(true);
+        if (onLoadedRef.current) onLoadedRef.current();
+    }, []);
+
+    const viewerConfig = useMemo(() => ({ src: url }), [url]);
+
+    useEffect(() => {
+        if (!isRegistryReady || !registryRef.current) return;
+        const registry = registryRef.current;
+        let unsubscribe: (() => void) | undefined;
+        let loadingTimeout: number | null = null;
+        let hasReported = false;
+        const scrollPlugin: any = registry.getPlugin('scroll');
+        const scrollCapability = scrollPlugin?.provides();
+
+        if (scrollCapability) {
+            const handlePageChange = (current: number, total: number) => {
+                setCurrentPage(current);
+                if (!onPageChangeRef.current) return;
+                if (total > 1) {
+                    if (loadingTimeout) { window.clearTimeout(loadingTimeout); loadingTimeout = null; }
+                    hasReported = true;
+                    onPageChangeRef.current(current, total);
+                } else {
+                    if (hasReported) onPageChangeRef.current(current, total);
+                }
+            };
+
+            unsubscribe = scrollCapability.onPageChange((event: any) => {
+                handlePageChange(event.pageNumber, event.totalPages);
             });
 
-            observer.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['class'],
-            });
+            const current = scrollCapability.getCurrentPage() || 1;
+            const total = scrollCapability.getTotalPages() || 1;
 
-            return () => observer.disconnect();
-        }, []);
-
-        // Also update theme when viewerRef loads or themePreference changes
-        useEffect(() => {
-            if (viewerRef.current?.container) {
-                viewerRef.current.container.setTheme({ preference: themePreference });
+            if (total > 1) {
+                handlePageChange(current, total);
+            } else {
+                loadingTimeout = window.setTimeout(() => {
+                    const settledCurrent = scrollCapability.getCurrentPage() || 1;
+                    const settledTotal = scrollCapability.getTotalPages() || 1;
+                    hasReported = true;
+                    handlePageChange(settledCurrent, settledTotal);
+                }, 2000);
             }
-        }, [themePreference]);
+        }
 
-        // Subscription to page changes
-        useEffect(() => {
-            let unsubscribe: (() => void) | undefined;
-            let loadingTimeout: number | null = null;
-            let hasReported = false;
+        return () => {
+            if (unsubscribe) unsubscribe();
+            if (loadingTimeout) window.clearTimeout(loadingTimeout);
+        };
+    }, [isRegistryReady, url]);
 
-            const setupPageTracking = async () => {
-                if (!viewerRef.current) return;
-                
-                // Get the registry from the ref
-                const registry = await viewerRef.current.registry;
-                if (!registry) return;
-
-                const scrollPlugin: any = registry.getPlugin('scroll');
-                const scrollCapability = scrollPlugin?.provides();
-
-                if (scrollCapability) {
-                    const handlePageChange = (current: number, total: number) => {
-                        setCurrentPage(current);
-                        if (!onPageChange) return;
-
-                        if (total > 1) {
-                            if (loadingTimeout) {
-                                window.clearTimeout(loadingTimeout);
-                                loadingTimeout = null;
-                            }
-                            hasReported = true;
-                            onPageChange(current, total);
-                        } else {
-                            if (hasReported) {
-                                onPageChange(current, total);
-                            }
-                        }
-                    };
-
-                    // Subscribe to subsequent changes
-                    unsubscribe = scrollCapability.onPageChange((event: any) => {
-                        handlePageChange(event.pageNumber, event.totalPages);
-                    });
-
-                    // Get initial pages
-                    const current = scrollCapability.getCurrentPage() || 1;
-                    const total = scrollCapability.getTotalPages() || 1;
-
-                    if (total > 1) {
-                        handlePageChange(current, total);
-                    } else {
-                        // Settle timer: if after 2 seconds total is still 1, it really is a 1-page doc!
-                        loadingTimeout = window.setTimeout(() => {
-                            if (!viewerRef.current) return;
-                            const settledCurrent = scrollCapability.getCurrentPage() || 1;
-                            const settledTotal = scrollCapability.getTotalPages() || 1;
-                            hasReported = true;
-                            handlePageChange(settledCurrent, settledTotal);
-                        }, 2000);
-                    }
-                }
-            };
-
-            setupPageTracking();
-
-            return () => {
-                if (unsubscribe) {
-                    unsubscribe();
-                }
-                if (loadingTimeout) {
-                    window.clearTimeout(loadingTimeout);
-                }
-            };
-        }, [url, onPageChange]);
-
-        return (
-            <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
-                <div className="flex-1 h-0 w-full">
-                    <PDFViewer
-                        ref={viewerRef}
-                        config={{
-                            src: url,
-                            theme: { preference: themePreference },
-                        }}
-                        style={{ width: '100%', height: '100%' }}
-                    />
-                </div>
-                <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
-                    <span>Halaman aktif: {currentPage}</span>
-                </div>
+    return (
+        <div className="h-full w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-900 flex flex-col">
+            <div className="flex-1 h-0 w-full">
+                <PDFViewer ref={viewerRef} config={viewerConfig} onReady={handleReady} style={{ width: '100%', height: '100%' }} />
             </div>
-        );
-    }
+            <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+                <span>Halaman aktif: {currentPage}</span>
+            </div>
+        </div>
+    );
+});
 
-    function PremiumVideoPlayer({
+const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
         videoId,
         isCompletedInitial,
         durationMinutes,
@@ -653,8 +580,10 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
             </div>
         );
     }
+);
 
-    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
+
+const OfficeViewer = memo(    function OfficeViewer({ url, totalPages, currentPage: initialPage, onPageChange }: { url: string; totalPages: number; currentPage: number; onPageChange: (current: number, total: number) => void }) {
         const [currentPage, setCurrentPage] = useState(initialPage || 1);
 
         useEffect(() => {
@@ -715,8 +644,10 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
             </div>
         );
     }
+);
 
-    const renderDocPreview = (docUrl: string, moduleId: number) => {
+
+    const renderDocPreview = (docUrl: string, moduleId: number, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void) => {
         const fullUrl = getPreviewUri(docUrl);
         const extension = getFileExtension(docUrl);
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension);
@@ -785,7 +716,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         );
     };
 
-    const ModuleProgressTracker = ({ module }: { module: Module }) => {
+
+    const ModuleProgressTracker = memo(function ModuleProgressTracker({ module, isTrainer, previewModuleId, setPreviewModuleId, setCurrentProgress, setLocalModules }: { module: Module, isTrainer: boolean, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, setCurrentProgress: (p: number) => void, setLocalModules: React.Dispatch<React.SetStateAction<Module[]>> }) {
         const isUser = !isTrainer;
 
         const videoContainerRef = useRef<HTMLDivElement | null>(null);
@@ -853,6 +785,9 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                     if (onCompleted) {
                         onCompleted(data);
                     }
+                    
+                    // Automatically refresh inertia props so that global layout elements (like navbar progress) update
+                    router.reload({ preserveState: true, preserveScroll: true });
                 }
             })
             .catch(e => console.error('Tracking Error:', e));
@@ -1029,7 +964,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             </div>
 
                             <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                                {renderDocPreview(module.doc_url, module.id)}
+                                {renderDocPreview(module.doc_url, module.id, previewModuleId, setPreviewModuleId)}
                             </div>
                         </div>
                     )}
@@ -1187,7 +1122,72 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                 )}
             </>
         );
+    });
+
+export default function CourseShow({ course, userProgress = 0, isEnrolled = false, ratingData }: ShowProps) {
+    const { auth } = usePage<SharedData>().props;
+    const isAdmin = auth.user.role === 'admin';
+    const isTrainer = auth.user.role === 'trainer' || isAdmin;
+    const canTakeQuiz = auth.user.role === 'user';
+    const isCreator = course.created_by === auth.user.id;
+    const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
+    const trainerName = course?.creator?.name || 'Instructor';
+    const trainerId = course?.creator?.id || 'N/A';
+
+    const trainerInitials = trainerName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+
+    const [activeModuleItem, setActiveModuleItem] = useState<string>('');
+    const [previewModuleId, setPreviewModuleId] = useState<number | null>(null);
+
+    // Dynamic AJAX states
+    const [localModules, setLocalModules] = useState<Module[]>(course.modules);
+    const [currentProgress, setCurrentProgress] = useState<number>(userProgress);
+
+    useEffect(() => {
+        setLocalModules(course.modules);
+    }, [course.modules]);
+
+    useEffect(() => {
+        setCurrentProgress(userProgress);
+    }, [userProgress]);
+
+    // ── Quiz confirmation modal ──────────────────────────────────────────────
+    const [confirmQuiz, setConfirmQuiz] = useState<QuizWithProgress | null>(null);
+
+    const startQuiz = () => {
+        if (!confirmQuiz) return;
+        router.visit(`/quiz/${confirmQuiz.id}`);
     };
+
+    // ── Rating form ─────────────────────────────────────────────────────────
+    const [hovered, setHovered] = useState(0);
+    const { data: ratingForm, setData: setRatingData, post: postRating, delete: deleteRating, processing: ratingProcessing } = useForm({
+        rating: ratingData?.user_rating?.rating ?? 0,
+        review: ratingData?.user_rating?.review ?? '',
+    });
+
+    const submitRating = (e: FormEvent) => {
+        e.preventDefault();
+        postRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
+    };
+
+    const removeRating = () => {
+        deleteRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
+    };
+
+
+
+
+
+
+
+
+
 
 
     return (
@@ -1308,7 +1308,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                             </AccordionTrigger>
 
                                             <AccordionContent className="px-5 py-4 bg-gray-50/50 dark:bg-gray-700/20">
-                                                <ModuleProgressTracker module={module} />
+                                                <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} />
 
                                                 {((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0) && (
                                                     <div className="mt-5 border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">
