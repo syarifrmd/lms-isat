@@ -4,6 +4,9 @@ import { ClockIcon, PlusCircle, Trash, BookOpen } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { SharedData } from '@/types';
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search } from 'lucide-react';
 import { EnrollmentModal } from '@/components/EnrollmentModal';
 import {
     AlertDialog,
@@ -34,11 +37,58 @@ interface Course {
     is_completed?: boolean;
 }
 
-export default function CoursesIndex({ courses }: { courses: Course[] }) {
+export default function CoursesIndex({ 
+    courses, 
+    filters, 
+    categories 
+}: { 
+    courses: Course[];
+    filters: { search?: string; category?: string; progress_status?: string };
+    categories: string[];
+}) {
     const { auth } = usePage<SharedData>().props;
     const canCreateCourse = auth.user.role === 'trainer' || auth.user.role === 'admin';
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
+    
+    const [search, setSearch] = useState(filters?.search || '');
+    const [category, setCategory] = useState(filters?.category || 'all');
+    const [progressStatus, setProgressStatus] = useState(filters?.progress_status || 'all');
+
+    const updateFilters = (newSearch: string, newCategory: string, newProgressStatus: string) => {
+        router.get(
+            '/courses',
+            {
+                search: newSearch,
+                category: newCategory === 'all' ? undefined : newCategory,
+                progress_status: newProgressStatus === 'all' ? undefined : newProgressStatus,
+            },
+            {
+                preserveState: true,
+                replace: true,
+            }
+        );
+    };
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearch(e.target.value);
+    };
+    
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            updateFilters(search, category, progressStatus);
+        }
+    };
+
+    const handleCategoryChange = (val: string) => {
+        setCategory(val);
+        updateFilters(search, val, progressStatus);
+    };
+
+    const handleProgressStatusChange = (val: string) => {
+        setProgressStatus(val);
+        updateFilters(search, category, val);
+    };
 
     const handleEnrollClick = (course: Course) => {
         setSelectedCourse(course);
@@ -79,17 +129,54 @@ export default function CoursesIndex({ courses }: { courses: Course[] }) {
                 </div>
 
                 {/* Toolbar */}
-                {canCreateCourse && (
-                    <div className="flex justify-end">
-                        <Link
-                            href="/courses/create"
-                            className="inline-flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
-                        >
-                            <PlusCircle className="h-4 w-4" />
-                            Create Course
-                        </Link>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Input
+                                placeholder="Cari kursus..."
+                                value={search}
+                                onChange={handleSearchChange}
+                                onKeyDown={handleSearchKeyDown}
+                                className="pl-9"
+                            />
+                        </div>
+                        <Select value={category} onValueChange={handleCategoryChange}>
+                            <SelectTrigger className="w-full sm:w-48">
+                                <SelectValue placeholder="Semua Kategori" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Kategori</SelectItem>
+                                {categories && categories.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={progressStatus} onValueChange={handleProgressStatusChange}>
+                            <SelectTrigger className="w-full sm:w-48">
+                                <SelectValue placeholder="Status Kursus" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="ongoing">Sedang Berjalan</SelectItem>
+                                <SelectItem value="not_enrolled">Belum Daftar</SelectItem>
+                                <SelectItem value="completed">Telah Selesai</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
-                )}
+
+                    {canCreateCourse && (
+                        <div className="flex justify-end">
+                            <Link
+                                href="/courses/create"
+                                className="inline-flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
+                            >
+                                <PlusCircle className="h-4 w-4" />
+                                Create Course
+                            </Link>
+                        </div>
+                    )}
+                </div>
 
                 {/* Course Grid */}
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">

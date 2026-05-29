@@ -63,6 +63,7 @@ interface Course {
 
 interface EditProps {
     course: Course;
+    categories: string[];
 }
 
 const statusConfig = {
@@ -86,7 +87,7 @@ function formatDate(dateStr: string | null) {
     return dateStr.slice(0, 16);
 }
 
-export default function EditCourse({ course }: EditProps) {
+export default function EditCourse({ course, categories }: EditProps) {
     // ── Course Info Form ─────────────────────────────────────────────────────
     const { data, setData, post, processing, errors } = useForm({
         _method: 'PUT',
@@ -113,6 +114,18 @@ export default function EditCourse({ course }: EditProps) {
     const submitCourseInfo = (e: React.FormEvent) => {
         e.preventDefault();
         post(`/courses/${course.id}`, { forceFormData: true });
+    };
+
+    const [isCustomCategory, setIsCustomCategory] = useState(!categories?.includes(course.category || '') && !!course.category);
+
+    const handleCategoryChange = (value: string) => {
+        if (value === 'Lainnya') {
+            setIsCustomCategory(true);
+            setData('category', '');
+        } else {
+            setIsCustomCategory(false);
+            setData('category', value);
+        }
     };
 
     // ── Module Ordering ───────────────────────────────────────────────────────
@@ -283,13 +296,27 @@ export default function EditCourse({ course }: EditProps) {
                                                 <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                                                 Category
                                             </Label>
-                                            <Input
-                                                id="category"
-                                                value={data.category}
-                                                onChange={(e) => setData('category', e.target.value)}
-                                                placeholder="e.g. Technology, Sales..."
-                                                className="h-10"
-                                            />
+                                            <Select value={isCustomCategory ? 'Lainnya' : (data.category || '')} onValueChange={handleCategoryChange}>
+                                                <SelectTrigger className="h-10">
+                                                    <SelectValue placeholder="Pilih kategori" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories && categories.map(cat => (
+                                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                                    ))}
+                                                    <SelectItem value="Lainnya">Lainnya...</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {isCustomCategory && (
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Masukkan kategori baru"
+                                                    value={data.category}
+                                                    onChange={(e) => setData('category', e.target.value)}
+                                                    className="mt-2 h-10"
+                                                    required
+                                                />
+                                            )}
                                             <InputError message={errors.category} />
                                         </div>
 

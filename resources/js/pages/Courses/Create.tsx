@@ -6,8 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BookOpen, ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 
-export default function CreateCourse() {
+export default function CreateCourse({ categories }: { categories: string[] }) {
     const { data, setData, post, processing, errors } = useForm({
         title: '',
         description: '',
@@ -17,6 +18,18 @@ export default function CreateCourse() {
         end_date: '',
         cover_image: null as File | null,
     });
+
+    const [isCustomCategory, setIsCustomCategory] = useState(false);
+
+    const handleCategoryChange = (value: string) => {
+        if (value === 'Lainnya') {
+            setIsCustomCategory(true);
+            setData('category', '');
+        } else {
+            setIsCustomCategory(false);
+            setData('category', value);
+        }
+    };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -120,19 +133,27 @@ export default function CreateCourse() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <Label htmlFor="category" className="text-sm font-medium">Kategori</Label>
-                                    <Select value={data.category} onValueChange={(value) => setData('category', value)}>
+                                    <Select value={isCustomCategory ? 'Lainnya' : (data.category || '')} onValueChange={handleCategoryChange}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Pilih kategori" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Development">Development</SelectItem>
-                                            <SelectItem value="Business">Business</SelectItem>
-                                            <SelectItem value="Design">Design</SelectItem>
-                                            <SelectItem value="Marketing">Marketing</SelectItem>
-                                            <SelectItem value="IT & Software">IT & Software</SelectItem>
-                                            <SelectItem value="Personal Development">Personal Development</SelectItem>
+                                            {categories && categories.map(cat => (
+                                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                            ))}
+                                            <SelectItem value="Lainnya">Lainnya...</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    {isCustomCategory && (
+                                        <Input
+                                            type="text"
+                                            placeholder="Masukkan kategori baru"
+                                            value={data.category}
+                                            onChange={(e) => setData('category', e.target.value)}
+                                            className="mt-2"
+                                            required
+                                        />
+                                    )}
                                     <InputError message={errors.category} />
                                 </div>
 

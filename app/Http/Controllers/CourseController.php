@@ -19,9 +19,13 @@ class CourseController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        
+        $search = $request->input('search');
+        $category = $request->input('category');
+        $progressStatus = $request->input('progress_status');
 
         $query = Course::with('creator')
             ->withExists(['enrollments as is_enrolled' => function ($query) {
@@ -41,17 +45,58 @@ class CourseController extends Controller
         if (!$user || !in_array($user->role, ['trainer', 'admin'])) {
             $query->where('status', 'published');
         }
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('title', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($category) {
+            $query->where('category', $category);
+        }
+
+        if ($progressStatus === 'ongoing') {
+            $query->whereHas('enrollments', function ($q) {
+                $q->where('user_id', Auth::id())
+                    ->whereIn('status', ['enrolled', 'in_progress']);
+            });
+        } elseif ($progressStatus === 'completed') {
+            $query->whereHas('enrollments', function ($q) {
+                $q->where('user_id', Auth::id())
+                    ->where(function ($q2) {
+                        $q2->where('status', 'completed')
+                            ->orWhereNotNull('completed_at');
+                    });
+            });
+        } elseif ($progressStatus === 'not_enrolled') {
+            $query->whereDoesntHave('enrollments', function ($q) {
+                $q->where('user_id', Auth::id());
+            });
+        }
 
         $courses = $query->orderBy('created_at', 'desc')->get();
+        
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
             
         return Inertia::render('Courses/Index', [
-            'courses' => $courses
+            'courses' => $courses,
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+                'progress_status' => $progressStatus,
+            ],
+            'categories' => $categories
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Courses/Create');
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+        return Inertia::render('Courses/Create', [
+            'categories' => $categories
+        ]);
     }
 
     public function store(Request $request)
@@ -218,8 +263,11 @@ class CourseController extends Controller
             $q->orderBy('order_sequence', 'asc');
         }]);
 
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+
         return Inertia::render('Courses/Edit', [
             'course' => $course,
+            'categories' => $categories
         ]);
     }
 
