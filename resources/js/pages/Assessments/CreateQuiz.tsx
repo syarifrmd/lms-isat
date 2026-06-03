@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import QuizQuestionEditor from '@/components/quiz-question-editor';
+import ImportQuizModal from '@/components/assessments/ImportQuizModal';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -41,6 +42,7 @@ import {
     Zap,
     Globe,
     FileText,
+    FileSpreadsheet,
     AlertTriangle,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
@@ -121,6 +123,15 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
     const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set([0]));
     const [activeStep, setActiveStep] = useState<1 | 2>(1);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    const handleImportQuestions = (importedQuestions: Question[]) => {
+        if (data.questions.length === 1 && !data.questions[0].question_text && data.questions[0].answers.every(a => !a.answer_text)) {
+            setData('questions', importedQuestions);
+        } else {
+            setData('questions', [...data.questions, ...importedQuestions]);
+        }
+    };
 
     const toggleQuestion = (index: number) => {
         setExpandedQuestions(prev => {
@@ -508,10 +519,16 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                             <span><strong className="text-foreground">{totalPoints}</strong> poin total</span>
                                         </span>
                                     </div>
-                                    <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition-colors">
-                                        <PlusCircle className="h-3.5 w-3.5" />
-                                        Tambah Soal
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button type="button" onClick={() => setIsImportModalOpen(true)} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-medium transition-colors">
+                                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                                            Import
+                                        </button>
+                                        <button type="button" onClick={addQuestion} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition-colors">
+                                            <PlusCircle className="h-3.5 w-3.5" />
+                                            Tambah Soal
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Question cards */}
@@ -838,6 +855,12 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <ImportQuizModal
+                open={isImportModalOpen}
+                onOpenChange={setIsImportModalOpen}
+                onImport={handleImportQuestions}
+            />
         </AppLayout>
     );
 }
