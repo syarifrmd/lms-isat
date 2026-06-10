@@ -191,7 +191,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     ...item,
     icon: featureIcons[index]
   }));
-  
+
   const workflowSteps = t.howItWorks.steps.map((item, index) => ({
     ...item,
     step: `0${index + 1}`,
@@ -209,10 +209,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center space-x-2 sm:space-x-3"
             >
-              <img 
-                              src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
-                              alt="Indosat Logo" 
-                              className="h-8 w-8 shrink-0 object-contain" 
+              <img
+                src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png"
+                alt="Indosat Logo"
+                className="h-8 w-8 shrink-0 object-contain"
               />
               <div>
                 <h1 className="font-bold text-lg sm:text-xl text-gray-800">Indosat LMS</h1>
@@ -409,7 +409,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               {t.howItWorks.title}
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-               {t.howItWorks.subtitle}
+              {t.howItWorks.subtitle}
             </p>
           </motion.div>
 
