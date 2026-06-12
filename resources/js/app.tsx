@@ -1,4 +1,6 @@
 import '../css/app.css';
+import '../css/indosat.css';
+import '../css/indosat-login-register.css';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
