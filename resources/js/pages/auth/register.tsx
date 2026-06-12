@@ -7,7 +7,8 @@ import { login } from '@/routes';
 import { store } from '@/routes/register';
 import { Form, Head, Link } from '@inertiajs/react';
 import { SlideIn } from '@/components/page-transition';
-import { IdCard, Lock, Mail, User, Languages } from 'lucide-react';
+import { IdCard, Lock, Mail, User, Languages, Eye, EyeOff } from 'lucide-react';
+import '@/../css/indosat-login-register.css';
 import { useState } from 'react';
 
 // Komponen Ikon Google
@@ -20,10 +21,8 @@ const GoogleIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-// Definisi type bahasa
 type Language = 'id' | 'en';
 
-// Kamus terjemahan
 const translations = {
   id: {
     brand: 'Indosat LMS',
@@ -33,28 +32,14 @@ const translations = {
     createAccount: 'Buat Akun',
     googleSignUp: 'Daftar dengan Google',
     or: 'Atau',
-    name: {
-      label: 'Nama Lengkap *',
-      placeholder: 'Masukkan nama lengkap Anda'
-    },
-    nik: {
-      label: 'NIK (Nomor Induk Karyawan) *',
-      placeholder: 'Masukkan NIK Anda'
-    },
-    email: {
-      label: 'Alamat Email *',
-      placeholder: 'nama@indosatooredoo.com'
-    },
-    password: {
-      label: 'Kata Sandi *',
-      placeholder: 'Buat kata sandi (min 8 karakter)'
-    },
-    confirmPassword: {
-      label: 'Konfirmasi Kata Sandi *',
-      placeholder: 'Konfirmasi kata sandi Anda'
-    },
+    name: { label: 'Nama Lengkap *', placeholder: 'Masukkan nama lengkap Anda' },
+    nik: { label: 'NIK (Nomor Induk Karyawan) *', placeholder: 'Masukkan NIK Anda' },
+    email: { label: 'Alamat Email *', placeholder: 'nama@indosatooredoo.com' },
+    password: { label: 'Kata Sandi *', placeholder: 'Buat kata sandi' },
+    confirmPassword: { label: 'Konfirmasi *', placeholder: 'Ulangi sandi' },
     signUpButton: 'Daftar',
     illustration: {
+      category: 'Digital Learning',
       title: 'Selamat Datang di Indosat LMS',
       desc: 'Platform pembelajaran digital terpadu untuk pengembangan kompetensi karyawan Indosat Ooredoo Hutchison.'
     },
@@ -71,28 +56,14 @@ const translations = {
     createAccount: 'Create Account',
     googleSignUp: 'Sign Up with Google',
     or: 'Or',
-    name: {
-        label: 'Full Name *',
-        placeholder: 'Enter your full name'
-    },
-    nik: {
-        label: 'NIK (Employee ID) *',
-        placeholder: 'Enter your NIK'
-    },
-    email: {
-        label: 'Email address *',
-        placeholder: 'name@indosatooredoo.com'
-    },
-    password: {
-        label: 'Password *',
-        placeholder: 'Create a password (min 8 chars)'
-    },
-    confirmPassword: {
-        label: 'Confirm Password *',
-        placeholder: 'Confirm your password'
-    },
+    name: { label: 'Full Name *', placeholder: 'Enter your full name' },
+    nik: { label: 'NIK (Employee ID) *', placeholder: 'Enter your NIK' },
+    email: { label: 'Email address *', placeholder: 'name@indosatooredoo.com' },
+    password: { label: 'Password *', placeholder: 'Create password' },
+    confirmPassword: { label: 'Confirm *', placeholder: 'Repeat password' },
     signUpButton: 'Sign Up',
     illustration: {
+      category: 'Digital Learning',
       title: 'Welcome to Indosat LMS',
       desc: 'An integrated digital learning platform for the competency development of Indosat Ooredoo Hutchison employees.'
     },
@@ -105,6 +76,8 @@ const translations = {
 
 export default function Register() {
     const [lang, setLang] = useState<Language>('id');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const t = translations[lang];
 
     const toggleLang = () => {
@@ -118,64 +91,55 @@ export default function Register() {
             {/* Language Switcher */}
             <button
                 onClick={toggleLang}
-                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-colors flex items-center space-x-1 backdrop-blur-sm z-50"
+                className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-gray-800 dark:text-white p-2 rounded-full transition-colors flex items-center space-x-1 backdrop-blur-sm z-50"
             >
                 <Languages className="w-4 h-4" />
                 <span className="text-xs font-medium">{lang === 'id' ? 'ID' : 'EN'}</span>
             </button>
 
-            {/* LEFT: Illustration Panel */}
-            <SlideIn direction="left" className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-sky-500 to-pink-400 dark:from-gray-900 dark:to-gray-800 flex-col items-center justify-center p-8 relative overflow-hidden">
-                <div className="absolute top-[-80px] left-[-80px] w-80 h-80 bg-white/10 rounded-full" />
-                <div className="absolute bottom-[-60px] right-[-60px] w-64 h-64 bg-white/10 rounded-full" />
-                <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-white/5 rounded-full" />
+            {/* LEFT SIDE: Illustration Panel */}
+            <SlideIn direction="left" className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-8 illustration-panel-container">
+                <div className="w-full max-w-lg main-box-card">
+                    <div className="glow-frame-indosat" />
+                    <div className="dot-decoration-yellow" />
+                    <div className="dot-decoration-blue" />
 
-                <div className="z-20 w-full max-w-lg mb-3">
-                    <img
-                        src="/assets/loginimage.png"
-                        alt="Learning Illustration"
-                        className="w-full h-96 object-contain drop-shadow-2xl"
-                    />
-                </div>
-
-                <div className="z-10 text-center text-white max-w-md">
-                    <h2 className="text-3xl font-bold mb-2">{t.illustration.title}</h2>
-                    <p className="text-red-100 text-sm leading-relaxed">{t.illustration.desc}</p>
+                    <div className="inner-photo-frame">
+                        <img 
+                            src="/assets/loginimage.png" 
+                            alt="Learning Illustration" 
+                            className="absolute inset-0 w-full h-full object-cover" 
+                        />
+                        <div className="dark-overlay-indosat" />
+                        
+                        <div className="relative z-20 p-6 text-left">
+                            <span className="badge-indosat">{t.illustration.category}</span>
+                            <h2 className="text-2xl font-bold text-white mb-2">{t.illustration.title}</h2>
+                            <p className="text-gray-200 text-xs leading-relaxed">{t.illustration.desc}</p>
+                        </div>
+                    </div>
                 </div>
             </SlideIn>
 
-            {/* RIGHT: Form */}
+            {/* RIGHT SIDE: Form */}
             <SlideIn direction="right" delay={0.1} className="flex w-full lg:w-1/2 items-center justify-center px-8 overflow-hidden">
                 <div className="w-full max-w-md">
 
                     {/* Logo Indosat */}
-                    <div className="mb-10 flex justify-center">
-                        {/* Light mode logo */}
-                        <img
-                            src="/assets/logoindosat.png"
-                            alt="Indosat Logo"
-                            className="h-14 w-auto object-contain dark:hidden"
-                        />
-                        {/* Dark mode logo */}
-                        <img
-                            src="/assets/logoindosatterang.png"
-                            alt="Indosat Logo"
-                            className="h-14 w-auto object-contain hidden dark:block"
-                        />
+                    <div className="mb-6 flex justify-center">
+                        <img src="/assets/logoindosat.png" alt="Indosat Logo" className="h-14 w-auto object-contain dark:hidden" />
+                        <img src="/assets/logoindosatterang.png" alt="Indosat Logo" className="h-14 w-auto object-contain hidden dark:block" />
                     </div>
 
                     {/* Toggle Tabs */}
                     <div className="mb-4 flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
-                        <Link
-                            href={login.url()}
-                            className="flex-1 py-2 transition-colors"
-                        >
-                            <div className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        <Link href={login.url()} className="flex-1 py-2 transition-colors">
+                            <div className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 hover-text-indosat transition-colors">
                                 {t.signIn}
                             </div>
                         </Link>
                         <div className="flex-1 rounded-lg bg-white dark:bg-gray-700 py-2 shadow-sm">
-                            <div className="text-center text-sm font-bold text-red-600 dark:text-red-400">
+                            <div className="text-center text-sm font-bold text-indosat-active">
                                 {t.signUp}
                             </div>
                         </div>
@@ -187,10 +151,7 @@ export default function Register() {
 
                     {/* Google Button */}
                     <div className="mb-3">
-                        <a
-                            href="/login/google"
-                            className="w-full h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-sm"
-                        >
+                        <a href="/login/google" className="w-full h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-sm">
                             <GoogleIcon className="w-4 h-4" />
                             <span>{t.googleSignUp}</span>
                         </a>
@@ -215,73 +176,105 @@ export default function Register() {
                         {({ processing, errors }) => (
                             <>
                                 <div className="space-y-2">
-                                    <div>
+                                    {/* Input Nama */}
+                                    <div className="focus-input-indosat">
                                         <Label htmlFor="name" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.name.label}</Label>
-                                        <div className="relative group mt-1">
-                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                        <div className="relative mt-1 flex items-center">
+                                            <div className="absolute left-3 text-gray-400 icon-container pointer-events-none z-10">
                                                 <User size={15} />
                                             </div>
                                             <Input id="name" type="text" required autoFocus tabIndex={1} autoComplete="name" name="name"
                                                 placeholder={t.name.placeholder}
-                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                className="h-9 w-full pl-9 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 input-field-indosat rounded-lg text-sm"
                                             />
                                         </div>
                                         <InputError message={errors.name} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div>
+                                    {/* Input NIK */}
+                                    <div className="focus-input-indosat">
                                         <Label htmlFor="nik" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.nik.label}</Label>
-                                        <div className="relative group mt-1">
-                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                        <div className="relative mt-1 flex items-center">
+                                            <div className="absolute left-3 text-gray-400 icon-container pointer-events-none z-10">
                                                 <IdCard size={15} />
                                             </div>
                                             <Input id="nik" type="text" required tabIndex={2} name="nik"
                                                 placeholder={t.nik.placeholder}
-                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                className="h-9 w-full pl-9 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 input-field-indosat rounded-lg text-sm"
                                             />
                                         </div>
                                         <InputError message={errors.nik} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div>
+                                    {/* Input Email */}
+                                    <div className="focus-input-indosat">
                                         <Label htmlFor="email" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.email.label}</Label>
-                                        <div className="relative group mt-1">
-                                            <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                        <div className="relative mt-1 flex items-center">
+                                            <div className="absolute left-3 text-gray-400 icon-container pointer-events-none z-10">
                                                 <Mail size={15} />
                                             </div>
                                             <Input id="email" type="email" required tabIndex={3} autoComplete="email" name="email"
                                                 placeholder={t.email.placeholder}
-                                                className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                className="h-9 w-full pl-9 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 input-field-indosat rounded-lg text-sm"
                                             />
                                         </div>
                                         <InputError message={errors.email} className="text-xs mt-0.5" />
                                     </div>
 
+                                    {/* Password Grid */}
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div>
+                                        {/* Input Password */}
+                                        <div className="focus-input-indosat">
                                             <Label htmlFor="password" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.password.label}</Label>
-                                            <div className="relative group mt-1">
-                                                <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                            <div className="relative mt-1 flex items-center">
+                                                <div className="absolute left-3 text-gray-400 icon-container pointer-events-none z-10">
                                                     <Lock size={15} />
                                                 </div>
-                                                <Input id="password" type="password" required tabIndex={4} autoComplete="new-password" name="password"
+                                                <Input 
+                                                    id="password" 
+                                                    type={showPassword ? 'text' : 'password'} 
+                                                    required 
+                                                    tabIndex={4} 
+                                                    autoComplete="new-password" 
+                                                    name="password"
                                                     placeholder={t.password.placeholder}
-                                                    className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                    className="h-9 w-full pl-9 pr-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 input-field-indosat rounded-lg text-sm"
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-20 focus:outline-none flex items-center justify-center h-full"
+                                                >
+                                                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                </button>
                                             </div>
                                             <InputError message={errors.password} className="text-xs mt-0.5" />
                                         </div>
 
-                                        <div>
+                                        {/* Input Konfirmasi Password */}
+                                        <div className="focus-input-indosat">
                                             <Label htmlFor="password_confirmation" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.confirmPassword.label}</Label>
-                                            <div className="relative group mt-1">
-                                                <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
+                                            <div className="relative mt-1 flex items-center">
+                                                <div className="absolute left-3 text-gray-400 icon-container pointer-events-none z-10">
                                                     <Lock size={15} />
                                                 </div>
-                                                <Input id="password_confirmation" type="password" required tabIndex={5} autoComplete="new-password" name="password_confirmation"
+                                                <Input 
+                                                    id="password_confirmation" 
+                                                    type={showConfirmPassword ? 'text' : 'password'} 
+                                                    required 
+                                                    tabIndex={5} 
+                                                    autoComplete="new-password" 
+                                                    name="password_confirmation"
                                                     placeholder={t.confirmPassword.placeholder}
-                                                    className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
+                                                    className="h-9 w-full pl-9 pr-10 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 input-field-indosat rounded-lg text-sm"
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    className="absolute right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-20 focus:outline-none flex items-center justify-center h-full"
+                                                >
+                                                    {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                </button>
                                             </div>
                                             <InputError message={errors.password_confirmation} className="text-xs mt-0.5" />
                                         </div>
@@ -290,9 +283,10 @@ export default function Register() {
 
                                 <Button
                                     type="submit"
-                                    className="w-full h-10 text-sm font-bold bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg transition-all duration-300 rounded-lg"
+                                    className="w-full h-10 text-sm font-bold btn-indosat-primary rounded-lg mt-2"
                                     tabIndex={6}
                                     data-test="register-user-button"
+                                    disabled={processing}
                                 >
                                     {processing && <Spinner className="mr-2 text-white" />}
                                     {t.signUpButton}
@@ -301,7 +295,7 @@ export default function Register() {
                                 <div className="border-t border-gray-200 dark:border-gray-800 pt-2 text-center">
                                     <Link
                                         href={login.url()}
-                                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                                        className="text-xs font-semibold text-indosat-active hover-text-indosat transition-colors"
                                     >
                                         {t.footer.link}
                                     </Link>

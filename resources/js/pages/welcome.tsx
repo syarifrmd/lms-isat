@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { Award, TrendingUp, Users, ChevronRight, BookOpen, Trophy, Zap, Target, Languages } from 'lucide-react';
+import { Award, TrendingUp, Users, ChevronRight, BookOpen, Trophy, Zap, Target } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Head, router } from '@inertiajs/react';
+import '../../css/indosat.css';
 import { register } from '@/routes';
 
 // Definisi type bahasa
@@ -195,315 +196,278 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const workflowSteps = t.howItWorks.steps.map((item, index) => ({
     ...item,
     step: `0${index + 1}`,
-    icon: workflowIcons[index]
+    icon: workflowIcons[index],
+    sClass: index === 0 ? 's1' : index === 1 ? 's2' : 's3'
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-yellow-50 to-red-50">
+    <div className="w-container">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md shadow-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 sm:h-20">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center space-x-2 sm:space-x-3"
-            >
-              <img 
-                              src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
-                              alt="Indosat Logo" 
-                              className="h-8 w-8 shrink-0 object-contain" 
-              />
-              <div>
-                <h1 className="font-bold text-lg sm:text-xl text-gray-800">Indosat LMS</h1>
-                <p className="text-xs text-gray-600 hidden sm:block">{t.nav.subtitle}</p>
-              </div>
-            </motion.div>
-
-            <div className="flex items-center space-x-3">
-              <motion.button
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onGetStarted}
-                className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
-              >
-                <span className="text-sm sm:text-base">{t.nav.getStarted}</span>
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
-              </motion.button>
-            </div>
+      <nav className="nav">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="logo-wrap"
+        >
+          <img 
+            src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
+            alt="Indosat Logo" 
+            style={{ height: '34px', width: '34px', objectFit: 'contain' }}
+          />
+          <div>
+            <h1 className="logo-name">Indosat LMS</h1>
+            <p className="logo-sub">{t.nav.subtitle}</p>
           </div>
+        </motion.div>
+
+        <div>
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onGetStarted}
+            className="nav-btn"
+          >
+            <span>{t.nav.getStarted}</span>
+            <ChevronRight className="w-4 h-4" />
+          </motion.button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-                className="inline-block bg-gradient-to-r from-yellow-100 to-red-100 px-4 py-2 rounded-full mb-6"
-              >
-                <p className="text-sm sm:text-base font-semibold text-red-600">
-                  {t.hero.badge}
-                </p>
-              </motion.div>
+      <section className="hero">
+        <div className="blob blob-1"></div>
+        <div className="blob blob-2"></div>
+        <div className="blob blob-3"></div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                {t.hero.titleLine1}
-                <br />
-                <span className="bg-gradient-to-r from-yellow-500 to-red-500 bg-clip-text text-transparent">
-                  {t.hero.titleLine2}
-                </span>
-              </h1>
-
-              <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
-                {t.hero.description}
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={onGetStarted}
-                  className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center space-x-2"
-                >
-                  <span>{t.hero.ctaPrimary}</span>
-                  <ChevronRight className="w-5 h-5" />
-                </motion.button>
-
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mt-12">
-                {t.hero.stats.map((stat, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="text-center"
-                  >
-                    <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-yellow-500 to-red-500 bg-clip-text text-transparent">
-                      {stat.value}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">{stat.label}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Right Content - Image */}
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="relative hidden lg:block"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-red-500 rounded-3xl transform rotate-6"></div>
-                <ImageWithFallback
-                  src="/assets/team.jpg"
-                  alt="Team Training"
-                  className="relative rounded-3xl shadow-2xl w-full h-auto object-cover"
-                />
-              </div>
-
-              {/* Floating Cards */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity }}
-                className="absolute -left-6 top-1/4 bg-white rounded-xl shadow-xl p-4 hidden xl:block"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-red-500 rounded-lg flex items-center justify-center">
-                    <Award className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{t.floating.badgeTitle}</p>
-                    <p className="text-xs text-gray-600">{t.floating.badgeDesc}</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 3, repeat: Infinity, delay: 1 }}
-                className="absolute -right-6 bottom-1/4 bg-white rounded-xl shadow-xl p-4 hidden xl:block"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">{t.floating.progressTitle}</p>
-                    <p className="text-xs text-gray-600">{t.floating.progressDesc}</p>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
+        {/* Left Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12 sm:mb-16"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="hero-eyebrow"
           >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              {t.features.title}
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              {t.features.subtitle}
-            </p>
+            <p>{t.hero.badge}</p>
           </motion.div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {features.map((feature, index) => (
+          <h1 className="hero-h1">
+            {t.hero.titleLine1}
+            <span>{t.hero.titleLine2}</span>
+          </h1>
+
+          <p className="hero-desc">
+            {t.hero.description}
+          </p>
+
+          <div className="hero-cta-row">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onGetStarted}
+              className="btn-primary"
+            >
+              <span>{t.hero.ctaPrimary}</span>
+              <ChevronRight className="w-5 h-5" />
+            </motion.button>
+          </div>
+
+          {/* Stats */}
+          <div className="hero-stats">
+            {t.hero.stats.map((stat, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 + index * 0.1 }}
+                className="stat-item"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-yellow-400 to-red-500 rounded-xl flex items-center justify-center mb-4 sm:mb-6 text-white">
-                  {feature.icon}
-                </div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{feature.description}</p>
+                <p className="stat-num">{stat.value}</p>
+                <p className="stat-label">{stat.label}</p>
               </motion.div>
             ))}
           </div>
+        </motion.div>
+
+        {/* Right Content - Image */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="hero-right"
+        >
+          <div className="hero-img-frame">
+            <ImageWithFallback
+              src="/assets/team.jpg"
+              alt="Team Training"
+            />
+          </div>
+
+          {/* Floating Cards */}
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="float-card tl"
+          >
+            <div className="fc-icon pk">
+              <Award className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="fc-main">{t.floating.badgeTitle}</p>
+              <p className="fc-sub">{t.floating.badgeDesc}</p>
+            </div>
+          </motion.div>
+
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ duration: 3, repeat: Infinity, delay: 1 }}
+            className="float-card br"
+          >
+            <div className="fc-icon tl2">
+              <TrendingUp className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="fc-main">{t.floating.progressTitle}</p>
+              <p className="fc-sub">{t.floating.progressDesc}</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      </section>
+
+      {/* Features Section */}
+      <section className="why-sec">
+        <div className="blob blob-4"></div>
+        <div className="blob blob-5"></div>
+
+        <div className="sec-head">
+          <span className="sec-eyebrow">FEATURES</span>
+          <h2 className="sec-title">{t.features.title}</h2>
+          <p className="sec-sub">{t.features.subtitle}</p>
+        </div>
+
+        <div className="feat-grid">
+          {features.map((feature, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              whileHover={{ y: -5 }}
+              className="feat-card"
+            >
+              <div className="feat-icon">
+                {feature.icon}
+              </div>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
 
       {/* How it Works Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12 sm:mb-16"
-          >
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              {t.howItWorks.title}
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-               {t.howItWorks.subtitle}
-            </p>
-          </motion.div>
+      <section className="how-sec">
+        <div className="blob blob-6"></div>
 
-          <div className="grid md:grid-cols-3 gap-8 sm:gap-12">
-            {workflowSteps.map((item, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.2 }}
-                className="relative"
-              >
-                <div className="text-center">
-                  <div className="inline-block mb-6">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-red-500 rounded-full flex items-center justify-center text-white mb-4">
-                      {item.icon}
-                    </div>
-                    <div className="text-6xl sm:text-7xl font-bold text-gray-100 absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -z-10">
-                      {item.step}
-                    </div>
-                  </div>
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">{item.title}</h3>
-                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{item.description}</p>
-                </div>
-                {index < 2 && (
-                  <div className="hidden md:block absolute top-10 right-0 transform translate-x-1/2">
-                    <ChevronRight className="w-8 h-8 text-yellow-400" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
+        <div className="sec-head">
+          <h2 className="sec-title">{t.howItWorks.title}</h2>
+          <p className="sec-sub">{t.howItWorks.subtitle}</p>
+        </div>
+
+        <div className="steps-wrap">
+          {workflowSteps.map((item, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.2 }}
+              className={`step-card ${item.sClass}`}
+            >
+              <div className="step-num">{item.step}</div>
+              <div className="step-icon">
+                {item.icon}
+              </div>
+              <h3 className="step-title">{item.title}</h3>
+              <p className="step-desc">{item.description}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-yellow-400 to-red-500">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="max-w-4xl mx-auto text-center"
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+     {/* CTA Section */}
+      <motion.section 
+        className="cta-wrap"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <div className="cta-band">
+          <motion.h2
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+          >
             {t.cta.title}
-          </h2>
-          <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10">
+          </motion.h2>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.35, duration: 0.6 }}
+          >
             {t.cta.subtitle}
-          </p>
-        </motion.div>
-      </section>
+          </motion.p>
+        </div>
+      </motion.section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="font-bold mb-4">{t.footer.about}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Contact</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold mb-4">{t.footer.resources}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">FAQs</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold mb-4">{t.footer.legal}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Cookie Policy</a></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold mb-4">{t.footer.connect}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Facebook</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">LinkedIn</a></li>
-              </ul>
-            </div>
+      <footer className="footer-sec">
+        <div className="footer-grid">
+          <div className="footer-col">
+            <h3>{t.footer.about}</h3>
+            <ul>
+              <li><a href="#">About Us</a></li>
+              <li><a href="#">Careers</a></li>
+              <li><a href="#">Contact</a></li>
+            </ul>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 Indosat Ooredoo Hutchison. {t.footer.rights}</p>
+          <div className="footer-col">
+            <h3>{t.footer.resources}</h3>
+            <ul>
+              <li><a href="#">Help Center</a></li>
+              <li><a href="#">Documentation</a></li>
+              <li><a href="#">FAQs</a></li>
+            </ul>
           </div>
+          <div className="footer-col">
+            <h3>{t.footer.legal}</h3>
+            <ul>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+              <li><a href="#">Cookie Policy</a></li>
+            </ul>
+          </div>
+          <div className="footer-col">
+            <h3>{t.footer.connect}</h3>
+            <ul>
+              <li><a href="#">Facebook</a></li>
+              <li><a href="#">Twitter</a></li>
+              <li><a href="#">LinkedIn</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <p>&copy; 2024 Indosat Ooredoo Hutchison. {t.footer.rights}</p>
         </div>
       </footer>
     </div>

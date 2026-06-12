@@ -1,0 +1,237 @@
+:root {
+    --indosat-pink: #E6007E;
+    --indosat-light-pink: #FF2D9C;
+    --indosat-dark-pink: #B8005F;
+    --indosat-yellow: #FFCC00;
+    --indosat-blue: #00AEEF;
+    --indosat-gradient-primary: linear-gradient(135deg, var(--indosat-light-pink) 0%, var(--indosat-pink) 50%, var(--indosat-dark-pink) 100%);
+    --indosat-gradient-glow: linear-gradient(132deg, var(--indosat-pink), var(--indosat-yellow), var(--indosat-blue));
+}
+
+/* tombol sama navigasi */
+
+.btn-indosat-primary {
+    background: var(--indosat-gradient-primary) !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px rgba(230, 0, 126, 0.3) !important;
+    transition: all 0.3s ease-in-out !important;
+}
+
+.btn-indosat-primary:hover {
+    opacity: 0.92 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(230, 0, 126, 0.4) !important;
+}
+
+.btn-indosat-primary:active {
+    transform: translateY(0);
+}
+
+.text-indosat-active {
+    color: var(--indosat-pink) !important;
+}
+
+.hover-text-indosat:hover {
+    color: var(--indosat-dark-pink) !important;
+}
+
+
+.input-field-indosat {
+    border: 1px solid #e5e7eb !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.dark .input-field-indosat {
+    border-color: #374151 !important;
+}
+
+.input-field-indosat:hover {
+    border-color: var(--indosat-light-pink) !important;
+}
+
+.input-field-indosat:focus,
+.input-field-indosat:focus-within,
+.input-field-indosat:focus-visible {
+    border-color: var(--indosat-pink) !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    outline-offset: 0px !important;
+    --tw-ring-offset-width: 0px !important;
+    --tw-ring-color: transparent !important;
+    box-shadow: 0 0 0 3px rgba(230, 0, 126, 0.25) !important;
+}
+
+.dark .input-field-indosat:focus {
+    background-color: #1f2937 !important;
+}
+
+/* Interactive Focus Parents */
+.focus-input-indosat:focus-within label {
+    color: var(--indosat-pink) !important;
+}
+
+.focus-input-indosat:focus-within .icon-container {
+    color: var(--indosat-pink) !important;
+}
+
+.focus-input-indosat:focus-within .btn-toggle-eye {
+    color: var(--indosat-pink) !important;
+}
+
+.checkbox-indosat[data-state=checked] {
+    background-color: var(--indosat-pink) !important;
+    border-color: var(--indosat-pink) !important;
+}
+
+.illustration-panel-container {
+    position: relative;
+    background-color: #f9fafb;
+    border-left: 1px solid #f3f4f6;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* Support Dark Mode untuk panel kiri/kanan */
+.dark .illustration-panel-container {
+    background-color: #030712;
+    border-left: 1px solid #111827;
+}
+
+/* Gelembung Latar Belakang */
+.illustration-panel-container::before,
+.illustration-panel-container::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(140px);
+    opacity: 0.15;
+    z-index: -1;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+}
+
+/* blend mode saat dark mode supaya tidak kusam */
+.dark .illustration-panel-container::before,
+.dark .illustration-panel-container::after {
+    mix-blend-mode: screen;
+    opacity: 0.12;
+}
+
+/* Cahaya Merah Muda Utama di Kiri Atas */
+.illustration-panel-container::before {
+    top: -10%;
+    left: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, var(--indosat-light-pink) 0%, transparent 70%);
+}
+
+/* Cahaya Kuning & Biru di Kanan Bawah */
+.illustration-panel-container::after {
+    bottom: -5%;
+    right: -5%;
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, var(--indosat-blue) 0%, var(--indosat-yellow) 50%, transparent 100%);
+}
+
+/* ornamen card */
+.main-box-card {
+    position: relative;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 1rem;
+    border-radius: 28px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    backdrop-blur: md;
+}
+
+.dark .main-box-card {
+    background-color: rgba(17, 24, 39, 0.7);
+    border-color: #1f2937;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.glow-frame-indosat {
+    position: absolute;
+    inset: -8px;
+    border-radius: 32px;
+    background: var(--indosat-gradient-glow);
+    opacity: 0.22;
+    filter: blur(16px);
+}
+
+.inner-photo-frame {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    background-color: #111827;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    aspect-ratio: 4 / 3;
+}
+
+.dark-overlay-indosat {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%);
+    z-index: 10;
+}
+
+.badge-indosat {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: var(--indosat-pink);
+    color: #ffffff;
+    z-index: 20;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 9999px;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Decorative Micro-dots */
+.dot-decoration-yellow {
+    position: absolute;
+    bottom: -0.5rem;
+    left: -0.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: var(--indosat-yellow);
+    opacity: 0.7;
+    filter: blur(1px);
+    animation: bounceIndosat 4s infinite ease-in-out;
+}
+
+.dot-decoration-blue {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background-color: var(--indosat-blue);
+    opacity: 0.7;
+    filter: blur(1px);
+    animation: bounceIndosat 6s infinite ease-in-out;
+}
+
+
+@keyframes bounceIndosat {
+
+    0%,
+    100% {
+        transform: translateY(0) scale(1);
+    }
+
+    50% {
+        transform: translateY(-15%) scale(1.05);
+    }
+}
