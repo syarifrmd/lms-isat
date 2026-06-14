@@ -199,7 +199,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-yellow-50 to-red-50">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -227,7 +227,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={onGetStarted}
-                className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2"
+                className="bg-gradient-to-r from-[#ec008c] to-[#c6168d] text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold hover:shadow-xl hover:shadow-[#ec008c]/50 transition-all duration-300 flex items-center space-x-2"
               >
                 <span className="text-sm sm:text-base">{t.nav.getStarted}</span>
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -238,8 +238,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[50%] rounded-full bg-[#ffb600]/10 blur-[30px] pointer-events-none"></div>
+        <div className="absolute top-[-5%] right-[-5%] w-[50%] h-[60%] rounded-full bg-[#e6007e]/10 blur-[30px] pointer-events-none"></div>
+        <div className="absolute bottom-[20%] left-[10%] w-[35%] h-[40%] rounded-full bg-cyan-400/10 blur-[30px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Content */}
             <motion.div
@@ -253,7 +257,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 transition={{ delay: 0.2 }}
                 className="inline-block bg-gradient-to-r from-yellow-100 to-red-100 px-4 py-2 rounded-full mb-6"
               >
-                <p className="text-sm sm:text-base font-semibold text-red-600">
+                <p className="text-sm sm:text-base font-semibold text-[#ed1c24]">
                   {t.hero.badge}
                 </p>
               </motion.div>
@@ -261,7 +265,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 {t.hero.titleLine1}
                 <br />
-                <span className="bg-gradient-to-r from-yellow-500 to-red-500 bg-clip-text text-transparent">
+                <span className="text-[#ed1c24]">
                   {t.hero.titleLine2}
                 </span>
               </h1>
@@ -275,7 +279,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={onGetStarted}
-                  className="bg-gradient-to-r from-yellow-400 to-red-500 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center space-x-2"
+                  className="bg-gradient-to-r from-[#ec008c] to-[#c6168d] text-white px-8 py-4 rounded-xl font-semibold hover:shadow-xl hover:shadow-[#ec008c]/50 transition-all duration-300 flex items-center justify-center space-x-2"
                 >
                   <span>{t.hero.ctaPrimary}</span>
                   <ChevronRight className="w-5 h-5" />
@@ -284,21 +288,25 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mt-12">
-                {t.hero.stats.map((stat, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 + index * 0.1 }}
-                    className="text-center"
-                  >
-                    <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-yellow-500 to-red-500 bg-clip-text text-transparent">
-                      {stat.value}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">{stat.label}</p>
-                  </motion.div>
-                ))}
+              <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mt-12 relative z-10 border border-gray-50">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-8 sm:gap-y-0">
+                  {t.hero.stats.map((stat, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      className={`text-center px-2 sm:px-4 ${index % 2 === 0 ? 'border-r-2 border-gray-100 sm:border-r-0' : ''
+                        } ${index !== 3 ? 'sm:border-r-2 sm:border-gray-100' : ''
+                        }`}
+                    >
+                      <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#ec008c] to-[#c6168d] bg-clip-text text-transparent">
+                        {stat.value}
+                      </p>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1 font-medium">{stat.label}</p>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </motion.div>
 
@@ -310,7 +318,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               className="relative hidden lg:block"
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-red-500 rounded-3xl transform rotate-6"></div>
+                <div className="absolute inset-0 bg-white bg-gradient-to-br from-[#ffcb08]/40 via-[#25bdad]/40 to-[#ed1c24]/40 rounded-3xl transform rotate-6 shadow-xl border-2 border-[#f79dd2]"></div>
                 <ImageWithFallback
                   src="/assets/team.jpg"
                   alt="Team Training"
@@ -325,7 +333,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 className="absolute -left-6 top-1/4 bg-white rounded-xl shadow-xl p-4 hidden xl:block"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-red-500 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#ec008c] to-[#c6168d] rounded-lg flex items-center justify-center shadow-lg shadow-[#ec008c]/50">
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -341,7 +349,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 className="absolute -right-6 bottom-1/4 bg-white rounded-xl shadow-xl p-4 hidden xl:block"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#f46369] to-[#ed1c24] rounded-lg flex items-center justify-center shadow-lg shadow-[#ed1c24]/50">
                     <TrendingUp className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -356,13 +364,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Features Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white/50">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
+        <div className="absolute top-[10%] left-[-10%] w-[40%] h-[60%] rounded-full bg-cyan-400/10 blur-[130px] pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] right-[-5%] w-[50%] h-[60%] rounded-full bg-[#ffb600]/10 blur-[130px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
             className="text-center mb-12 sm:mb-16"
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
@@ -380,11 +390,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                transition={{ delay: index * 0.1 }}
                 whileHover={{ y: -5, scale: 1.02 }}
                 className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-yellow-400 to-red-500 rounded-xl flex items-center justify-center mb-4 sm:mb-6 text-white">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-pink-50 rounded-xl flex items-center justify-center mb-4 sm:mb-6 text-[#ec008c]">
                   {feature.icon}
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
@@ -396,8 +406,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* How it Works Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
+        <div className="absolute top-[-5%] right-[-5%] w-[50%] h-[60%] rounded-full bg-[#e6007e]/10 blur-[130px] pointer-events-none"></div>
+        <div className="absolute bottom-[10%] left-[-10%] w-[40%] h-[50%] rounded-full bg-cyan-400/10 blur-[130px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -423,21 +436,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 transition={{ duration: 0.5, delay: index * 0.2 }}
                 className="relative"
               >
-                <div className="text-center">
-                  <div className="inline-block mb-6">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-yellow-400 to-red-500 rounded-full flex items-center justify-center text-white mb-4">
+                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg hover:shadow-xl transition-all duration-300 text-center relative z-10 h-full">
+                  <div className="inline-block mb-6 relative">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-pink-50 rounded-full flex items-center justify-center text-[#ec008c] mx-auto relative z-10">
                       {item.icon}
-                    </div>
-                    <div className="text-6xl sm:text-7xl font-bold text-gray-100 absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -z-10">
-                      {item.step}
                     </div>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">{item.title}</h3>
                   <p className="text-sm sm:text-base text-gray-600 leading-relaxed">{item.description}</p>
                 </div>
                 {index < 2 && (
-                  <div className="hidden md:block absolute top-10 right-0 transform translate-x-1/2">
-                    <ChevronRight className="w-8 h-8 text-yellow-400" />
+                  <div className="hidden md:flex absolute top-1/2 -right-4 lg:-right-6 transform translate-x-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white rounded-full shadow-md items-center justify-center border border-pink-50">
+                    <ChevronRight className="w-6 h-6 text-[#ec008c]" />
                   </div>
                 )}
               </motion.div>
@@ -447,21 +457,36 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-yellow-400 to-red-500">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
+      <section className="relative py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-[#ec008c] to-[#c6168d] overflow-hidden">
+        <div className="absolute top-[10%] -left-[10%] w-[50%] h-[70%] rounded-full bg-[#ff4dc4]/90 blur-[100px] pointer-events-none"></div>
+        <div className="absolute -bottom-[30%] -right-[10%] w-[60%] h-[80%] rounded-full bg-[#FFC600]/90 blur-[120px] pointer-events-none"></div>
+
+        <motion.img
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="max-w-4xl mx-auto text-center"
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            {t.cta.title}
-          </h2>
-          <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10">
-            {t.cta.subtitle}
-          </p>
-        </motion.div>
+          transition={{ duration: 0.8 }}
+          src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png"
+          alt="Indosat Logo Background"
+          className="absolute -bottom-10 -right-10 h-40 w-40 opacity-40 sm:opacity-50 sm:-bottom-16 sm:-right-16 sm:h-56 sm:w-56 md:-bottom-22 md:-right-22 md:h-72 md:w-72 lg:opacity-100 lg:-bottom-24 lg:-right-24 lg:h-[400px] lg:w-[400px] object-contain pointer-events-none drop-shadow-2xl"
+        />
+
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-4xl mx-auto text-center"
+          >
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+              {t.cta.title}
+            </h2>
+            <p className="text-lg sm:text-xl text-white/90 mb-8 sm:mb-10">
+              {t.cta.subtitle}
+            </p>
+          </motion.div>
+        </div>
       </section>
 
       {/* Footer */}
@@ -471,33 +496,33 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div>
               <h3 className="font-bold mb-4">{t.footer.about}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Contact</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">About Us</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Careers</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Contact</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-bold mb-4">{t.footer.resources}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">FAQs</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Help Center</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Documentation</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">FAQs</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-bold mb-4">{t.footer.legal}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Terms of Service</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Cookie Policy</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Cookie Policy</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-bold mb-4">{t.footer.connect}</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Facebook</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">Twitter</a></li>
-                <li><a href="#" className="hover:text-yellow-400 transition-colors">LinkedIn</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Facebook</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">Twitter</a></li>
+                <li><a href="#" className="hover:text-[#ec008c] transition-colors">LinkedIn</a></li>
               </ul>
             </div>
           </div>
