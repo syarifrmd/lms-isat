@@ -315,7 +315,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="relative mt-12 lg:mt-0"
+              className="relative hidden lg:block"
             >
               <div className="relative">
                 <div className="absolute inset-0 bg-white bg-gradient-to-br from-[#ffcb08]/40 via-[#25bdad]/40 to-[#ed1c24]/40 rounded-3xl transform rotate-6 shadow-xl border-2 border-[#f79dd2]"></div>
