@@ -4,7 +4,7 @@
     --indosat-dark-pink: #B8005F;
     --indosat-yellow: #FFCC00;
     --indosat-blue: #00AEEF;
-    --indosat-gradient-primary: linear-gradient(135deg, var(--indosat-light-pink) 0%, var(--indosat-pink) 50%, var(--indosat-dark-pink) 100%);
+    --indosat-gradient-primary: linear-gradient(135deg, #FF2D9C 50%, #B8005F 100%);
     --indosat-gradient-glow: linear-gradient(132deg, var(--indosat-pink), var(--indosat-yellow), var(--indosat-blue));
 }
 

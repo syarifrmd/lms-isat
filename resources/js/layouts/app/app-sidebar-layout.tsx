@@ -5,6 +5,7 @@ import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 import { useLearningSession } from '@/hooks/useLearningSession';
 import { type BreadcrumbItem } from '@/types';
+import "../../../css/indosat-dashboard-sidebar.css";
 import { type PropsWithChildren } from 'react';
 
 export default function AppSidebarLayout({

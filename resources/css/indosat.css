@@ -21,7 +21,7 @@
   --border-subtle: #f1f5f9;     
   
   /* Gradasi Utama */
-  --gradient-primary: linear-gradient(135deg, var(--isat-pink) 0%, var(--isat-red) 50%, var(--isat-magenta) 100%);
+  --gradient-primary: linear-gradient(135deg, var(--isat-pink) 50%, var(--isat-magenta) 100%);
 }
 
 /* Reset global container namespace */
@@ -736,3 +736,4 @@
   @keyframes slideInFromRight { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes slideInFromLeft { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 }
+

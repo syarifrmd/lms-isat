@@ -1,0 +1,47 @@
+/* indosat-dashboard-sidebar.css */
+/* sidebar */
+:root {
+    --isat-red: #E60000;
+    --isat-red-light: rgba(230, 0, 0, 0.06);
+    --grad-magenta: linear-gradient(135deg, #FF2D9C 50%, #B8005F 100%);
+    --isat-text-muted: #64748b;
+}
+
+/* 1. Reset & Styling Dasar Tombol Sidebar */
+[data-sidebar="menu-button"] {
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+    color: var(--isat-text-muted) !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px 12px !important;
+}
+
+/* 2. Efek Hover: Gradasi Magenta dan (text/icon) jadi putih */
+[data-sidebar="menu-button"]:hover,
+[data-sidebar="menu-button"]:hover span,
+[data-sidebar="menu-button"]:hover svg,
+[data-sidebar="menu-button"]:hover p,
+[data-sidebar="menu-button"]:hover div {
+    background: var(--grad-magenta) !important;
+    color: #ffffff !important;
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+}
+
+/* 3. Efek Aktif*/
+[data-sidebar="menu-button"][data-active="true"] {
+    background-color: var(--isat-red-light) !important;
+    color: #da0473 !important;
+    font-weight: 700 !important;
+}
+
+/* 4. menu SEDANG AKTIF dan di-HOVER, jadikan Magenta agar konsisten (logic)*/
+[data-sidebar="menu-button"][data-active="true"]:hover,
+[data-sidebar="menu-button"][data-active="true"]:hover span,
+[data-sidebar="menu-button"][data-active="true"]:hover svg,
+[data-sidebar="menu-button"][data-active="true"]:hover p {
+    background: var(--grad-magenta) !important;
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
