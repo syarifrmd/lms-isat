@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use CloudConvert\Laravel\Facades\CloudConvert;
+use CloudConvert\Models\Job;
+use CloudConvert\Models\Task;
 
 class ModuleController extends Controller
 {
@@ -36,12 +39,10 @@ class ModuleController extends Controller
         ]);
 
         if ($request->hasFile('doc_file')) {
-            $file = $request->file('doc_file');
-            $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('module_docs', $filename, 'public');
+            $url = $this->handleDocumentUpload($request->file('doc_file'));
             
             return response()->json([
-                'url' => Storage::url($path),
+                'url' => $url,
                 'message' => 'File uploaded successfully'
             ]);
         }
@@ -156,10 +157,7 @@ class ModuleController extends Controller
             // Handle Document Update
             if ($request->hasFile('doc_file')) {
                 // Delete old file if exists? (Optional, skipping for now)
-                $file = $request->file('doc_file');
-                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('module_docs', $filename, 'public');
-                $updateData['doc_url'] = Storage::url($path);
+                $updateData['doc_url'] = $this->handleDocumentUpload($request->file('doc_file'));
             }
 
             $module->update($updateData);
@@ -270,10 +268,7 @@ class ModuleController extends Controller
             // Handle Document
             $docUrl = $request->doc_url;
             if ($request->hasFile('doc_file')) {
-                $file = $request->file('doc_file');
-                $filename = \Illuminate\Support\Str::random(40) . '.' . $file->getClientOriginalExtension();
-                $path = $file->storeAs('module_docs', $filename, 'public');
-                $docUrl = Storage::url($path);
+                $docUrl = $this->handleDocumentUpload($request->file('doc_file'));
             }
 
             $maxOrder = $course->modules()->max('order_sequence') ?? 0;
@@ -318,6 +313,74 @@ class ModuleController extends Controller
             \Log::error('Module creation failed: ' . $e->getMessage());
             return back()->withErrors(['error' => 'Module creation failed: ' . $e->getMessage()]);
         }
+    }
+    private function handleDocumentUpload($file): string
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        $filename = \Illuminate\Support\Str::random(40) . '.' . $ext;
+        
+        // Simpan file asli (termasuk .pptx)
+        $path = $file->storeAs('module_docs', $filename, 'public');
+        $finalUrl = Storage::url($path);
+
+        // Jika tipe PPT/PPTX, coba konversi ke PDF menggunakan CloudConvert
+        if (in_array($ext, ['ppt', 'pptx'])) {
+            try {
+                $absolutePath = storage_path('app/public/' . $path);
+                
+                $job = CloudConvert::jobs()->create(
+                    (new Job())
+                    ->addTask(new Task('import/upload', 'import-ppt'))
+                    ->addTask(
+                        (new Task('convert', 'convert-to-pdf'))
+                        ->set('input', 'import-ppt')
+                        ->set('input_format', $ext)
+                        ->set('output_format', 'pdf')
+                        ->set('engine', 'office')
+                    )
+                    ->addTask(
+                        (new Task('export/url', 'export-pdf'))
+                        ->set('input', 'convert-to-pdf')
+                    )
+                );
+
+                $uploadTask = $job->getTasks()->whereName('import-ppt')[0];
+                CloudConvert::tasks()->upload($uploadTask, fopen($absolutePath, 'r'), $filename);
+
+                CloudConvert::jobs()->wait($job);
+                $job = CloudConvert::jobs()->get($job->getId()); 
+                
+                if ($job->getStatus() === 'error') {
+                    $errorMsgs = [];
+                    foreach ($job->getTasks() as $task) {
+                        if ($task->getStatus() === 'error') {
+                            $errorMsgs[] = $task->getName() . ': ' . $task->getMessage();
+                        }
+                    }
+                    throw new \Exception(implode(', ', $errorMsgs));
+                }
+                
+                $exportTask = $job->getTasks()->whereName('export-pdf')[0];
+                $fileUrl = $exportTask->getResult()->files[0]->url;
+
+                $pdfContent = file_get_contents($fileUrl);
+                $pdfFilename = \Illuminate\Support\Str::random(40) . '.pdf';
+                $pdfPath = 'module_docs/' . $pdfFilename;
+                
+                Storage::disk('public')->put($pdfPath, $pdfContent);
+                
+                // Hapus PPTX asli agar tidak menuh-menuhin storage
+                Storage::disk('public')->delete($path);
+
+                $finalUrl = Storage::url($pdfPath);
+            } catch (\Exception $e) {
+                // FALLBACK: CloudConvert gagal (kredit habis / api error)
+                // Tangkap error, abaikan, dan file PPTX akan dipertahankan
+                \Log::warning('CloudConvert fallback to original PPTX: ' . $e->getMessage());
+            }
+        }
+
+        return $finalUrl;
     }
 
     public function destroy(Course $course, Module $module)

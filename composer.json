@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.2",
         "bacon/bacon-qr-code": "^3.0",
+        "cloudconvert/cloudconvert-laravel": "^1.1",
         "google/apiclient": "^2.19",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",
