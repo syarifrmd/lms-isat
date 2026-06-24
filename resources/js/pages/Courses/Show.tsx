@@ -742,20 +742,8 @@ const OfficeViewer = memo(
 
         // Render content area based on file type
         const renderContent = () => {
-            if (isPptx) {
-                return (
-                    <PptxSlideViewer
-                        url={url}
-                        currentPage={currentPage}
-                        onPageChange={(current, total) => {
-                            onPageChange(current, total);
-                        }}
-                        onLoaded={handlePptxLoaded}
-                    />
-                );
-            }
-
-            // Non-PPTX office files: use Microsoft viewer or LocalOfficePlaceholder
+            // Semua file Office (termasuk PPTX) menggunakan Microsoft Viewer.
+            // Karena MS Viewer tidak bisa membaca file dari localhost, kita tampilkan placeholder jika diakses dari localhost.
             if (isLocal) {
                 return (
                     <div className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto">
