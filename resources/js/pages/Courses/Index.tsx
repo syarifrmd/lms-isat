@@ -25,7 +25,7 @@ interface Course {
     description: string;
     cover_url: string;
     category: string;
-    status: string;
+    status: string; // draft, published, archived
     is_mandatory: boolean; 
     is_timer_active?: number | boolean;
     duration_minutes?: number;
@@ -193,22 +193,21 @@ export default function CoursesIndex({
                         </Select>
 
                         {/* FILTER DROPDOWN DIVISI (Hanya login adalah admin) */}
-{auth?.user?.role === 'admin' && (
-    <Select value={division} onValueChange={handleDivisionChange}>
-        <SelectTrigger className="w-full sm:w-48">
-            {/* KITA REKAYASA TEKS YANG DIRENDER DI SINI */}
-            <SelectValue>
-                {division === 'all' ? 'Semua Divisi' : division}
-            </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-            <SelectItem value="all">Semua Divisi</SelectItem>
-            {divisions && divisions.map(div => (
-                <SelectItem key={div} value={div}>{div}</SelectItem>
-            ))}
-        </SelectContent>
-    </Select>
-)}
+                        {auth?.user?.role === 'admin' && (
+                            <Select value={division} onValueChange={handleDivisionChange}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue>
+                                        {division === 'all' ? 'Semua Divisi' : division}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Divisi</SelectItem>
+                                    {divisions && divisions.map(div => (
+                                        <SelectItem key={div} value={div}>{div}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     </div>
 
                     {canCreateCourse && (
@@ -283,6 +282,27 @@ export default function CoursesIndex({
                                                     <ClockIcon className="h-3 w-3" />
                                                     {course.duration_minutes} Menit
                                                 </span>
+                                            )}
+
+                                            {/* LABEL STATUS (DRAFT/PUBLISHED/ARCHIVED) - HANYA TRAINER & ADMIN */}
+                                            {canCreateCourse && (
+                                                <>
+                                                    {course.status === 'draft' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/60">
+                                                            Draft
+                                                        </span>
+                                                    )}
+                                                    {course.status === 'published' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900/60">
+                                                            Published
+                                                        </span>
+                                                    )}
+                                                    {course.status === 'archived' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+                                                            Archived
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
 
