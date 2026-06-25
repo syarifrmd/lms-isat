@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Quiz;
 use App\Models\UserQuizAttempt;
 use App\Models\UserAnswer;
+use App\Models\Answer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Enrollment;
@@ -14,9 +15,6 @@ use Inertia\Inertia;
 
 class QuizController extends Controller
 {
-    /**
-     * Ensure only learner role can take or submit quizzes.
-     */
     private function ensureLearnerRole(): void
     {
         if (!Auth::check() || Auth::user()->role !== 'user') {
@@ -24,33 +22,47 @@ class QuizController extends Controller
         }
     }
 
-    /**
-     * Display the quiz for taking.
-     */
     public function show(Quiz $quiz)
     {
         $this->ensureLearnerRole();
 
-        $attemptsCount = UserQuizAttempt::where('user_id', auth()->id())
-        ->where('quiz_id', $quiz->id)
-        ->count();
+        $attemptsCount = UserQuizAttempt::where('user_id', Auth::id())
+            ->where('quiz_id', $quiz->id)
+            ->count();
 
-        // Cek apakah user sudah pernah lulus quiz ini
         $hasPassed = UserQuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $quiz->id)
             ->where('is_passed', true)
             ->exists();
 
-        $maxAttempts = 3; // Define the maximum number of allowed attempts
-        $isLimitReached = $attemptsCount >= $maxAttempts;
-        // Load questions with answers (but hide correct answer info from users)
-        $quiz->load(['questions' => function($query) {
-            $query->with(['answers' => function($q) {
-                $q->select('id', 'question_id', 'answer_text');
-            }]);
+        $userId = Auth::id();
+        $sessionKey = "quiz_active_questions_" . $quiz->id . "_" . $userId;
+        $sessionSeedKey = "quiz_seed_" . $quiz->id . "_" . $userId;
+
+        if (!session()->has($sessionKey)) {
+            $seed = mt_rand();
+            $randomQuestionIds = $quiz->questions()
+                ->inRandomOrder($seed)
+                ->take(5)
+                ->pluck('id')
+                ->toArray();
+            session()->put($sessionKey, $randomQuestionIds);
+            session()->put($sessionSeedKey, $seed);
+        }
+
+        $activeQuestionIds = session()->get($sessionKey);
+        $seed = session()->get($sessionSeedKey, mt_rand());
+
+        $quiz->load(['questions' => function($query) use ($activeQuestionIds, $seed) {
+            $query->whereIn('id', $activeQuestionIds)
+                ->inRandomOrder($seed)
+                ->with(['answers' => function($q) use ($seed) {
+                    $q->select('id', 'question_id', 'answer_text')->inRandomOrder($seed);
+                }]);
         }, 'course']);
 
-        // Check if user has already attempted this quiz
+        $quiz->setRelation('questions', $quiz->questions->values());
+
         $previousAttempt = UserQuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $quiz->id)
             ->orderBy('created_at', 'desc')
@@ -62,17 +74,13 @@ class QuizController extends Controller
             'previousAttempt' => $previousAttempt,
             'attempts_count' => $attemptsCount,
             'has_passed' => $hasPassed,
-        ]); 
+        ]);
     }
 
-    /**
-     * Submit quiz answers and calculate score.
-     */
     public function submit(Request $request, Quiz $quiz)
     {
         $this->ensureLearnerRole();
 
-        // Check max attempts
         $attemptsCount = UserQuizAttempt::where('user_id', Auth::id())
             ->where('quiz_id', $quiz->id)
             ->count();
@@ -83,81 +91,77 @@ class QuizController extends Controller
             ->first();
 
         if ($attemptsCount >= 3 && (!$lastAttempt || !$lastAttempt->is_passed)) {
-             return back()->with('error', 'Anda telah mencapai batas maksimal percobaan mengerjakan quiz ini.');
+            return redirect()->route('courses.show', $quiz->course_id)
+                             ->with('error', 'Anda telah mencapai batas maksimal percobaan.');
         }
 
-        // Cek jika sudah lulus
         if ($lastAttempt && $lastAttempt->is_passed) {
-            return back()->with('error', 'Anda sudah lulus quiz ini, tidak dapat mengerjakan ulang.');
+            return redirect()->route('quiz.result', $lastAttempt->id)
+                             ->with('error', 'Anda sudah lulus quiz ini.');
         }
 
         $validated = $request->validate([
-            'answers' => 'array',
+            'answers' => 'required|array',
             'answers.*.question_id' => 'required|exists:questions,id',
             'answers.*.answer_id' => 'required|exists:answers,id',
         ]);
 
-        $answer = $validated['answers'] ?? [];
+        $userId = Auth::id();
+        $sessionKey = "quiz_active_questions_" . $quiz->id . "_" . $userId;
+        $sessionSeedKey = "quiz_seed_" . $quiz->id . "_" . $userId;
+        
+        $activeQuestionIds = session()->get($sessionKey, []);
+        $seed = session()->get($sessionSeedKey, mt_rand()); // ✅ Tangkap seed SEBELUM dihapus
 
-        // Verify all answers belong to this quiz
-        $questionIds = $quiz->questions()->pluck('id')->toArray();
-        foreach ($validated['answers'] as $answer) {
-            if (!in_array($answer['question_id'], $questionIds)) {
-                return back()->withErrors(['error' => 'Invalid question ID.']);
-            }
+        if (empty($activeQuestionIds)) {
+            $activeQuestionIds = collect($validated['answers'])->pluck('question_id')->toArray();
         }
 
         DB::beginTransaction();
         try {
-            // Load questions with correct answers
-            $questions = $quiz->questions()->with('answers')->get();
-            
+            $questions = $quiz->questions()->whereIn('id', $activeQuestionIds)->with('answers')->get();
+
             $totalPoints = $questions->sum('point');
             $earnedPoints = 0;
-            $correctCount = 0;
 
-            // Create quiz attempt
             $attempt = UserQuizAttempt::create([
                 'user_id' => Auth::id(),
                 'quiz_id' => $quiz->id,
                 'course_id' => $quiz->course_id,
-                'score' => 0, // Will update after calculation 
+                'score' => 0,
                 'is_passed' => false,
                 'submitted_at' => now(),
             ]);
 
-            // Process each answer
-            foreach ($validated['answers'] as $userAnswer) {
+            $clientAnswers = collect($validated['answers'])->whereIn('question_id', $activeQuestionIds);
+
+            foreach ($clientAnswers as $userAnswer) {
                 $question = $questions->firstWhere('id', $userAnswer['question_id']);
+                if (!$question) continue;
+
                 $selectedAnswer = $question->answers->firstWhere('id', $userAnswer['answer_id']);
-                
-                $isCorrect = $selectedAnswer->is_correct;
-                
+                $isCorrect = $selectedAnswer ? (bool)$selectedAnswer->is_correct : false;
+
                 if ($isCorrect) {
                     $earnedPoints += $question->point;
-                    $correctCount++;
                 }
 
-                // Store user answer
                 UserAnswer::create([
                     'attempt_id' => $attempt->id,
                     'question_id' => $userAnswer['question_id'],
                     'answer_id' => $userAnswer['answer_id'],
                     'is_correct' => $isCorrect,
                 ]);
-            }
+            };
 
-            // Calculate score as percentage
             $scorePercentage = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
             $isPassed = $scorePercentage >= $quiz->passing_score;
 
-            // Update attempt with final score
             $attempt->update([
                 'score' => round($scorePercentage, 2),
                 'is_passed' => $isPassed,
             ]);
 
-            // Award XP jika lulus dan ini adalah pertama kalinya lulus quiz ini
             if ($isPassed && $quiz->xp_bonus > 0) {
                 $alreadyPassed = UserQuizAttempt::where('user_id', Auth::id())
                     ->where('quiz_id', $quiz->id)
@@ -170,7 +174,6 @@ class QuizController extends Controller
                 }
             }
 
-            // Recalculate enrollment progress
             $enrollment = Enrollment::where('user_id', Auth::id())
                 ->where('course_id', $quiz->course_id)
                 ->first();
@@ -179,36 +182,57 @@ class QuizController extends Controller
                 (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
             }
 
+            session()->forget($sessionKey);
+            session()->forget($sessionSeedKey);
+
             DB::commit();
 
+            // Kirim seed ke URL route result agar urutan jawaban di halaman koreksi SAMA PERSIS dengan saat mengerjakan
             return redirect()
-                ->route('quiz.result', $attempt->id)
+                ->route('quiz.result', ['attempt' => $attempt->id, 'seed' => $seed])
                 ->with('success', 'Quiz submitted successfully!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to submit quiz: ' . $e->getMessage()]);
+
+            return redirect()
+                ->route('courses.show', $quiz->course_id)
+                ->with('error', 'Sistem Gagal Memproses Jawaban: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Display quiz result.
-     */
     public function result(UserQuizAttempt $attempt)
     {
         $this->ensureLearnerRole();
 
-        // Verify user owns this attempt
         if ($attempt->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
+        $userId = $attempt->user_id;
+        
+        // Ambil seed dari URL query string. Fallback ke attempt->id jika user me-refresh halaman tanpa query (?seed=)
+        $seed = request()->query('seed', $attempt->id);
+
+        $submittedQuestionIds = UserAnswer::where('attempt_id', $attempt->id)
+            ->pluck('question_id')
+            ->toArray();
+
         $attempt->load([
-            'quiz.questions.answers',
-            'userAnswers.question.answers',
+            'quiz.questions' => function($q) use ($submittedQuestionIds, $seed) {
+                $q->whereIn('id', $submittedQuestionIds)->inRandomOrder($seed);
+            },
+            'quiz.questions.answers' => function($q) use ($seed) {
+                $q->inRandomOrder($seed);
+            },
             'userAnswers.answer',
             'course',
         ]);
+
+        if ($attempt->quiz) {
+            $formattedQuestions = $attempt->quiz->questions->values();
+            $attempt->quiz->setRelation('questions', $formattedQuestions);
+        }
 
         return Inertia::render('quiz/Result', [
             'attempt' => $attempt,

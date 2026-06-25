@@ -27,6 +27,7 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+
 // --- GOOGLE LOGIN & REGISTER FLOW (BARU) ---
 Route::controller(SocialLoginController::class)->group(function () {
     // 1. Tombol Login Google
@@ -145,6 +146,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+    Route::delete('/divisions', [UserManagementController::class, 'deleteDivision'])->name('divisions.destroy');
     // Import routes (must be before {user} wildcard)
     Route::post('/users/import', [UserManagementController::class, 'import'])->name('users.import');
     Route::get('/users/import/template', [UserManagementController::class, 'downloadTemplate'])->name('users.import.template');

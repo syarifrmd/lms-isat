@@ -44,7 +44,12 @@ class UserManagementController extends Controller
         // Region filter
         if ($request->filled('region') && $request->region !== 'all') {
             $query->where('region', $request->region);
-        }
+
+            }
+
+            if ($request->filled('division') && $request->division !== 'all') {
+        $query->where('division', $request->division);
+    }
 
         // Sorting
         $sortField = $request->get('sort', 'created_at');
@@ -56,17 +61,20 @@ class UserManagementController extends Controller
         // Get unique regions for filter dropdown
         $regions = User::distinct()->pluck('region')->filter()->sort()->values();
 
+        $divisions = User::distinct()->pluck('division')->filter()->sort()->values();
+
         return Inertia::render('admin/users/index', [
             'users' => $users,
             'regions' => $regions,
-            'filters' => $request->only(['search', 'role', 'status', 'region', 'sort', 'direction'])
+            'divisions' => $divisions,
+            'filters' => $request->only(['search', 'role', 'status', 'region', 'division', 'sort', 'direction'])
         ]);
     }
 
     /**
      * Store a newly created user
      */
-    public function store(Request $request)
+   public function store(Request $request)
     {
         $validated = $request->validate([
             'id' => 'required|string|unique:users,id',
@@ -75,6 +83,7 @@ class UserManagementController extends Controller
             'password' => 'nullable|string|min:8',
             'role' => 'required|in:admin,trainer,user',
             'region' => 'nullable|string|max:255',
+            'division' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
@@ -84,6 +93,7 @@ class UserManagementController extends Controller
             'password' => $validated['password'] ? Hash::make($validated['password']) : null,
             'role' => $validated['role'],
             'region' => $validated['region'] ?? null,
+            'division' => $validated['division'] ?? null,
             'is_registered' => false,
             'email_verified_at' => now(),
         ]);
@@ -102,6 +112,8 @@ class UserManagementController extends Controller
             'role' => 'required|in:admin,trainer,user',
             'region' => 'nullable|string|max:255',
             'password' => 'nullable|string|min:8',
+            // === TAMBAHKAN VALIDASI EDIT DIVISI ===
+            'division' => 'nullable|string|max:255',
         ]);
 
         $updateData = [
@@ -109,6 +121,8 @@ class UserManagementController extends Controller
             'email' => $validated['email'] ?? null,
             'role' => $validated['role'],
             'region' => $validated['region'] ?? null,
+            // === UPDATE DATA DIVISI ===
+            'division' => $validated['division'] ?? null,
         ];
 
         // Only update password if provided
@@ -121,6 +135,7 @@ class UserManagementController extends Controller
         return redirect()->back()->with('success', 'User berhasil diperbarui.');
     }
 
+        
     /**
      * Remove the specified user
      */
@@ -175,6 +190,7 @@ class UserManagementController extends Controller
             'rows.*.role'      => 'nullable|in:admin,trainer,user',
             'rows.*.region'    => 'nullable|string|max:255',
             'rows.*.status'    => 'nullable|string',
+            'rows.*.division'  => 'nullable|string',
         ]);
 
         $rows    = $request->input('rows');
@@ -186,8 +202,6 @@ class UserManagementController extends Controller
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
             $nik       = trim($row['nik']);
-
-            // Skip rows with status = off (resigned/inactive employees)
             $status = strtolower(trim($row['status'] ?? ''));
             if ($status === 'off') {
                 $skipped++;
@@ -225,6 +239,7 @@ class UserManagementController extends Controller
                     'password'     => null,
                     'role'         => !empty($row['role']) ? $row['role'] : 'user',
                     'region'       => !empty($row['region']) ? trim($row['region']) : null,
+                    'division'     => !empty($row['division']) ? trim($row['division']) : null,
                     'is_registered'=> false,
                 ]);
                 $success++;
@@ -245,7 +260,6 @@ class UserManagementController extends Controller
             'errors'  => $errors,
         ]);
     }
-
     /**
      * Download CSV template for bulk import
      */
@@ -256,11 +270,12 @@ class UserManagementController extends Controller
             'Content-Disposition' => 'attachment; filename="template_import_user.csv"',
         ];
 
+        // === TAMBAHKAN KOLOM division PADA HEADER DAN CONTOH DATA ===
         $rows = [
-            ['nik', 'nama', 'email', 'role', 'region', 'status'],
-            ['1234567890', 'Budi Santoso', 'budi@example.com', 'user', 'Jakarta', 'active'],
-            ['0987654321', 'Siti Rahayu', '', 'user', 'Surabaya', 'active'],
-            ['1122334455', 'Joko Widodo', '', 'user', 'Bandung', 'off'],
+            ['nik', 'nama', 'email', 'role', 'region', 'division', 'status'],
+            ['1234567890', 'Budi Santoso', 'budi@example.com', 'user', 'Jakarta', 'DSE', 'active'],
+            ['0987654321', 'Siti Rahayu', '', 'user', 'Surabaya', 'BSM', 'active'],
+            ['1122334455', 'Joko Widodo', '', 'user', 'Bandung', 'HOS', 'off'],
         ];
 
         $callback = function () use ($rows) {
@@ -341,4 +356,19 @@ class UserManagementController extends Controller
             'errors'        => $errors,
         ]);
     }
+
+public function deleteDivision(Request $request)
+{
+    $request->validate([
+        'division' => 'required|string',
+    ]);
+
+    // Mengubah semua user yang memiliki nama divisi tersebut menjadi null
+    User::where('division', $request->division)->update([
+        'division' => null
+    ]);
+
+    // Kembalikan respons sukses ke Inertia untuk me-refresh data komponen
+    return redirect()->back();
+}
 }

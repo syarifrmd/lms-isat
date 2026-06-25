@@ -18,11 +18,16 @@ class Course extends Model
         'created_by',
         'status',
         'cover_url',
+        'is_mandatory',     
+        'target_division',
+        'is_timer_active',
+        'duration_minutes',
     ];
 
     protected $casts = [
         'start_date' => 'datetime',
         'end_date' => 'datetime',
+        'is_mandatory' => 'boolean',
     ];
 
     public function creator()

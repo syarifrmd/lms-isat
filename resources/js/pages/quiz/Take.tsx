@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -36,13 +36,15 @@ const ANSWER_LABELS = ['A', 'B', 'C', 'D'];
 export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count = 0, has_passed = false }: TakeQuizProps) {
     const MAX_ATTEMPTS = 3;
     const isLimitReached = (attempts_count >= MAX_ATTEMPTS) && (!previousAttempt?.is_passed);
-    const { data, setData, post, processing } = useForm({
-        answers: [] as Array<{ question_id: number; answer_id: number }>,
-    });
+    
+    const { post, processing } = useForm();
 
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [isTimeCritical, setIsTimeCritical] = useState(false);
-    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>(() => {
+        const saved = localStorage.getItem(`quiz_${quiz.id}_answers`);
+        return saved ? JSON.parse(saved) : {};
+    });
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -51,40 +53,99 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const answeredCount = Object.keys(selectedAnswers).length;
     const progressPercent = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
 
-    // Initialize timer if quiz is timed
+    
+    const selectedAnswersRef = useRef(selectedAnswers);
     useEffect(() => {
-        if (isLimitReached) return;
-        if (quiz.is_timed && quiz.time_limit_second) {
-            setTimeRemaining(quiz.time_limit_second);
-        }
-    }, [quiz, isLimitReached]);
-
-    // Countdown timer
-    useEffect(() => {
-        if (timeRemaining === null || timeRemaining <= 0) return;
-        if (timeRemaining <= 300) setIsTimeCritical(true);
-
-        const timer = setInterval(() => {
-            setTimeRemaining((prev) => {
-                if (prev === null || prev <= 1) {
-                    clearInterval(timer);
-                    post(`/quiz/${quiz.id}/submit`);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [timeRemaining]);
-
-    // Sync answers to form data
-    useEffect(() => {
-        setData('answers', Object.entries(selectedAnswers).map(([question_id, answer_id]) => ({
-            question_id: parseInt(question_id),
-            answer_id,
-        })));
+        selectedAnswersRef.current = selectedAnswers;
     }, [selectedAnswers]);
+
+    // Fungsi pembantu untuk memformat struktur jawaban yang akan dikirim ke backend
+    const getFormattedAnswers = (answersObj: Record<number, number>) => {
+        return Object.entries(answersObj).map(([question_id, answer_id]) => ({
+            question_id: parseInt(question_id, 10),
+            answer_id,
+        }));
+    };
+
+    
+const [isTimeUp, setIsTimeUp] = useState(false);
+
+// 1. Inisialisasi timer berdasarkan Target End Time
+useEffect(() => {
+
+    if (isLimitReached || isTimeUp) return;
+    
+    const isTimedQuiz = quiz.is_timed === true || quiz.is_timed === 1 || quiz.is_timed === '1';
+    const limitSeconds = Number(quiz.time_limit_second);
+
+    if (isTimedQuiz && limitSeconds > 0) {
+        const storageKey = `quiz_${quiz.id}_end_time`;
+        let endTime = localStorage.getItem(storageKey);
+
+        if (!endTime) {
+            endTime = (Date.now() + limitSeconds * 1000).toString();
+            localStorage.setItem(storageKey, endTime);
+        }
+
+        const remaining = Math.max(0, Math.ceil((parseInt(endTime, 10) - Date.now()) / 1000));
+        
+        if (remaining <= 0) {
+    
+            setTimeRemaining(0);
+            setIsTimeUp(true);
+        } else {
+            setTimeRemaining(remaining);
+        }
+    }
+}, [quiz, isLimitReached, isTimeUp]);
+
+// 2. Countdown timer & Auto submit
+useEffect(() => {
+    if (timeRemaining === null) return;
+    
+    if (timeRemaining <= 0) {
+    
+        setIsTimeUp(true);
+
+        localStorage.removeItem(`quiz_${quiz.id}_answers`);
+        localStorage.removeItem(`quiz_${quiz.id}_end_time`);
+        
+        const payloadAnswers = getFormattedAnswers(selectedAnswersRef.current);
+        setSelectedAnswers({});
+
+        console.log("Waktu habis! Mengumpulkan otomatis...", payloadAnswers);
+
+        router.post(`/quiz/${quiz.id}/submit`, { 
+            answers: payloadAnswers 
+        }, {
+            preserveState: false,
+            preserveScroll: false,
+            onError: (errors) => {
+                console.error("Auto-submit error:", errors);
+            }
+        });
+        return;
+    }
+
+    if (timeRemaining <= 300) {
+        setIsTimeUp(false); 
+        setIsTimeCritical(true);
+    } else {
+        setIsTimeCritical(false);
+    }
+
+    const timer = setInterval(() => {
+        setTimeRemaining((prev) => {
+            if (prev === null || prev <= 1) {
+                clearInterval(timer);
+                return 0;
+            }
+            return prev - 1;
+        });
+    }, 1000);
+
+    return () => clearInterval(timer);
+}, [timeRemaining, quiz.id]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -93,7 +154,11 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     };
 
     const handleAnswerSelect = (questionId: number, answerId: number) => {
-        setSelectedAnswers((prev) => ({ ...prev, [questionId]: answerId }));
+        setSelectedAnswers((prev) => {
+            const updated = { ...prev, [questionId]: answerId };
+            localStorage.setItem(`quiz_${quiz.id}_answers`, JSON.stringify(updated));
+            return updated;
+        });
     };
 
     const scrollToQuestion = (index: number) => {
@@ -104,7 +169,6 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const handleSubmitClick = (e: FormEvent) => {
         e.preventDefault();
         if (Object.keys(selectedAnswers).length < totalQuestions) {
-            // Find first unanswered question and scroll to it
             const unansweredIndex = quiz.questions?.findIndex(q => !selectedAnswers[q.id]) ?? -1;
             if (unansweredIndex >= 0) scrollToQuestion(unansweredIndex);
             return;
@@ -113,8 +177,32 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     };
 
     const confirmSubmit = () => {
-        post(`/quiz/${quiz.id}/submit`, {
-            onFinish: () => setShowConfirmDialog(false),
+        const formattedAnswers = getFormattedAnswers(selectedAnswers);
+        const payload = {
+            answers: formattedAnswers
+        };
+
+        console.log("Payload dikirim:", payload);
+
+        localStorage.removeItem(`quiz_${quiz.id}_answers`);
+        localStorage.removeItem(`quiz_${quiz.id}_end_time`);
+
+        router.post(`/quiz/${quiz.id}/submit`, payload, {
+            preserveState: false,  
+            preserveScroll: false,
+            onStart: () => {
+                setShowConfirmDialog(false);
+            },
+            onSuccess: (page) => {
+                console.log("Submit Berhasil, Mengalihkan...", page);
+            },
+            onError: (errors) => {
+                console.error("Error Validasi Server:", errors);
+                alert("Gagal mengumpulkan! Error: " + JSON.stringify(errors));
+            },
+            onFinish: () => {
+                setSelectedAnswers({});
+            }
         });
     };
 
@@ -134,7 +222,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                         <CardHeader>
                             <CardTitle className="text-green-600 flex items-center gap-2 text-xl">
                                 <CheckCircle className="h-6 w-6" />
-                                Quiz Selesai &amp; Lulus
+                                Quiz Selesai & Lulus
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -233,7 +321,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                     {quiz.is_timed && (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            Waktu: {Math.floor((quiz.time_limit_second || 0) / 60)} menit
+                            Waktu: {Math.floor((Number(quiz.time_limit_second) || 0) / 60)} menit
                         </span>
                     )}
                     {quiz.xp_bonus ? (
@@ -269,9 +357,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                                 type="button"
                                 onClick={() => scrollToQuestion(idx)}
                                 className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                                    isCurrent
-                                        ? 'ring-2 ring-primary ring-offset-1'
-                                        : ''
+                                    isCurrent ? 'ring-2 ring-primary ring-offset-1' : ''
                                 } ${
                                     answered
                                         ? 'bg-primary text-primary-foreground'
@@ -298,13 +384,10 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                                     isAnswered ? 'border-primary/30 shadow-sm' : ''
                                 } ${currentQuestion === qIndex ? 'ring-1 ring-primary/30' : ''}`}>
                                     <CardHeader className="pb-3">
-                                        {/* Nomor soal + poin */}
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center gap-2">
                                                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                                    isAnswered
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted text-muted-foreground'
+                                                    isAnswered ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                                                 }`}>
                                                     {qIndex + 1}
                                                 </span>
@@ -319,7 +402,6 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                                                 </span>
                                             )}
                                         </div>
-                                        {/* Question text — renders Quill HTML */}
                                         <div
                                             className="prose prose-sm dark:prose-invert max-w-none text-foreground leading-relaxed
                                                 [&_img]:rounded-lg [&_img]:my-2 [&_img]:max-w-full
@@ -343,14 +425,12 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                                                         onClick={() => handleAnswerSelect(question.id, answer.id)}
                                                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all text-sm
                                                             ${isSelected
-                                                                ? 'border-primary bg-primary/8 text-foreground font-medium shadow-sm'
+                                                                ? 'border-primary bg-primary/5 text-foreground font-medium shadow-sm'
                                                                 : 'border-border hover:border-primary/60 hover:bg-muted/50'
                                                             }`}
                                                     >
                                                         <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                                                            isSelected
-                                                                ? 'bg-primary text-primary-foreground'
-                                                                : 'bg-muted text-muted-foreground'
+                                                            isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                                                         }`}>
                                                             {ANSWER_LABELS[aIndex]}
                                                         </span>
@@ -363,7 +443,6 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                                             })}
                                         </div>
 
-                                        {/* Next question shortcut */}
                                         {qIndex < totalQuestions - 1 && isAnswered && (
                                             <button
                                                 type="button"
@@ -383,12 +462,12 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                     {/* ── Footer submit bar ── */}
                     <div className="sticky bottom-0 -mx-4 px-4 py-4 bg-background/95 backdrop-blur border-t mt-6">
                         <div className="flex items-center justify-between gap-4">
-                            <p className="text-sm text-muted-foreground">
+                            <div className="text-sm text-muted-foreground">
                                 {answeredCount < totalQuestions
                                     ? <span className="text-amber-600 dark:text-amber-400 font-medium">{totalQuestions - answeredCount} soal belum dijawab</span>
                                     : <span className="text-green-600 dark:text-green-400 font-medium">Semua soal terjawab ✓</span>
                                 }
-                            </p>
+                            </div>
                             <div className="flex gap-2">
                                 <Button type="button" variant="outline" size="sm" asChild>
                                     <Link href={`/courses/${course.id}`}>Batal</Link>
@@ -435,8 +514,8 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel disabled={processing}>Kembali</AlertDialogCancel>
-                            <AlertDialogAction onClick={confirmSubmit} disabled={processing} className="gap-1.5">
+                            <AlertDialogCancel>Kembali</AlertDialogCancel>
+                            <AlertDialogAction onClick={confirmSubmit} className="gap-1.5">
                                 {processing ? (
                                     <>
                                         <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />

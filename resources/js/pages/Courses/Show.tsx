@@ -1326,6 +1326,63 @@ const OfficeViewer = memo(
         );
     });
 
+    // Timer materi
+interface TimerProps {
+    durationMinutes: number;
+    courseId: number;
+    userId: number | string;
+    onTimeUp: () => void;
+}
+
+function CourseTimer({ durationMinutes, courseId, userId, onTimeUp }: TimerProps) {
+    // Membuat kunci unik untuk penyimpanan di localStorage browser
+    const localStorageKey = `course_timer_${userId}_${courseId}`;
+
+    // State awal mengambil dari localStorage jika ada, jika tidak ada baru pakai durasi asli (menit * 60)
+    const [secondsLeft, setSecondsLeft] = useState(() => {
+        const savedTime = localStorage.getItem(localStorageKey);
+        if (savedTime !== null) {
+            const parsedTime = parseInt(savedTime, 10);
+            // Jika waktu yang tersimpan ternyata sudah habis (<= 0), kembalikan 0
+            return parsedTime > 0 ? parsedTime : 0;
+        }
+        return durationMinutes * 60;
+    });
+
+    useEffect(() => {
+        // Jika waktu sudah habis
+        if (secondsLeft <= 0) {
+            onTimeUp();
+            localStorage.removeItem(localStorageKey); // Hapus kunci karena sudah selesai
+            return;
+        }
+
+        // Simpan sisa detik terbaru ke localStorage setiap kali detik berubah
+        localStorage.setItem(localStorageKey, secondsLeft.toString());
+
+        // Jalankan interval hitung mundur 1 detik
+        const timerId = setInterval(() => {
+            setSecondsLeft((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, [secondsLeft, localStorageKey]);
+
+    // Format tampilan ke bentuk MM:SS
+    const formatTime = (totalSeconds: number) => {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    return (
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm animate-pulse mb-4">
+            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <span>{formatTime(secondsLeft)}</span>
+        </div>
+    );
+}
+
 export default function CourseShow({ course, userProgress = 0, isEnrolled = false, ratingData }: ShowProps) {
     const { auth } = usePage<SharedData>().props;
     const isAdmin = auth.user.role === 'admin';
@@ -1335,6 +1392,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
+    const [isTimerFinished, setIsTimerFinished] = useState(false);
 
     const trainerInitials = trainerName
         .split(' ')
@@ -1382,16 +1440,6 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         deleteRating(`/courses/${course.id}/ratings`, { preserveScroll: true });
     };
 
-
-
-
-
-
-
-
-
-
-
     return (
         <AppLayout 
             breadcrumbs={[
@@ -1419,8 +1467,20 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                 </Link>
                             </Button>
                         )}
+
+                        {/* timer materilayout user */}
+{course.is_mandatory && Number(course.is_timer_active) === 1 && !isTimerFinished && (
+    <CourseTimer 
+        durationMinutes={course.duration_minutes ?? 5} 
+        onTimeUp={() => {
+            setIsTimerFinished(true);
+            
+        }} 
+    />
+)}
                     </div>
                 </div>
+
 
                 {/* ── Main grid ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1567,9 +1627,18 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                             </Button>
                                                                         );
                                                                         if (attempts >= 3) return (
-                                                                            <Button size="sm" variant="destructive" disabled className="h-7 px-2 text-[11px] opacity-75 cursor-not-allowed">
-                                                                                <AlertCircle className="w-3 h-3 mr-1" /> Tidak lulus
-                                                                            </Button>
+    <Button 
+        size="sm" 
+        variant="outline" 
+        className="h-7 px-2 text-[11px] text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 cursor-pointer"
+        onClick={() => {
+            // Mengarahkan window/scroll kembali ke bagian materi paling atas secara smooth
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            alert("Batas percobaan kuis habis (3x). Silakan baca ulang seluruh materi di atas terlebih dahulu untuk membuka kembali kuis.");
+        }}
+    >
+        <Lock className="w-3 h-3 mr-1" /> Terkunci 
+    </Button>
                                                                         );
                                                                         return (
                                                                             <Button size="sm" className="h-7 px-2 text-[11px]" onClick={() => setConfirmQuiz(quiz)}>

@@ -72,11 +72,13 @@ interface UsersPageProps extends SharedData {
         }>;
     };
     regions: string[];
+    divisions: string[];
     filters: {
         search?: string;
         role?: string;
         status?: string;
         region?: string;
+        division?: string;
         sort?: string;
         direction?: string;
     };
@@ -88,11 +90,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function UsersIndex() {
-    const { users, regions, filters } = usePage<UsersPageProps>().props;
+    const { users, regions, divisions, filters } = usePage<UsersPageProps>().props;
     const [search, setSearch] = useState(filters.search || '');
     const [selectedRole, setSelectedRole] = useState(filters.role || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
     const [selectedRegion, setSelectedRegion] = useState(filters.region || 'all');
+    const [selectedDivision, setSelectedDivision] = useState(filters.division || 'all');
     
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -113,6 +116,7 @@ export default function UsersIndex() {
             role: selectedRole !== 'all' ? selectedRole : undefined,
             status: selectedStatus !== 'all' ? selectedStatus : undefined,
             region: selectedRegion !== 'all' ? selectedRegion : undefined,
+            division: selectedDivision !== 'all' ? selectedDivision : undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -124,6 +128,7 @@ export default function UsersIndex() {
         setSelectedRole('all');
         setSelectedStatus('all');
         setSelectedRegion('all');
+        setSelectedDivision('all');
         router.get('/admin/users', {}, { preserveState: true });
     };
 
@@ -304,6 +309,7 @@ export default function UsersIndex() {
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Region</TableHead>
+                                    <TableHead>Divisi</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Aksi</TableHead>
                                 </TableRow>
@@ -323,6 +329,7 @@ export default function UsersIndex() {
                                             <TableCell>{user.email || '-'}</TableCell>
                                             <TableCell>{getRoleBadge(user.role)}</TableCell>
                                             <TableCell>{user.region || '-'}</TableCell>
+                                            <TableCell>{user.division || '-'}</TableCell>
                                             <TableCell>{getStatusBadge(user.is_registered)}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
@@ -413,6 +420,10 @@ export default function UsersIndex() {
                                         <p className="text-sm font-medium">{user.region || '-'}</p>
                                     </div>
                                     <div>
+    <p className="text-muted-foreground">Divisi</p>
+    <p className="text-sm font-medium">{user.division || '-'}</p>
+</div>
+                                    <div>
                                         <p className="mb-1 text-muted-foreground">Role</p>
                                         {getRoleBadge(user.role)}
                                     </div>
@@ -459,6 +470,7 @@ export default function UsersIndex() {
                 open={isCreateModalOpen} 
                 onOpenChange={setIsCreateModalOpen}
                 regions={regions}
+                divisions={divisions || []}
             />
             
             {selectedUser && (
@@ -468,6 +480,7 @@ export default function UsersIndex() {
                         onOpenChange={setIsEditModalOpen}
                         user={selectedUser}
                         regions={regions}
+                        divisions={divisions || []}
                     />
                     <DeleteUserDialog 
                         open={isDeleteDialogOpen} 
@@ -531,6 +544,22 @@ export default function UsersIndex() {
                                 </SelectContent>
                             </Select>
                         </div>
+                        <div>
+    <Label className="mb-2 block text-sm">Divisi</Label>
+    <Select value={selectedDivision} onValueChange={setSelectedDivision}>
+        <SelectTrigger>
+            <SelectValue placeholder="Pilih Divisi" />
+        </SelectTrigger>
+        <SelectContent>
+            <SelectItem value="all">Semua Divisi</SelectItem>
+            {divisions?.map((division) => (
+                <SelectItem key={division} value={division}>
+                    {division}
+                </SelectItem>
+            ))}
+        </SelectContent>
+    </Select>
+</div>
                     </div>
                     <DialogFooter className="gap-2 sm:justify-end">
                         <Button
