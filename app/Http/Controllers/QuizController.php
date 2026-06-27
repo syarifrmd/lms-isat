@@ -6,10 +6,11 @@ use App\Models\Quiz;
 use App\Models\UserQuizAttempt;
 use App\Models\UserAnswer;
 use App\Models\Answer;
+use App\Models\Enrollment;
+use App\Models\ModuleProgress;
+use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Enrollment;
-use App\Services\ModuleProgressService;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -111,7 +112,7 @@ class QuizController extends Controller
         $sessionSeedKey = "quiz_seed_" . $quiz->id . "_" . $userId;
         
         $activeQuestionIds = session()->get($sessionKey, []);
-        $seed = session()->get($sessionSeedKey, mt_rand()); // ✅ Tangkap seed SEBELUM dihapus
+        $seed = session()->get($sessionSeedKey, mt_rand());
 
         if (empty($activeQuestionIds)) {
             $activeQuestionIds = collect($validated['answers'])->pluck('question_id')->toArray();
@@ -152,7 +153,7 @@ class QuizController extends Controller
                     'answer_id' => $userAnswer['answer_id'],
                     'is_correct' => $isCorrect,
                 ]);
-            };
+            }
 
             $scorePercentage = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
             $isPassed = $scorePercentage >= $quiz->passing_score;
@@ -161,7 +162,46 @@ class QuizController extends Controller
                 'score' => round($scorePercentage, 2),
                 'is_passed' => $isPassed,
             ]);
+            
+            // Hitung ulang attempt_count yang baru
+            $currentAttemptsCount = UserQuizAttempt::where('user_id', Auth::id())
+                ->where('quiz_id', $quiz->id)
+                ->count();
 
+            $enrollment = Enrollment::where('user_id', Auth::id())
+                ->where('course_id', $quiz->course_id)
+                ->first();
+
+            if ($enrollment) {
+                // KONDISI GAGAL 3 KALI: Reset total progress materi modul ke semula
+                if (!$isPassed && $currentAttemptsCount >= 3) {
+                    $targetModuleId = $quiz->module_id; 
+
+                    if ($targetModuleId) {
+                        $moduleProgress = ModuleProgress::firstOrNew([
+                            'enrollment_id' => $enrollment->id,
+                            'module_id'     => $targetModuleId,
+                        ]);
+
+                        $moduleProgress->is_completed = false;
+                        $moduleProgress->is_text_read = false;
+                        $moduleProgress->is_video_watched = false;
+                        $moduleProgress->is_document_read = false;
+                        $moduleProgress->text_elapsed_seconds = 0;
+                        $moduleProgress->text_scroll_percentage = 0;
+                        $moduleProgress->video_last_position_seconds = 0;
+                        $moduleProgress->video_max_position_seconds = 0;
+                        $moduleProgress->doc_current_page = 1;
+                        $moduleProgress->completed_at = null;
+                        $moduleProgress->save();
+                    }
+                }
+
+                // TRIGGER UTAMA: Hitung ulang kalkulasi progress bar agar persentase di layar ikut turun
+                (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
+            }
+
+            // Logika Penambahan XP Bonus jika Lulus
             if ($isPassed && $quiz->xp_bonus > 0) {
                 $alreadyPassed = UserQuizAttempt::where('user_id', Auth::id())
                     ->where('quiz_id', $quiz->id)
@@ -174,20 +214,11 @@ class QuizController extends Controller
                 }
             }
 
-            $enrollment = Enrollment::where('user_id', Auth::id())
-                ->where('course_id', $quiz->course_id)
-                ->first();
-
-            if ($enrollment) {
-                (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
-            }
-
             session()->forget($sessionKey);
             session()->forget($sessionSeedKey);
 
             DB::commit();
 
-            // Kirim seed ke URL route result agar urutan jawaban di halaman koreksi SAMA PERSIS dengan saat mengerjakan
             return redirect()
                 ->route('quiz.result', ['attempt' => $attempt->id, 'seed' => $seed])
                 ->with('success', 'Quiz submitted successfully!');
@@ -210,8 +241,6 @@ class QuizController extends Controller
         }
 
         $userId = $attempt->user_id;
-        
-        // Ambil seed dari URL query string. Fallback ke attempt->id jika user me-refresh halaman tanpa query (?seed=)
         $seed = request()->query('seed', $attempt->id);
 
         $submittedQuestionIds = UserAnswer::where('attempt_id', $attempt->id)

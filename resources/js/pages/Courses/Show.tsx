@@ -1007,22 +1007,21 @@ const OfficeViewer = memo(
 
             const container = textContainerRef.current;
 
-            const evaluateText = () => {
-                const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
-                const scrollPercentage = scrollableHeight <= 0
-                    ? 100
-                    : Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+const evaluateText = () => {
+    const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
+    
+   
+    const scrollPercentage = scrollableHeight <= 0 ? 100 : Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+    setTextScrollPercentage(scrollPercentage);
 
-                setTextScrollPercentage(scrollPercentage);
-
-                if (!textCompletionSentRef.current && textElapsedRef.current >= 15 && scrollPercentage >= 99) {
-                    textCompletionSentRef.current = true;
-                    postProgress(`/modules/${module.id}/progress/text`, {
-                        elapsed_seconds: textElapsedRef.current,
-                        scroll_percentage: scrollPercentage,
-                    });
-                }
-            };
+    if (!textCompletionSentRef.current && textElapsedRef.current >= 15 && scrollPercentage >= 99) {
+        textCompletionSentRef.current = true;
+        postProgress(`/modules/${module.id}/progress/text`, {
+            elapsed_seconds: textElapsedRef.current,
+            scroll_percentage: scrollPercentage,
+        });
+    }
+};
 
             const onScroll = () => {
                 evaluateText();
@@ -1055,23 +1054,24 @@ const OfficeViewer = memo(
 
             const container = docContainerRef.current;
 
-            const evaluateDocument = () => {
-                const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
-                const scrollPercentage = scrollableHeight <= 0
-                    ? 100
-                    : Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+            // Di dalam useEffect dokumen non-office/pdf
+const evaluateDocument = () => {
+    const scrollableHeight = Math.max(container.scrollHeight - container.clientHeight, 0);
+    
+    
+    if (scrollableHeight <= 0) return; 
 
-                setDocScrollPercentage(scrollPercentage);
+    const scrollPercentage = Math.min(100, ((container.scrollTop + container.clientHeight) / container.scrollHeight) * 100);
+    setDocScrollPercentage(scrollPercentage);
 
-                if (!docCompletionSentRef.current && scrollPercentage >= 99) {
-                    const estimatedPages = Math.max(1, Math.ceil(container.scrollHeight / Math.max(container.clientHeight, 1)));
-                    docCompletionSentRef.current = true;
-                    postProgress(`/modules/${module.id}/progress/document`, {
-                        current_page: estimatedPages,
-                        total_pages: estimatedPages,
-                    });
-                }
-            };
+    if (!docCompletionSentRef.current && scrollPercentage >= 95) { 
+        docCompletionSentRef.current = true;
+        postProgress(`/modules/${module.id}/progress/document`, {
+            current_page: 1,
+            total_pages: 1,
+        });
+    }
+};
 
             const onScroll = () => {
                 evaluateDocument();
@@ -1089,8 +1089,9 @@ const OfficeViewer = memo(
             if (!isUser || !module.doc_url) return;
 
             const sendFinal = () => {
-                const current = docLastPageRef.current || 0;
-                if (!current) return;
+                if (docScrollPercentage < 5) return; 
+                 const current = docLastPageRef.current || 0;
+                 if (!current) return;
                 // best-effort: use navigator.sendBeacon or fetch keepalive
                 const totalEstimate = Math.max(1, Math.round((docScrollPercentage / 100) * (current || 1)));
                 try {
@@ -1631,11 +1632,11 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
         size="sm" 
         variant="outline" 
         className="h-7 px-2 text-[11px] text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 cursor-pointer"
-        onClick={() => {
-            // Mengarahkan window/scroll kembali ke bagian materi paling atas secara smooth
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            alert("Batas percobaan kuis habis (3x). Silakan baca ulang seluruh materi di atas terlebih dahulu untuk membuka kembali kuis.");
-        }}
+        // onClick={() => {
+        //     // Mengarahkan window/scroll kembali ke bagian materi paling atas secara smooth
+        //     window.scrollTo({ top: 0, behavior: 'smooth' });
+        //     alert("Batas percobaan kuis habis (3x). Silakan baca ulang seluruh materi di atas terlebih dahulu untuk membuka kembali kuis.");
+        // }}
     >
         <Lock className="w-3 h-3 mr-1" /> Terkunci 
     </Button>

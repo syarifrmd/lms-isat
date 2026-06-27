@@ -21,25 +21,29 @@ class ModuleProgressController extends Controller
     /**
      * Trigger Pembuka Kunci Kuis Otomatis
      */
-    private function checkAndUnlockQuiz($userId, $moduleId)
-    {
-        // Cari kuis yang terikat dengan modul ini
-        $quiz = Quiz::where('module_id', $moduleId)->first();
+   private function checkAndUnlockQuiz($userId, $moduleId)
+{
+    // 1. Cari kuis yang terikat dengan modul ini
+    $quiz = Quiz::where('module_id', $moduleId)->first();
 
-        if ($quiz) {
-            // Hitung total percobaan kuis untuk user ini
-            $attemptsCount = UserQuizAttempt::where('user_id', $userId)
+    if ($quiz) {
+        // 2. Cek apakah kuis ini memang sedang terkunci (attempts sudah 3 atau lebih)
+        $attemptsCount = UserQuizAttempt::where('user_id', $userId)
+            ->where('quiz_id', $quiz->id)
+            ->count();
+
+        // 3. JIKA kuisnya terkunci, DAN user SEKARANG sudah selesai membaca ulang materinya
+        // (Fungsi ini dipicu di dalam blok if ($this->shouldCompleteText) dll)
+        if ($attemptsCount >= 3) {
+            
+            // PENTING: Hapus history percobaan LAMA agar user mendapatkan 3 KESEMPATAN BARU
+            UserQuizAttempt::where('user_id', $userId)
                 ->where('quiz_id', $quiz->id)
-                ->count();
-
-            // Jika user sudah mentok mencoba 3 kali atau lebih, reset history-nya agar terbuka kembali
-            if ($attemptsCount >= 3) {
-                UserQuizAttempt::where('user_id', $userId)
-                    ->where('quiz_id', $quiz->id)
-                    ->delete();
-            }
+                ->delete();
+                
         }
     }
+}
 
     public function markTextRead(Request $request, $moduleId)
     {
