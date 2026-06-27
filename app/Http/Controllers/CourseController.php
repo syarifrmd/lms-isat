@@ -399,4 +399,21 @@ class CourseController extends Controller
 
         return redirect()->route('courses.index')->with('success', 'Course deleted successfully.');
     }
+
+    public function reorderModules(Request $request, $courseId)
+{
+    $request->validate([
+        'modules' => 'required|array',
+        'modules.*.id' => 'required|exists:modules,id',
+        'modules.*.order_sequence' => 'required|integer',
+    ]);
+
+    foreach ($request->input('modules') as $moduleData) {
+        Module::where('id', $moduleData['id'])
+              ->where('course_id', $courseId) // Memastikan modul ini memang milik course terkait
+              ->update(['order_sequence' => $moduleData['order_sequence']]);
+    }
+
+    return back()->with('success', 'Urutan modul berhasil diperbarui.');
+}
 }

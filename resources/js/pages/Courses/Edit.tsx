@@ -147,8 +147,8 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
         e.preventDefault();
         const payload = {
             ...data,
+            _method: 'PUT', // 
             target_division: data.target_division === 'all' ? null : data.target_division,
-            // Menjaga format data course_type agar sesuai kebutuhan backend edit sebelumnya
             course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
             is_timer_active: data.is_timer_active ? 1 : 0,
             duration_minutes: data.is_timer_active ? Number(data.duration_minutes) : null,
