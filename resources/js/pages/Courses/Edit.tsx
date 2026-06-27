@@ -103,26 +103,37 @@ function formatDate(dateStr: string | null) {
 }
 
 export default function EditCourse({ course, categories, divisions, auth }: EditProps) {
-    const isTrainer = auth.user.role === 'TRAINER';
+    const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
     // ── Course Info Form ─────────────────────────────────────────────────────
-    const { data, setData, post, processing, errors } = useForm({
-        _method: 'PUT',
-        title: course.title,
-        description: course.description ?? '',
-        category: course.category ?? '',
-        status: course.status,
-        course_type: course.course_type ?? 'non-mandatory', // Default handling Sifat Kursus
-        is_timer_active: Boolean(course.is_timer_active),   // Sinkronisasi state boolean untuk Timer
-        duration_minutes: course.duration_minutes ?? 0,     // Default value durasi kuis
-        start_date: formatDate(course.start_date),
-        end_date: formatDate(course.end_date),
-        target_division: isTrainer ? (auth.user.division ?? '') : (course.target_division ?? 'all'),
+    const { data, setData, put, processing, errors } = useForm({
+        title: course.title || '',
+        description: course.description || '',
+        category: course.category || '',
+        status: course.status || 'draft',
+        start_date: course.start_date || '',
+        end_date: course.end_date || '',
+        // Sinkronisasi pendeteksian is_mandatory dari tipe string database atau property bawaan
+        is_mandatory: course.course_type === 'mandatory',
+        is_timer_active: (course.course_type === 'mandatory' && (course.is_timer_active === true || course.is_timer_active === 1 || String(course.is_timer_active) === '1')),
+        duration_minutes: course.duration_minutes || 5,
         cover_image: null as File | null,
+        target_division: isTrainer ? (auth.user.division ?? '') : (course.target_division || 'all'),
     });
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(course.cover_url);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Sinkronisasi otomatis saat sifat kursus berubah (Reset timer jika dirubah ke Non-Mandatory)
+    useEffect(() => {
+        if (!data.is_mandatory) {
+            setData(prev => ({
+                ...prev,
+                is_timer_active: false,
+                duration_minutes: 5
+            }));
+        }
+    }, [data.is_mandatory]);
 
     const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0] ?? null;
@@ -137,7 +148,8 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
         const payload = {
             ...data,
             target_division: data.target_division === 'all' ? null : data.target_division,
-            // Mengirim data timer sebagai format integer/boolean sesuai kebutuhan backend
+            // Menjaga format data course_type agar sesuai kebutuhan backend edit sebelumnya
+            course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
             is_timer_active: data.is_timer_active ? 1 : 0,
             duration_minutes: data.is_timer_active ? Number(data.duration_minutes) : null,
         };
@@ -288,8 +300,8 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
                                                 Target Divisi <span className="text-red-500">*</span>
                                             </Label>
                                             {isTrainer ? (
-                                                <div className="rounded-lg border bg-gray-50 p-2.5 text-sm font-medium text-gray-700 dark:bg-neutral-800 dark:text-gray-300">
-                                                    Divisi: <span className="text-blue-600 font-semibold">{auth.user.division ?? 'Tidak Ada Divisi'}</span>
+                                                <div className="flex items-center h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 dark:bg-neutral-800 dark:text-gray-400 text-sm font-medium select-none cursor-not-allowed">
+                                                    <span>Divisi {auth.user.division ?? 'Belum Ditentukan'}</span>
                                                 </div>
                                             ) : (
                                                 <Select
@@ -314,13 +326,13 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
 
                                         {/* Sifat Kursus */}
                                         <div className="space-y-1.5">
-                                            <Label htmlFor="course_type" className="flex items-center gap-1.5 text-sm font-medium">
+                                            <Label htmlFor="is_mandatory" className="flex items-center gap-1.5 text-sm font-medium">
                                                 <Award className="h-3.5 w-3.5 text-muted-foreground" />
                                                 Sifat Kursus <span className="text-red-500">*</span>
                                             </Label>
                                             <Select
-                                                value={data.course_type}
-                                                onValueChange={(v) => setData('course_type', v as typeof data.course_type)}
+                                                value={data.is_mandatory ? 'mandatory' : 'non-mandatory'}
+                                                onValueChange={(v) => setData('is_mandatory', v === 'mandatory')}
                                             >
                                                 <SelectTrigger className="h-10">
                                                     <SelectValue placeholder="Pilih Sifat Kursus" />
@@ -330,63 +342,65 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
                                                     <SelectItem value="mandatory">Mandatory (Wajib)</SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                            <InputError message={errors.course_type} />
+                                            <InputError message={errors.is_mandatory} />
                                         </div>
                                     </div>
 
-                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) */}
-                                    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-white/5 dark:bg-neutral-800/30 space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-start gap-3">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 mt-0.5">
-                                                    <Timer className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                                                </div>
-                                                <div>
-                                                    <Label htmlFor="is_timer_active" className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                        Aktifkan Batasan Waktu (Timer Kuis)
-                                                    </Label>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                                        Jika aktif, pengerjaan kuis materi ini akan dibatasi oleh durasi mundur.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    id="is_timer_active"
-                                                    checked={data.is_timer_active}
-                                                    onChange={(e) => setData('is_timer_active', e.target.checked)}
-                                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-white/10 dark:bg-neutral-900"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {data.is_timer_active && (
-                                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 pt-2 border-t border-gray-200/50 dark:border-white/5 animate-in fade-in duration-200">
-                                                <div className="space-y-1.5">
-                                                    <Label htmlFor="duration_minutes" className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                                        Durasi Pengerjaan (Menit) <span className="text-red-500">*</span>
-                                                    </Label>
-                                                    <div className="relative flex items-center">
-                                                        <Input
-                                                            type="number"
-                                                            id="duration_minutes"
-                                                            min="1"
-                                                            value={data.duration_minutes}
-                                                            onChange={(e) => setData('duration_minutes', parseInt(e.target.value) || 0)}
-                                                            placeholder="Contoh: 15"
-                                                            className="h-10 pr-16"
-                                                            required={data.is_timer_active}
-                                                        />
-                                                        <span className="absolute right-3 text-xs font-medium text-muted-foreground select-none">
-                                                            Menit
-                                                        </span>
+                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) - Hanya muncul jika is_mandatory bernilai TRUE */}
+                                    {data.is_mandatory && (
+                                        <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-white/5 dark:bg-neutral-800/30 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 mt-0.5">
+                                                        <Timer className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                                                     </div>
-                                                    <InputError message={errors.duration_minutes} />
+                                                    <div>
+                                                        <Label htmlFor="is_timer_active" className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                            Aktifkan Batasan Waktu (Timer modul course)
+                                                        </Label>
+                                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                                            Jika aktif, pengerjaan materi ini akan dibatasi oleh durasi mundur.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="is_timer_active"
+                                                        checked={data.is_timer_active}
+                                                        onChange={(e) => setData('is_timer_active', e.target.checked)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-white/10 dark:bg-neutral-900"
+                                                    />
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
+
+                                            {data.is_timer_active && (
+                                                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 pt-2 border-t border-gray-200/50 dark:border-white/5 animate-in fade-in duration-200">
+                                                    <div className="space-y-1.5">
+                                                        <Label htmlFor="duration_minutes" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                            Durasi Pengerjaan (Menit) <span className="text-red-500">*</span>
+                                                        </Label>
+                                                        <div className="relative flex items-center">
+                                                            <Input
+                                                                type="number"
+                                                                id="duration_minutes"
+                                                                min="1"
+                                                                value={data.duration_minutes}
+                                                                onChange={(e) => setData('duration_minutes', parseInt(e.target.value) || 0)}
+                                                                placeholder="Contoh: 15"
+                                                                className="h-10 pr-16"
+                                                                required={data.is_timer_active}
+                                                            />
+                                                            <span className="absolute right-3 text-xs font-medium text-muted-foreground select-none">
+                                                                Menit
+                                                            </span>
+                                                        </div>
+                                                        <InputError message={errors.duration_minutes} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Course Title */}
                                     <div className="space-y-1.5">

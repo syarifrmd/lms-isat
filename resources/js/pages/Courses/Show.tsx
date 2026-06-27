@@ -1470,16 +1470,24 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                         )}
 
                         {/* timer materilayout user */}
-{course.is_mandatory && Number(course.is_timer_active) === 1 && !isTimerFinished && (
-    <CourseTimer 
-        durationMinutes={course.duration_minutes ?? 5} 
-        onTimeUp={() => {
-            setIsTimerFinished(true);
-            
-        }} 
-    />
-)}
-                    </div>
+{/* timer materilayout user - KHUSUS USER BIASA DAN MANDATORY SAJA */}
+{(() => {
+    const { auth } = usePage<any>().props;
+    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
+
+    // Timer HANYA jalan/muncul jika yang buka adalah User biasa DAN course ini Mandatory
+    if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && !isTimerFinished) {
+        return (
+            <CourseTimer 
+                durationMinutes={course.duration_minutes ?? 5} 
+                onTimeUp={() => {
+                    setIsTimerFinished(true);
+                }} 
+            />
+        );
+    }
+    return null;
+})()}              </div>
                 </div>
 
 

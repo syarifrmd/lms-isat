@@ -276,13 +276,22 @@ export default function CoursesIndex({
                                                 </span>
                                             )}
 
-                                            {/* SINKRONISASI LABEL WAKTU - KHUSUS MANDATORY SAJA */}
-                                            {course.is_mandatory && Number(course.is_timer_active) === 1 && course.duration_minutes && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/60">
-                                                    <ClockIcon className="h-3 w-3" />
-                                                    {course.duration_minutes} Menit
-                                                </span>
-                                            )}
+                                          {/* SINKRONISASI LABEL WAKTU - KHUSUS USER BIASA DAN MANDATORY*/}
+{(() => {
+    const { auth } = usePage<any>().props; 
+    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
+
+    // Timer HANYA muncul jika: yang melihat adalah User biasa DAN course ini Mandatory
+    if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && course.duration_minutes) {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/60">
+                <ClockIcon className="h-3 w-3" />
+                {course.duration_minutes} Menit
+            </span>
+        );
+    }
+    return null;
+})()}
 
                                             {/* LABEL STATUS (DRAFT/PUBLISHED/ARCHIVED) - HANYA TRAINER & ADMIN */}
                                             {canCreateCourse && (

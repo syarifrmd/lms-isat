@@ -27,7 +27,8 @@ class CourseController extends Controller
         $category = $request->input('category');
         
         // 1. Tangkap parameter tipe course & divisi khusus admin
-        $courseType = $request->input('course_type', 'mandatory');
+       $defaultCourseType = ($user && in_array($user->role, ['admin', 'trainer'])) ? 'all' : 'mandatory';
+    $courseType = $request->input('course_type', $defaultCourseType);
         $progressStatus = $request->input('progress_status');
         $divisionFilter = $request->input('division'); // Tangkap parameter divisi baru
 
