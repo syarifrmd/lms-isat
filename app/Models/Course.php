@@ -18,11 +18,18 @@ class Course extends Model
         'created_by',
         'status',
         'cover_url',
+        'is_mandatory',     
+        'target_division',
+        'is_timer_active',
+        'duration_minutes',
+        'position',
+        'prerequisite_course_id',
     ];
 
     protected $casts = [
         'start_date' => 'datetime',
         'end_date' => 'datetime',
+        'is_mandatory' => 'boolean',
     ];
 
     public function creator()
@@ -58,4 +65,9 @@ class Course extends Model
         $avg = $this->ratings()->avg('rating');
         return $avg ? round((float) $avg, 1) : null;
     }
+
+    public function prerequisite()
+{
+    return $this->belongsTo(Course::class, 'prerequisite_course_id');
+}
 }

@@ -6,6 +6,8 @@ use App\Models\Module;
 use App\Models\ModuleChecklistItem;
 use App\Models\ModuleProgress;
 use App\Models\Enrollment;
+use App\Models\Quiz; 
+use App\Models\UserQuizAttempt; 
 use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +17,25 @@ class ModuleProgressController extends Controller
     public function __construct(private readonly ModuleProgressService $progressService)
     {
     }
+
+    /**
+     * Trigger Pembuka Kunci Kuis Otomatis
+     */
+  private function checkAndUnlockQuiz($userId, $moduleId)
+{
+    $quiz = Quiz::where('module_id', $moduleId)->first();
+
+    if ($quiz) {
+        $attemptsCount = UserQuizAttempt::where('user_id', $userId)
+            ->where('quiz_id', $quiz->id)
+            ->count();
+        if ($attemptsCount >= 3) {
+            UserQuizAttempt::where('user_id', $userId)
+                ->where('quiz_id', $quiz->id)
+                ->delete();
+        }
+    }
+}
 
     public function markTextRead(Request $request, $moduleId)
     {
@@ -42,6 +63,9 @@ class ModuleProgressController extends Controller
             $progress->is_text_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            // TRIGGER UNLOCK KUIS (BACA TEKS)
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -90,6 +114,9 @@ class ModuleProgressController extends Controller
             $progress->is_video_watched = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            // TRIGGER UNLOCK KUIS (NONTON VIDEO)
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -110,7 +137,7 @@ class ModuleProgressController extends Controller
         return back()->with('success', $progress->is_video_watched ? 'Video marked as watched' : 'Video progress tracked');
     }
 
-    public function markDocumentRead(Request $request, $moduleId)
+   public function markDocumentRead(Request $request, $moduleId)
     {
         $user = Auth::user();
         $module = Module::findOrFail($moduleId);
@@ -120,22 +147,28 @@ class ModuleProgressController extends Controller
             ->firstOrFail();
 
         $request->validate([
-            'current_page' => 'required|integer|min:1',
-            'total_pages' => 'required|integer|min:1',
+            'current_page' => 'required|integer|min:1', 
+            'total_pages' => 'required|integer|min:1',   
         ]);
 
         $checklistItem = ModuleChecklistItem::where('module_id', $moduleId)
-            ->whereIn('type', ['document', 'doc'])
+            ->whereIN('type', ['document', 'doc'])
             ->first();
 
         $progress = $this->resolveProgress($enrollment, $module, $checklistItem);
-        $progress->doc_current_page = $request->input('current_page');
-        $progress->doc_total_pages = $request->input('total_pages');
+        
+        $currentPage = (int) $request->input('current_page');
+        $totalPages = (int) $request->input('total_pages');
 
-        if ((int) $request->input('current_page') >= (int) $request->input('total_pages')) {
+        $progress->doc_current_page = $currentPage;
+        $progress->doc_total_pages = $totalPages;
+
+        if ($totalPages > 0 && $currentPage >= $totalPages) {
             $progress->is_document_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -191,8 +224,6 @@ class ModuleProgressController extends Controller
 
     private function resolveProgress(Enrollment $enrollment, Module $module, ?ModuleChecklistItem $checklistItem): ModuleProgress
     {
-        // Always include checklist_item_id so we never accidentally match a row
-        // belonging to a different checklist item (video/text) on the same module.
         return ModuleProgress::firstOrCreate([
             'enrollment_id'     => $enrollment->id,
             'module_id'         => $module->id,
