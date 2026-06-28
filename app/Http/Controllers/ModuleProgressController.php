@@ -6,8 +6,8 @@ use App\Models\Module;
 use App\Models\ModuleChecklistItem;
 use App\Models\ModuleProgress;
 use App\Models\Enrollment;
-use App\Models\Quiz; // Tambahkan ini
-use App\Models\UserQuizAttempt; // Tambahkan ini
+use App\Models\Quiz; 
+use App\Models\UserQuizAttempt; 
 use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,26 +21,18 @@ class ModuleProgressController extends Controller
     /**
      * Trigger Pembuka Kunci Kuis Otomatis
      */
-   private function checkAndUnlockQuiz($userId, $moduleId)
+  private function checkAndUnlockQuiz($userId, $moduleId)
 {
-    // 1. Cari kuis yang terikat dengan modul ini
     $quiz = Quiz::where('module_id', $moduleId)->first();
 
     if ($quiz) {
-        // 2. Cek apakah kuis ini memang sedang terkunci (attempts sudah 3 atau lebih)
         $attemptsCount = UserQuizAttempt::where('user_id', $userId)
             ->where('quiz_id', $quiz->id)
             ->count();
-
-        // 3. JIKA kuisnya terkunci, DAN user SEKARANG sudah selesai membaca ulang materinya
-        // (Fungsi ini dipicu di dalam blok if ($this->shouldCompleteText) dll)
         if ($attemptsCount >= 3) {
-            
-            // PENTING: Hapus history percobaan LAMA agar user mendapatkan 3 KESEMPATAN BARU
             UserQuizAttempt::where('user_id', $userId)
                 ->where('quiz_id', $quiz->id)
                 ->delete();
-                
         }
     }
 }
@@ -145,7 +137,7 @@ class ModuleProgressController extends Controller
         return back()->with('success', $progress->is_video_watched ? 'Video marked as watched' : 'Video progress tracked');
     }
 
-    public function markDocumentRead(Request $request, $moduleId)
+   public function markDocumentRead(Request $request, $moduleId)
     {
         $user = Auth::user();
         $module = Module::findOrFail($moduleId);
@@ -155,24 +147,27 @@ class ModuleProgressController extends Controller
             ->firstOrFail();
 
         $request->validate([
-            'current_page' => 'required|integer|min:1',
-            'total_pages' => 'required|integer|min:1',
+            'current_page' => 'required|integer|min:1', 
+            'total_pages' => 'required|integer|min:1',   
         ]);
 
         $checklistItem = ModuleChecklistItem::where('module_id', $moduleId)
-            ->whereIn('type', ['document', 'doc'])
+            ->whereIN('type', ['document', 'doc'])
             ->first();
 
         $progress = $this->resolveProgress($enrollment, $module, $checklistItem);
-        $progress->doc_current_page = $request->input('current_page');
-        $progress->doc_total_pages = $request->input('total_pages');
+        
+        $currentPage = (int) $request->input('current_page');
+        $totalPages = (int) $request->input('total_pages');
 
-        if ((int) $request->input('current_page') >= (int) $request->input('total_pages')) {
+        $progress->doc_current_page = $currentPage;
+        $progress->doc_total_pages = $totalPages;
+
+        if ($totalPages > 0 && $currentPage >= $totalPages) {
             $progress->is_document_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
 
-            // TRIGGER UNLOCK KUIS (BACA DOKUMEN / SLIDE SELESAI)
             $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 

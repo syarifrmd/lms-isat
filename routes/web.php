@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Heartbeat aktivitas belajar (dipanggil frontend setiap 60 detik)
     Route::post('/session/ping', [SessionPingController::class, 'ping'])->name('session.ping');
+    Route::post('/courses/reorder', [CourseController::class, 'reorderCourses'])->name('courses.reorder');
 
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');

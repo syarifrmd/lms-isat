@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('courses', function (Blueprint $table) {
+            $table->integer('position')->default(1)->after('is_mandatory');
+        
+        $table->unsignedBigInteger('prerequisite_course_id')->nullable()->after('position');
+        
+        $table->foreign('prerequisite_course_id')
+              ->references('id')
+              ->on('courses')
+              ->onDelete('set null');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('courses', function (Blueprint $table) {
+            $table->dropForeign(['prerequisite_course_id']);
+            $table->dropColumn(['position', 'prerequisite_course_id']);
+        });
+    }
+};

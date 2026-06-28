@@ -172,34 +172,32 @@ class QuizController extends Controller
                 ->where('course_id', $quiz->course_id)
                 ->first();
 
-            if ($enrollment) {
-                // KONDISI GAGAL 3 KALI: Reset total progress materi modul ke semula
-                if (!$isPassed && $currentAttemptsCount >= 3) {
-                    $targetModuleId = $quiz->module_id; 
+         if ($enrollment) {
+    if (!$isPassed && $currentAttemptsCount >= 3) {
+        $targetModuleId = $quiz->module_id; 
 
-                    if ($targetModuleId) {
-                        $moduleProgress = ModuleProgress::firstOrNew([
-                            'enrollment_id' => $enrollment->id,
-                            'module_id'     => $targetModuleId,
-                        ]);
+        if ($targetModuleId) {
+            \DB::table('module_progress')
+                ->where('enrollment_id', $enrollment->id) 
+                ->where('module_id', $targetModuleId)
+                ->update([
+                    'is_completed' => 0,
+                    'is_text_read' => 0,
+                    'is_video_watched' => 0,
+                    'is_document_read' => 0, 
+                    'text_elapsed_seconds' => 0,
+                    'text_scroll_percentage' => 0,
+                    'video_last_position_seconds' => 0,
+                    'video_max_position_seconds' => 0,
+                    'doc_current_page' => 1,
+                    'completed_at' => null,
+                ]);
+        }
+    }
 
-                        $moduleProgress->is_completed = false;
-                        $moduleProgress->is_text_read = false;
-                        $moduleProgress->is_video_watched = false;
-                        $moduleProgress->is_document_read = false;
-                        $moduleProgress->text_elapsed_seconds = 0;
-                        $moduleProgress->text_scroll_percentage = 0;
-                        $moduleProgress->video_last_position_seconds = 0;
-                        $moduleProgress->video_max_position_seconds = 0;
-                        $moduleProgress->doc_current_page = 1;
-                        $moduleProgress->completed_at = null;
-                        $moduleProgress->save();
-                    }
-                }
-
-                // TRIGGER UTAMA: Hitung ulang kalkulasi progress bar agar persentase di layar ikut turun
-                (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
-            }
+    // Hitung ulang progress bar utama
+    (new ModuleProgressService())->recalculateEnrollmentProgress($enrollment);
+}
 
             // Logika Penambahan XP Bonus jika Lulus
             if ($isPassed && $quiz->xp_bonus > 0) {
