@@ -71,7 +71,8 @@ interface Course {
 interface EditProps {
     course: Course;
     categories: string[];
-    divisions: string[]; // Diambil dari database (Master Divisi / Users)
+    divisions: string[]; 
+    mandatoryCourses: { id: number; title: string }[];
     auth: {
         user: {
             id: number;
@@ -102,7 +103,7 @@ function formatDate(dateStr: string | null) {
     return dateStr.slice(0, 16);
 }
 
-export default function EditCourse({ course, categories, divisions, auth }: EditProps) {
+export default function EditCourse({ course, categories, divisions, mandatoryCourses, auth }: EditProps) {
     const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
     // ── Course Info Form ─────────────────────────────────────────────────────
@@ -119,6 +120,8 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
         duration_minutes: course.duration_minutes || 5,
         cover_image: null as File | null,
         target_division: isTrainer ? (auth.user.division ?? '') : (course.target_division || 'all'),
+        position: course.position || 1, 
+        prerequisite_course_id: course.prerequisite_course_id || '',
     });
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(course.cover_url);
@@ -152,6 +155,8 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
             course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
             is_timer_active: data.is_timer_active ? 1 : 0,
             duration_minutes: data.is_timer_active ? Number(data.duration_minutes) : null,
+            position: parseInt(String(data.position)) || 1,
+            prerequisite_course_id: data.prerequisite_course_id === 'none' ? null : (data.prerequisite_course_id || null),
         };
         
         router.post(`/courses/${course.id}`, payload, {
@@ -401,6 +406,108 @@ export default function EditCourse({ course, categories, divisions, auth }: Edit
                                             )}
                                         </div>
                                     )}
+
+                                    {/* INPUT POSISI DAN SYARAT GEMBOK KURSUS WAJIB (EDIT MODAL) */}
+{data.is_mandatory && (
+    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 mt-4 space-y-4">
+        <h4 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
+            Pengaturan Kursus Wajib (Mandatory)
+        </h4>
+        
+        {/* Input Urutan Posisi Card */}
+        <div className="space-y-1">
+            <Label htmlFor="position" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Urutan Posisi Tampilan Card
+            </Label>
+            <Input
+                id="position"
+                type="number"
+                min="1"
+               value={data.position === 0 ? '' : data.position}
+    onChange={e => {
+        const val = e.target.value;
+        setData('position', val === '' ? 0 : parseInt(val));
+    }}
+    placeholder="Contoh: 1 untuk pertama, 2 untuk kedua"
+            />
+            {errors.position && <InputError message={errors.position} />}
+        </div>
+        
+        {/* Hint informatif boks urutan posisi */}
+<div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+    <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
+        <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
+        <span className="text-xs font-semibold uppercase tracking-wider">
+            Urutan Posisi Terpakai ({data.target_division || 'Semua Divisi'})
+        </span>
+    </div>
+
+    <div className="flex flex-wrap gap-2 mt-1">
+        {(() => {
+            const filteredCourses = (mandatoryCourses || [])
+                .filter((c: any) => {
+                    const matchesMandatory = c.is_mandatory || true; 
+                    
+                    if (!data.target_division || data.target_division === 'all') {
+                        return matchesMandatory;
+                    }
+                    return matchesMandatory && (!c.target_division || c.target_division === data.target_division);
+                })
+                // URUTKAN: Berdasarkan angka posisi dari terkecil ke terbesar
+                .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+            if (filteredCourses.length > 0) {
+                return filteredCourses.map((c: any) => (
+                    <div 
+                        key={c.id} 
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 shadow-xs text-xs"
+                    >
+                        <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
+                            #{c.position || 1}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
+                            {c.title}
+                        </span>
+                    </div>
+                ));
+            }
+
+            return (
+                <div className="w-full text-center py-2 text-xs text-gray-400 dark:text-gray-500 italic bg-white dark:bg-gray-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                    Belum ada posisi terpakai untuk divisi {data.target_division || 'ini'}. Nomor ini aman digunakan sebagai nomor 1.
+                </div>
+            );
+        })()}
+    </div>
+</div>
+
+        {/* Dropdown Memilih Kursus Prasyarat (Gembok) */}
+        <div className="space-y-1">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Kursus Syarat (Kunci Gembok)
+            </Label>
+            <Select
+                value={data.prerequisite_course_id ? data.prerequisite_course_id.toString() : "none"}
+                onValueChange={value => {
+                    setData('prerequisite_course_id', value === 'none' ? '' : value);
+                }}
+            >
+                <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Kursus Pertama / Tidak Ada Prasyarat" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="none">Kursus Pertama / Tidak Ada Prasyarat</SelectItem>
+                    {mandatoryCourses && mandatoryCourses.map((c) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                            {c.title}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
+        </div>
+    </div>
+)}
 
                                     {/* Course Title */}
                                     <div className="space-y-1.5">
