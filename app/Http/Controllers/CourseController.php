@@ -377,7 +377,7 @@ class CourseController extends Controller
         }
 
         $course->load(['modules' => function ($q) {
-            $q->orderBy('order_sequence', 'asc');
+            $q->orderBy('order_sequence', 'asc'); 
         }]);
 
         $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
