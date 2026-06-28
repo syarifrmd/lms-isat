@@ -1,9 +1,9 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { ClockIcon, PlusCircle, Trash, BookOpen } from 'lucide-react';
+import { ClockIcon, PlusCircle, Trash, BookOpen, AlertCircle, Bookmark } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { SharedData } from '@/types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search } from 'lucide-react';
@@ -25,7 +25,10 @@ interface Course {
     description: string;
     cover_url: string;
     category: string;
-    status: string;
+    status: string; // draft, published, archived
+    is_mandatory: boolean; 
+    is_timer_active?: number | boolean;
+    duration_minutes?: number;
     created_at: string;
     start_date?: string;
     end_date?: string;
@@ -40,11 +43,13 @@ interface Course {
 export default function CoursesIndex({ 
     courses, 
     filters, 
-    categories 
+    categories,
+    divisions 
 }: { 
     courses: Course[];
-    filters: { search?: string; category?: string; progress_status?: string };
+    filters: { search?: string; category?: string; progress_status?: string; course_type?: string; division?: string }; 
     categories: string[];
+    divisions: string[]; 
 }) {
     const { auth } = usePage<SharedData>().props;
     const canCreateCourse = auth.user.role === 'trainer' || auth.user.role === 'admin';
@@ -53,18 +58,33 @@ export default function CoursesIndex({
     
     const [search, setSearch] = useState(filters?.search || '');
     const [category, setCategory] = useState(filters?.category || 'all');
-    const [progressStatus, setProgressStatus] = useState(filters?.progress_status || 'all');
+    
+    // Default ke 'mandatory' jika di URL tidak ada filter tipe course
+    const [courseType, setCourseType] = useState(filters?.course_type || 'mandatory'); 
 
-    const updateFilters = (newSearch: string, newCategory: string, newProgressStatus: string) => {
+    // State untuk menyimpan nilai dropdown divisi yang dipilih (Default ke 'all')
+    const [division, setDivision] = useState(filters?.division || 'all');
+
+    // PENGAMAN: Jika user masuk pertama kali tanpa parameter URL (?course_type=), 
+    // paksa router untuk mengambil data 'mandatory' agar sinkron dengan backend
+    useEffect(() => {
+        if (!filters?.course_type) {
+            updateFilters(search, category, 'mandatory', division);
+        }
+    }, []);
+
+    // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
+    const updateFilters = (newSearch: string, newCategory: string, newCourseType: string, newDivision: string) => {
         router.get(
             '/courses',
             {
                 search: newSearch,
                 category: newCategory === 'all' ? undefined : newCategory,
-                progress_status: newProgressStatus === 'all' ? undefined : newProgressStatus,
+                course_type: newCourseType, 
+                division: newDivision === 'all' ? undefined : newDivision, 
             },
             {
-                preserveState: true,
+                preserveState: false,
                 replace: true,
             }
         );
@@ -76,24 +96,31 @@ export default function CoursesIndex({
     
     const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
-            updateFilters(search, category, progressStatus);
+            updateFilters(search, category, courseType, division);
         }
     };
 
     const handleCategoryChange = (val: string) => {
         setCategory(val);
-        updateFilters(search, val, progressStatus);
+        updateFilters(search, val, courseType, division);
     };
 
-    const handleProgressStatusChange = (val: string) => {
-        setProgressStatus(val);
-        updateFilters(search, category, val);
+    const handleCourseTypeChange = (val: string) => {
+        setCourseType(val);
+        updateFilters(search, category, val, division);
+    };
+
+    // Fungsi handler ketika dropdown divisi berubah di frontend
+    const handleDivisionChange = (val: string) => {
+        setDivision(val);
+        updateFilters(search, category, courseType, val);
     };
 
     const handleEnrollClick = (course: Course) => {
         setSelectedCourse(course);
         setShowEnrollModal(true);
     };
+    
     const [courseToDelete, setCourseToDelete] = useState<number | null>(null);
 
     const handleDelete = () => {
@@ -130,7 +157,7 @@ export default function CoursesIndex({
 
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto flex-wrap">
                         <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <Input
@@ -141,6 +168,7 @@ export default function CoursesIndex({
                                 className="pl-9"
                             />
                         </div>
+                        
                         <Select value={category} onValueChange={handleCategoryChange}>
                             <SelectTrigger className="w-full sm:w-48">
                                 <SelectValue placeholder="Semua Kategori" />
@@ -152,17 +180,34 @@ export default function CoursesIndex({
                                 ))}
                             </SelectContent>
                         </Select>
-                        <Select value={progressStatus} onValueChange={handleProgressStatusChange}>
+
+                        {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
+                        <Select value={courseType} onValueChange={handleCourseTypeChange}>
                             <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Status Kursus" />
+                                <SelectValue placeholder="Tipe Sifat Kursus" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Semua Status</SelectItem>
-                                <SelectItem value="ongoing">Sedang Berjalan</SelectItem>
-                                <SelectItem value="not_enrolled">Belum Daftar</SelectItem>
-                                <SelectItem value="completed">Telah Selesai</SelectItem>
+                                <SelectItem value="mandatory">Mandatory (Wajib)</SelectItem>
+                                <SelectItem value="non_mandatory">Non-Mandatory</SelectItem>
                             </SelectContent>
                         </Select>
+
+                        {/* FILTER DROPDOWN DIVISI (Hanya login adalah admin) */}
+                        {auth?.user?.role === 'admin' && (
+                            <Select value={division} onValueChange={handleDivisionChange}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue>
+                                        {division === 'all' ? 'Semua Divisi' : division}
+                                    </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Divisi</SelectItem>
+                                    {divisions && divisions.map(div => (
+                                        <SelectItem key={div} value={div}>{div}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
                     </div>
 
                     {canCreateCourse && (
@@ -187,7 +232,7 @@ export default function CoursesIndex({
 
                     {courses.length === 0 ? (
                         <div className="py-16 text-center text-sm text-gray-400">
-                            No courses available yet. Check back later for new content.
+                            No courses available yet for this selection.
                         </div>
                     ) : (
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -209,7 +254,6 @@ export default function CoursesIndex({
                                                 <span className="text-3xl font-bold">{course.title.charAt(0)}</span>
                                             </div>
                                         )}
-                                        {/* Category badge */}
                                         <div className="absolute top-2 right-2">
                                             <span className="inline-block bg-sky-100/90 dark:bg-sky-900/80 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
                                                 {course.category || 'General'}
@@ -219,6 +263,58 @@ export default function CoursesIndex({
 
                                     {/* Body */}
                                     <div className="flex flex-col flex-1 px-4 pt-4 pb-4 gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {course.is_mandatory ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    Mandatory
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                                    <Bookmark className="h-3 w-3" />
+                                                    Non-Mandatory
+                                                </span>
+                                            )}
+
+                                          {/* SINKRONISASI LABEL WAKTU - KHUSUS USER BIASA DAN MANDATORY*/}
+{(() => {
+    const { auth } = usePage<any>().props; 
+    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
+
+    // Timer HANYA muncul jika: yang melihat adalah User biasa DAN course ini Mandatory
+    if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && course.duration_minutes) {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/60">
+                <ClockIcon className="h-3 w-3" />
+                {course.duration_minutes} Menit
+            </span>
+        );
+    }
+    return null;
+})()}
+
+                                            {/* LABEL STATUS (DRAFT/PUBLISHED/ARCHIVED) - HANYA TRAINER & ADMIN */}
+                                            {canCreateCourse && (
+                                                <>
+                                                    {course.status === 'draft' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/60">
+                                                            Draft
+                                                        </span>
+                                                    )}
+                                                    {course.status === 'published' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900/60">
+                                                            Published
+                                                        </span>
+                                                    )}
+                                                    {course.status === 'archived' && (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+                                                            Archived
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug">
                                             {course.title}
                                         </p>
@@ -226,7 +322,7 @@ export default function CoursesIndex({
                                             {course.description || 'No description available for this course.'}
                                         </p>
 
-                                        {/* Footer row */}
+                                        {/* Footer */}
                                         <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 mt-auto">
                                             <div className="flex items-center gap-1 text-xs text-gray-300 dark:text-gray-600">
                                                 <ClockIcon className="h-3 w-3" />

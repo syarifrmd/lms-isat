@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import React, { useEffect, useState } from 'react';
+import { useForm, router } from '@inertiajs/react';
 import { User } from '@/types';
 import {
     Dialog,
@@ -26,40 +26,75 @@ import {
     Lock, 
     Shield, 
     MapPin, 
-    CreditCard
+    CreditCard,
+    Plus,
+    Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EditUserModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    user: User;
+    user: User & { division?: string }; 
     regions: string[];
+    divisions: string[];
 }
 
-export default function EditUserModal({ open, onOpenChange, user, regions }: EditUserModalProps) {
-    const { data, setData, put, processing, errors, reset } = useForm({
+export default function EditUserModal({ open, onOpenChange, user, regions, divisions = [] }: EditUserModalProps) {
+    const [isCustomDivision, setIsCustomDivision] = useState(false);
+    const [customDivision, setCustomDivision] = useState('');
+    
+    // State untuk mengelola dialog konfirmasi hapus
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const { data, setData, put, transform, processing, errors, reset } = useForm({
         name: user.name,
         email: user.email || '',
         role: user.role,
         region: user.region || '',
+        division: user.division || '', 
         password: '',
     });
 
     useEffect(() => {
         if (open) {
-            setData({
-                name: user.name,
-                email: user.email || '',
-                role: user.role,
-                region: user.region || '',
-                password: '',
-            });
+            const userDivision = user.division || '';
+            const isExisting = divisions.includes(userDivision);
+
+            if (userDivision && !isExisting) {
+                setIsCustomDivision(true);
+                setCustomDivision(userDivision);
+                setData({
+                    name: user.name,
+                    email: user.email || '',
+                    role: user.role,
+                    region: user.region || '',
+                    division: '', 
+                    password: '',
+                });
+            } else {
+                setIsCustomDivision(false);
+                setCustomDivision('');
+                setData({
+                    name: user.name,
+                    email: user.email || '',
+                    role: user.role,
+                    region: user.region || '',
+                    division: userDivision,
+                    password: '',
+                });
+            }
         }
-    }, [user, open]);
+    }, [user, open, divisions]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        transform((oldData) => ({
+            ...oldData,
+            division: isCustomDivision ? customDivision : oldData.division,
+        }));
+
         put(`/admin/users/${user.id}`, {
             preserveScroll: true,
             onSuccess: () => {
@@ -69,204 +104,244 @@ export default function EditUserModal({ open, onOpenChange, user, regions }: Edi
         });
     };
 
+    const handleDeleteDivision = () => {
+        if (!data.division) return;
+        
+        setIsDeleting(true);
+        
+        router.delete(`/admin/divisions`, {
+            data: { division: data.division },
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsDeleting(false);
+                setDeleteDialogOpen(false);
+                setData('division', ''); // Reset pilihan dropdown setelah berhasil dihapus
+            },
+            onError: () => {
+                setIsDeleting(false);
+            }
+        });
+    };
+
     const handleClose = () => {
         reset();
+        setIsCustomDivision(false);
+        setCustomDivision('');
         onOpenChange(false);
     };
 
     const handleOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
             reset();
+            setIsCustomDivision(false);
+            setCustomDivision('');
         }
         onOpenChange(nextOpen);
     };
 
+    const handleDivisionChange = (value: string) => {
+        if (value === 'custom_option') {
+            setIsCustomDivision(true);
+            setData('division', '');
+        } else {
+            setIsCustomDivision(false);
+            setData('division', value);
+        }
+    };
+
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-[600px] bg-background text-foreground border-border">
-                <DialogHeader className="space-y-3 pb-4 border-b border-border">
-                    <DialogTitle className="text-xl flex items-center gap-2">
-                        <div className="p-2 bg-primary/10 rounded-full">
-                            <UserIcon className="h-6 w-6 text-primary" />
-                        </div>
-                        Edit User
-                    </DialogTitle>
-                    <DialogDescription className="text-muted-foreground text-sm">
-                        Perbarui informasi user: <span className="font-semibold text-foreground">{user.name}</span> (NIK: {user.id})
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={handleOpenChange}>
+                <DialogContent className="sm:max-w-[600px] bg-background text-foreground border-border">
+                    <DialogHeader className="space-y-3 pb-4 border-b border-border">
+                        <DialogTitle className="text-xl flex items-center gap-2">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <UserIcon className="h-6 w-6 text-primary" />
+                            </div>
+                            Edit User
+                        </DialogTitle>
+                        <DialogDescription className="text-muted-foreground text-sm">
+                            Perbarui informasi user: <span className="font-semibold text-foreground">{user.name}</span> (NIK: {user.id})
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="space-y-5 py-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                       {/* NIK Field (Read Only) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="id" className="text-sm font-medium opacity-70">
-                                NIK <span className="text-xs text-muted-foreground">(Tidak dapat diubah)</span>
-                            </Label>
-                            <div className="relative">
-                                <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="id"
-                                    value={user.id}
-                                    disabled
-                                    className="pl-9 bg-muted/50 cursor-not-allowed text-muted-foreground"
-                                />
+                    <form onSubmit={handleSubmit} className="space-y-5 py-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="id" className="text-sm font-medium opacity-70">
+                                    NIK <span className="text-xs text-muted-foreground">(Tidak dapat diubah)</span>
+                                </Label>
+                                <div className="relative">
+                                    <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="id" value={user.id} disabled className="pl-9 bg-muted/50 text-muted-foreground" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-role" className="text-sm font-medium">Role *</Label>
+                                <Select value={data.role} onValueChange={(value) => setData('role', value)}>
+                                    <SelectTrigger className="pl-9 relative">
+                                        <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="trainer">Trainer</SelectItem>
+                                        <SelectItem value="user">User</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 
-                        {/* Role Field */}
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-role" className="text-sm font-medium">
-                                Role <span className="text-destructive">*</span>
-                            </Label>
-                             <Select 
-                                value={data.role} 
-                                onValueChange={(value) => setData('role', value as "user" | "admin" | "trainer")}
-                            >
-                                <SelectTrigger className={cn("pl-9 relative", errors.role && "border-destructive")}>
-                                    <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground z-10" />
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="admin">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-destructive">Admin</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="trainer">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium text-blue-600">Trainer</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="user">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium">User</span>
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {errors.role && (
-                                <p className="text-xs text-destructive">{errors.role}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {/* Name Field */}
-                         <div className="space-y-2 col-span-2 md:col-span-1">
-                            <Label htmlFor="edit-name" className="text-sm font-medium">
-                                Nama Lengkap <span className="text-destructive">*</span>
-                            </Label>
-                            <div className="relative">
-                                <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="edit-name"
-                                    value={data.name}
-                                    onChange={(e) => setData('name', e.target.value)}
-                                    placeholder="Masukkan nama lengkap"
-                                    className={cn("pl-9", errors.name && "border-destructive focus-visible:ring-destructive/20")}
-                                    required
-                                />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-name" className="text-sm font-medium">Nama Lengkap *</Label>
+                                <div className="relative">
+                                    <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-name" value={data.name} onChange={(e) => setData('name', e.target.value)} required className="pl-9" />
+                                </div>
                             </div>
-                            {errors.name && (
-                                <p className="text-xs text-destructive">{errors.name}</p>
-                            )}
-                        </div>
-
-                         {/* Email Field */}
-                         <div className="space-y-2 col-span-2 md:col-span-1">
-                            <Label htmlFor="edit-email" className="text-sm font-medium">
-                                Email <span className="text-destructive"></span>
-                            </Label>
-                             <div className="relative">
-                                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="edit-email"
-                                    type="email"
-                                    value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    placeholder="user@example.com"
-                                    className={cn("pl-9", errors.email && "border-destructive focus-visible:ring-destructive/20")}
-                                />
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-email" className="text-sm font-medium">Email</Label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} className="pl-9" />
+                                </div>
                             </div>
-                            {errors.email && (
-                                <p className="text-xs text-destructive">{errors.email}</p>
-                            )}
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                         {/* Password Field */}
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-password" className="text-sm font-medium">
-                                Password Baru
-                            </Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="edit-password"
-                                    type="password"
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    placeholder="Kosongkan jika tidak ubah"
-                                    className={cn("pl-9", errors.password && "border-destructive focus-visible:ring-destructive/20")}
-                                />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-password" className="text-sm font-medium">Password Baru</Label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-password" type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} placeholder="Kosongkan jika tidak ubah" className="pl-9" />
+                                </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground">Minimal 8 karakter. Biarkan kosong jika tidak ingin mengubah.</p>
-                            {errors.password && (
-                                <p className="text-xs text-destructive">{errors.password}</p>
-                            )}
-                        </div>
-
-                         {/* Region Field */}
-                         <div className="space-y-2">
-                            <Label htmlFor="edit-region" className="text-sm font-medium">
-                                Region
-                            </Label>
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="edit-region"
-                                    value={data.region}
-                                    onChange={(e) => setData('region', e.target.value)}
-                                    placeholder="Masukkan Region / Wilayah Kerja"
-                                    className={cn("pl-9", errors.region && "border-destructive focus-visible:ring-destructive/20")}
-                                />
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-region" className="text-sm font-medium">Region</Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-region" value={data.region} onChange={(e) => setData('region', e.target.value)} className="pl-9" />
+                                </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground">Opsional, isi manual sesuai lokasi kerja.</p>
-                            {errors.region && (
-                                <p className="text-xs text-destructive">{errors.region}</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="division" className="text-sm font-medium">Divisi</Label>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <Select 
+                                            value={isCustomDivision ? 'custom_option' : data.division} 
+                                            onValueChange={handleDivisionChange}
+                                        >
+                                            <SelectTrigger className={cn(errors.division && "border-destructive")}>
+                                                <SelectValue placeholder="Pilih Divisi" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {divisions.map((division) => (
+                                                    <SelectItem key={division} value={division}>
+                                                        {division}
+                                                    </SelectItem>
+                                                ))}
+                                                
+                                                <div className="h-px my-1 bg-muted" />
+                                                
+                                                <SelectItem value="custom_option" className="text-sky-600 font-medium focus:text-sky-700">
+                                                    <div className="flex items-center gap-2">
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        Tambah Divisi Lainnya
+                                                    </div>
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {/* Tombol Hapus diletakkan sejajar di luar dropdown */}
+                                    {!isCustomDivision && data.division && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            onClick={() => setDeleteDialogOpen(true)}
+                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 animate-in fade-in zoom-in-95 duration-150"
+                                            title="Hapus divisi pilihan dari sistem"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+                                {errors.division && <p className="text-xs text-destructive">{errors.division}</p>}
+                            </div>
+
+                            {isCustomDivision && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <Label htmlFor="custom_division" className="text-sm font-semibold text-sky-600">
+                                        Nama Divisi Baru / Kustom
+                                    </Label>
+                                    <Input
+                                        id="custom_division"
+                                        type="text"
+                                        placeholder="Ketik nama divisi baru..."
+                                        value={customDivision}
+                                        onChange={(e) => setCustomDivision(e.target.value)}
+                                        required
+                                    />
+                                </div>
                             )}
                         </div>
-                    </div>
 
-                    <DialogFooter className="pt-4 border-t border-border mt-6">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleClose}
-                            disabled={processing}
-                             className="w-full sm:w-auto hover:bg-muted"
+                        <DialogFooter className="pt-4 border-t border-border mt-6">
+                            <Button type="button" variant="outline" onClick={handleClose} disabled={processing}>Batal</Button>
+                            <Button type="submit" disabled={processing} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                                {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Simpan Perubahan'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-[420px] bg-background border-destructive/20 text-foreground">
+                    <DialogHeader className="space-y-2 text-center sm:text-left">
+                        <DialogTitle className="text-lg flex items-center gap-2 text-destructive">
+                            <Trash2 className="h-5 w-5" />
+                            Hapus Pilihan Divisi?
+                        </DialogTitle>
+                        <DialogDescription className="text-muted-foreground text-sm">
+                            Apakah kamu yakin ingin menghapus opsi divisi "{data.division}" dari daftar master? Pengguna yang terikat mungkin akan kehilangan data divisi ini.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => setDeleteDialogOpen(false)}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto"
                         >
                             Batal
                         </Button>
                         <Button 
-                            type="submit" 
-                            disabled={processing}
-                            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
+                            type="button" 
+                            variant="destructive" 
+                            onClick={handleDeleteDivision}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto"
                         >
-                            {processing ? (
+                            {isDeleting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Menyimpan...
+                                    Menghapus...
                                 </>
                             ) : (
-                                'Simpan Perubahan'
+                                'Ya, Hapus'
                             )}
                         </Button>
                     </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

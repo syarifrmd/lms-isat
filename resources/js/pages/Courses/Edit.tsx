@@ -36,6 +36,9 @@ import {
     Tag,
     Trash2,
     X,
+    ShieldAlert,
+    Award,
+    Timer
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -54,16 +57,29 @@ interface Course {
     description: string | null;
     category: string | null;
     status: 'draft' | 'published' | 'archived';
+    course_type: 'mandatory' | 'non-mandatory'; // Sifat Kursus
+    is_timer_active: boolean | number;
+    duration_minutes: number | null;
     cover_url: string | null;
     start_date: string | null;
     end_date: string | null;
     created_by: string;
+    target_division: string | null;
     modules: Module[];
 }
 
 interface EditProps {
     course: Course;
     categories: string[];
+    divisions: string[]; // Diambil dari database (Master Divisi / Users)
+    auth: {
+        user: {
+            id: number;
+            name: string;
+            role: 'ADMIN' | 'TRAINER' | 'USER';
+            division: string | null;
+        };
+    };
 }
 
 const statusConfig = {
@@ -83,25 +99,41 @@ const statusConfig = {
 
 function formatDate(dateStr: string | null) {
     if (!dateStr) return '';
-    // Convert ISO / datetime string to datetime-local input format: YYYY-MM-DDTHH:mm
     return dateStr.slice(0, 16);
 }
 
-export default function EditCourse({ course, categories }: EditProps) {
+export default function EditCourse({ course, categories, divisions, auth }: EditProps) {
+    const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
+
     // ── Course Info Form ─────────────────────────────────────────────────────
-    const { data, setData, post, processing, errors } = useForm({
-        _method: 'PUT',
-        title: course.title,
-        description: course.description ?? '',
-        category: course.category ?? '',
-        status: course.status,
-        start_date: formatDate(course.start_date),
-        end_date: formatDate(course.end_date),
+    const { data, setData, put, processing, errors } = useForm({
+        title: course.title || '',
+        description: course.description || '',
+        category: course.category || '',
+        status: course.status || 'draft',
+        start_date: course.start_date || '',
+        end_date: course.end_date || '',
+        // Sinkronisasi pendeteksian is_mandatory dari tipe string database atau property bawaan
+        is_mandatory: course.course_type === 'mandatory',
+        is_timer_active: (course.course_type === 'mandatory' && (course.is_timer_active === true || course.is_timer_active === 1 || String(course.is_timer_active) === '1')),
+        duration_minutes: course.duration_minutes || 5,
         cover_image: null as File | null,
+        target_division: isTrainer ? (auth.user.division ?? '') : (course.target_division || 'all'),
     });
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(course.cover_url);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Sinkronisasi otomatis saat sifat kursus berubah (Reset timer jika dirubah ke Non-Mandatory)
+    useEffect(() => {
+        if (!data.is_mandatory) {
+            setData(prev => ({
+                ...prev,
+                is_timer_active: false,
+                duration_minutes: 5
+            }));
+        }
+    }, [data.is_mandatory]);
 
     const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0] ?? null;
@@ -113,7 +145,18 @@ export default function EditCourse({ course, categories }: EditProps) {
 
     const submitCourseInfo = (e: React.FormEvent) => {
         e.preventDefault();
-        post(`/courses/${course.id}`, { forceFormData: true });
+        const payload = {
+            ...data,
+            _method: 'PUT', // 
+            target_division: data.target_division === 'all' ? null : data.target_division,
+            course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
+            is_timer_active: data.is_timer_active ? 1 : 0,
+            duration_minutes: data.is_timer_active ? Number(data.duration_minutes) : null,
+        };
+        
+        router.post(`/courses/${course.id}`, payload, {
+            forceFormData: true,
+        });
     };
 
     const [isCustomCategory, setIsCustomCategory] = useState(!categories?.includes(course.category || '') && !!course.category);
@@ -137,12 +180,10 @@ export default function EditCourse({ course, categories }: EditProps) {
     const dragItem = useRef<number | null>(null);
     const dragOver = useRef<number | null>(null);
 
-    // Sync local state when Inertia refreshes course.modules (e.g., after module delete)
     useEffect(() => {
         setModules([...course.modules].sort((a, b) => a.order_sequence - b.order_sequence));
     }, [course.modules]);
 
-    // reset saved indicator
     useEffect(() => {
         if (reorderSaved) {
             const t = setTimeout(() => setReorderSaved(false), 3000);
@@ -172,7 +213,6 @@ export default function EditCourse({ course, categories }: EditProps) {
         const dragged = updated.splice(dragItem.current, 1)[0];
         updated.splice(dragOver.current, 0, dragged);
 
-        // Re-assign order_sequence
         const resequenced = updated.map((m, i) => ({ ...m, order_sequence: i + 1 }));
         setModules(resequenced);
         dragItem.current = null;
@@ -209,38 +249,33 @@ export default function EditCourse({ course, categories }: EditProps) {
         { title: 'Edit', href: `/courses/${course.id}/edit` },
     ];
 
-    const statusBadge = statusConfig[data.status];
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Edit: ${course.title}`} />
 
             <div className="mx-auto max-w-5xl space-y-8 px-4 py-8">
-                {/* ── Page Header ── */}
+                {/* Header */}
                 <div className="flex items-start gap-4">
                     <Link
                         href={`/courses/${course.id}`}
-                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-800 dark:border-white/10 dark:bg-neutral-900 dark:hover:bg-neutral-800 dark:hover:text-gray-200"
+                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-800 dark:border-white/10 dark:bg-neutral-900"
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Link>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="truncate text-2xl font-bold text-gray-900 dark:text-white">Edit Course</h1>
-                            <span
-                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadge.className}`}
-                            >
-                                {statusBadge.label}
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusConfig[data.status].className}`}>
+                                {statusConfig[data.status].label}
                             </span>
                         </div>
                         <p className="mt-1 truncate text-sm text-muted-foreground">{course.title}</p>
                     </div>
                 </div>
 
-                {/* ── Course Info Form ── */}
+                {/* Main Form */}
                 <form onSubmit={submitCourseInfo} encType="multipart/form-data">
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                        {/* Left – main fields */}
                         <div className="space-y-6 lg:col-span-2">
                             <Card className="border-0 shadow-sm bg-white dark:bg-neutral-900">
                                 <CardHeader className="border-b border-gray-100 dark:border-white/10 pb-4">
@@ -255,18 +290,129 @@ export default function EditCourse({ course, categories }: EditProps) {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-5 pt-5">
-                                    {/* Title */}
+                                    
+                                    {/* Grid Target Divisi & Sifat Kursus */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Target Divisi Dinamis */}
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="target_division" className="flex items-center gap-1.5 text-sm font-medium">
+                                                <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+                                                Target Divisi <span className="text-red-500">*</span>
+                                            </Label>
+                                            {isTrainer ? (
+                                                <div className="flex items-center h-10 px-3 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 dark:bg-neutral-800 dark:text-gray-400 text-sm font-medium select-none cursor-not-allowed">
+                                                    <span>Divisi {auth.user.division ?? 'Belum Ditentukan'}</span>
+                                                </div>
+                                            ) : (
+                                                <Select
+                                                    value={data.target_division ?? 'all'}
+                                                    onValueChange={(v) => setData('target_division', v)}
+                                                >
+                                                    <SelectTrigger className="h-10">
+                                                        <SelectValue placeholder="Pilih Target Divisi" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Semua Divisi (Akses Global Admin)</SelectItem>
+                                                        {divisions && divisions.map((div) => (
+                                                            <SelectItem key={div} value={div}>
+                                                                {div}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                            <InputError message={errors.target_division} />
+                                        </div>
+
+                                        {/* Sifat Kursus */}
+                                        <div className="space-y-1.5">
+                                            <Label htmlFor="is_mandatory" className="flex items-center gap-1.5 text-sm font-medium">
+                                                <Award className="h-3.5 w-3.5 text-muted-foreground" />
+                                                Sifat Kursus <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Select
+                                                value={data.is_mandatory ? 'mandatory' : 'non-mandatory'}
+                                                onValueChange={(v) => setData('is_mandatory', v === 'mandatory')}
+                                            >
+                                                <SelectTrigger className="h-10">
+                                                    <SelectValue placeholder="Pilih Sifat Kursus" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="non-mandatory">Non-Mandatory (Opsional)</SelectItem>
+                                                    <SelectItem value="mandatory">Mandatory (Wajib)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={errors.is_mandatory} />
+                                        </div>
+                                    </div>
+
+                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) - Hanya muncul jika is_mandatory bernilai TRUE */}
+                                    {data.is_mandatory && (
+                                        <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-white/5 dark:bg-neutral-800/30 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 mt-0.5">
+                                                        <Timer className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                                    </div>
+                                                    <div>
+                                                        <Label htmlFor="is_timer_active" className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                            Aktifkan Batasan Waktu (Timer modul course)
+                                                        </Label>
+                                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                                            Jika aktif, pengerjaan materi ini akan dibatasi oleh durasi mundur.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="is_timer_active"
+                                                        checked={data.is_timer_active}
+                                                        onChange={(e) => setData('is_timer_active', e.target.checked)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-white/10 dark:bg-neutral-900"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {data.is_timer_active && (
+                                                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 pt-2 border-t border-gray-200/50 dark:border-white/5 animate-in fade-in duration-200">
+                                                    <div className="space-y-1.5">
+                                                        <Label htmlFor="duration_minutes" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                                            Durasi Pengerjaan (Menit) <span className="text-red-500">*</span>
+                                                        </Label>
+                                                        <div className="relative flex items-center">
+                                                            <Input
+                                                                type="number"
+                                                                id="duration_minutes"
+                                                                min="1"
+                                                                value={data.duration_minutes}
+                                                                onChange={(e) => setData('duration_minutes', parseInt(e.target.value) || 0)}
+                                                                placeholder="Contoh: 15"
+                                                                className="h-10 pr-16"
+                                                                required={data.is_timer_active}
+                                                            />
+                                                            <span className="absolute right-3 text-xs font-medium text-muted-foreground select-none">
+                                                                Menit
+                                                            </span>
+                                                        </div>
+                                                        <InputError message={errors.duration_minutes} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Course Title */}
                                     <div className="space-y-1.5">
                                         <Label htmlFor="title" className="flex items-center gap-1.5 text-sm font-medium">
                                             <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
-                                            Course Title
-                                            <span className="text-red-500">*</span>
+                                            Judul Kursus <span className="text-red-500">*</span>
                                         </Label>
                                         <Input
                                             id="title"
                                             value={data.title}
                                             onChange={(e) => setData('title', e.target.value)}
-                                            placeholder="e.g. Advanced React Patterns"
+                                            placeholder="Contoh: Sales Mastery"
                                             className="h-10"
                                         />
                                         <InputError message={errors.title} />
@@ -276,25 +422,24 @@ export default function EditCourse({ course, categories }: EditProps) {
                                     <div className="space-y-1.5">
                                         <Label htmlFor="description" className="flex items-center gap-1.5 text-sm font-medium">
                                             <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                            Description
+                                            Deskripsi
                                         </Label>
                                         <Textarea
                                             id="description"
                                             value={data.description}
-                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setData('description', e.target.value)}
-                                            placeholder="What will students learn in this course?"
+                                            onChange={(e) => setData('description', e.target.value)}
+                                            placeholder="Apa saja yang akan dipelajari dalam kursus ini?"
                                             rows={4}
-                                            className="resize-none"
                                         />
                                         <InputError message={errors.description} />
                                     </div>
 
-                                    {/* Category + Status */}
+                                    {/* Category & Status */}
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <div className="space-y-1.5">
                                             <Label htmlFor="category" className="flex items-center gap-1.5 text-sm font-medium">
                                                 <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                                                Category
+                                                Kategori
                                             </Label>
                                             <Select value={isCustomCategory ? 'Lainnya' : (data.category || '')} onValueChange={handleCategoryChange}>
                                                 <SelectTrigger className="h-10">
@@ -323,8 +468,7 @@ export default function EditCourse({ course, categories }: EditProps) {
                                         <div className="space-y-1.5">
                                             <Label className="flex items-center gap-1.5 text-sm font-medium">
                                                 <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                                                Status
-                                                <span className="text-red-500">*</span>
+                                                Status <span className="text-red-500">*</span>
                                             </Label>
                                             <Select value={data.status} onValueChange={(v) => setData('status', v as typeof data.status)}>
                                                 <SelectTrigger className="h-10">
@@ -340,15 +484,15 @@ export default function EditCourse({ course, categories }: EditProps) {
                                         </div>
                                     </div>
 
-                                    {/* Dates */}
+                                    {/* Course Period */}
                                     <div className="space-y-1.5">
                                         <Label className="flex items-center gap-1.5 text-sm font-medium">
                                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                            Course Period
+                                            Waktu Kursus
                                         </Label>
                                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <div className="space-y-1">
-                                                <span className="text-xs text-muted-foreground">Start Date</span>
+                                                <span className="text-xs text-muted-foreground">Waktu Mulai</span>
                                                 <Input
                                                     type="datetime-local"
                                                     value={data.start_date}
@@ -358,7 +502,7 @@ export default function EditCourse({ course, categories }: EditProps) {
                                                 <InputError message={errors.start_date} />
                                             </div>
                                             <div className="space-y-1">
-                                                <span className="text-xs text-muted-foreground">End Date</span>
+                                                <span className="text-xs text-muted-foreground">Waktu Deadline</span>
                                                 <Input
                                                     type="datetime-local"
                                                     value={data.end_date}
@@ -368,15 +512,13 @@ export default function EditCourse({ course, categories }: EditProps) {
                                                 <InputError message={errors.end_date} />
                                             </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Define the active period for this course.</p>
                                     </div>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        {/* Right – cover image + actions */}
+                        {/* Right – Cover Image & Actions */}
                         <div className="space-y-5">
-                            {/* Cover Image */}
                             <Card className="border-0 shadow-sm bg-white dark:bg-neutral-900">
                                 <CardHeader className="border-b border-gray-100 dark:border-white/10 pb-4">
                                     <div className="flex items-center gap-2">
@@ -390,22 +532,15 @@ export default function EditCourse({ course, categories }: EditProps) {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-4">
-                                    {/* Preview */}
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="group relative mb-3 flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 transition-colors hover:border-purple-400 dark:border-white/10 dark:hover:border-purple-500"
+                                        className="group relative mb-3 flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 transition-colors hover:border-purple-400 dark:border-white/10"
                                     >
                                         {previewUrl ? (
                                             <>
-                                                <img
-                                                    src={previewUrl}
-                                                    alt="Cover"
-                                                    className="h-full w-full object-cover"
-                                                />
+                                                <img src={previewUrl} alt="Cover" className="h-full w-full object-cover" />
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                                                    <span className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800">
-                                                        Change Image
-                                                    </span>
+                                                    <span className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-800">Change Image</span>
                                                 </div>
                                             </>
                                         ) : (
@@ -415,13 +550,7 @@ export default function EditCourse({ course, categories }: EditProps) {
                                             </div>
                                         )}
                                     </div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleCoverChange}
-                                    />
+                                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
                                     {previewUrl && previewUrl !== course.cover_url && (
                                         <button
                                             type="button"
@@ -430,27 +559,23 @@ export default function EditCourse({ course, categories }: EditProps) {
                                                 setData('cover_image', null);
                                                 if (fileInputRef.current) fileInputRef.current.value = '';
                                             }}
-                                            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-1.5 text-xs text-muted-foreground transition-colors hover:border-red-200 hover:text-red-500 dark:border-white/10"
+                                            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-1.5 text-xs text-muted-foreground hover:text-red-500 dark:border-white/10"
                                         >
-                                            <X className="h-3.5 w-3.5" />
-                                            Remove new image
+                                            <X className="h-3.5 w-3.5" /> Remove new image
                                         </button>
                                     )}
                                     <InputError message={errors.cover_image} />
                                 </CardContent>
                             </Card>
 
-                            {/* Actions */}
                             <Card className="border-0 shadow-sm bg-white dark:bg-neutral-900">
                                 <CardContent className="space-y-3 pt-5">
                                     <Button type="submit" disabled={processing} className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                                        <Save className="h-4 w-4" />
-                                        {processing ? 'Saving...' : 'Save Changes'}
+                                        <Save className="h-4 w-4" /> {processing ? 'Saving...' : 'Save Changes'}
                                     </Button>
                                     <Button type="button" variant="outline" asChild className="w-full gap-2">
                                         <Link href={`/courses/${course.id}`}>
-                                            <ArrowLeft className="h-4 w-4" />
-                                            Back to Course
+                                            <ArrowLeft className="h-4 w-4" /> Back to Course
                                         </Link>
                                     </Button>
                                 </CardContent>
@@ -459,7 +584,7 @@ export default function EditCourse({ course, categories }: EditProps) {
                     </div>
                 </form>
 
-                {/* ── Module Manager ── */}
+                {/* Module Manager */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -473,24 +598,16 @@ export default function EditCourse({ course, categories }: EditProps) {
                         </div>
                         <div className="flex items-center gap-2">
                             {reorderSaved && (
-                                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Saved
+                                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                                    <CheckCircle2 className="h-3.5 w-3.5" /> Saved
                                 </span>
                             )}
-                            <Button
-                                onClick={saveModuleOrder}
-                                disabled={reorderSaving}
-                                size="sm"
-                                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                                <Save className="h-3.5 w-3.5" />
-                                {reorderSaving ? 'Saving...' : 'Save Order'}
+                            <Button onClick={saveModuleOrder} disabled={reorderSaving} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                <Save className="h-3.5 w-3.5" /> {reorderSaving ? 'Saving...' : 'Save Order'}
                             </Button>
                             <Button size="sm" variant="outline" asChild className="gap-2">
                                 <Link href={`/courses/${course.id}/modules/create`}>
-                                    <PlusCircle className="h-3.5 w-3.5" />
-                                    Add Module
+                                    <PlusCircle className="h-3.5 w-3.5" /> Add Module
                                 </Link>
                             </Button>
                         </div>
@@ -498,19 +615,10 @@ export default function EditCourse({ course, categories }: EditProps) {
 
                     <Card className="border-0 shadow-sm bg-white dark:bg-neutral-900">
                         {modules.length === 0 ? (
-                            <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800">
-                                    <AlertCircle className="h-6 w-6 text-gray-400" />
-                                </div>
-                                <p className="font-medium text-gray-600 dark:text-gray-400">No modules yet</p>
-                                <p className="text-sm text-muted-foreground">Add your first module to get started.</p>
-                                <Button size="sm" asChild className="mt-1 gap-2">
-                                    <Link href={`/courses/${course.id}/modules/create`}>
-                                        <PlusCircle className="h-3.5 w-3.5" />
-                                        Add First Module
-                                    </Link>
-                                </Button>
-                            </CardContent>
+                            <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                                <AlertCircle className="h-6 w-6 text-gray-400" />
+                                <p className="font-medium text-gray-600">No modules yet</p>
+                            </div>
                         ) : (
                             <CardContent className="p-2">
                                 <div className="space-y-1.5">
@@ -538,7 +646,6 @@ export default function EditCourse({ course, categories }: EditProps) {
     );
 }
 
-// ── Module Row Component ─────────────────────────────────────────────────────
 interface ModuleRowProps {
     module: Module;
     index: number;
@@ -551,103 +658,83 @@ interface ModuleRowProps {
     onDelete: (id: number) => void;
 }
 
-function ModuleRow({ module, index, total, courseId, onDragStart, onDragEnter, onDragEnd, onMove, onDelete }: ModuleRowProps) {
-    const [isDragging, setIsDragging] = useState(false);
-
-    const contentTypes: string[] = [];
-    if (module.video_url) contentTypes.push('Video');
-    if (module.content_text) contentTypes.push('Text');
-    if (module.doc_url) contentTypes.push('Document');
-
+function ModuleRow({
+    module,
+    index,
+    total,
+    courseId,
+    onDragStart,
+    onDragEnter,
+    onDragEnd,
+    onMove,
+    onDelete,
+}: ModuleRowProps) {
     return (
         <div
             draggable
-            onDragStart={() => { setIsDragging(true); onDragStart(index); }}
+            onDragStart={() => onDragStart(index)}
             onDragEnter={() => onDragEnter(index)}
-            onDragEnd={() => { setIsDragging(false); onDragEnd(); }}
+            onDragEnd={onDragEnd}
             onDragOver={(e) => e.preventDefault()}
-            className={`group flex items-center gap-3 rounded-xl border bg-white px-4 py-3 transition-all dark:bg-neutral-800/50 ${
-                isDragging
-                    ? 'scale-[1.01] border-blue-300 bg-blue-50/50 shadow-md dark:border-blue-700 dark:bg-blue-900/20'
-                    : 'border-gray-100 hover:border-gray-200 hover:shadow-sm dark:border-white/8 dark:hover:border-white/15'
-            }`}
+            className="group flex items-center gap-3 rounded-lg border bg-white p-3 shadow-sm transition-all hover:border-gray-300 dark:border-white/5 dark:bg-neutral-900 dark:hover:border-neutral-700"
         >
-            {/* Drag handle */}
-            <div className="shrink-0 cursor-grab text-gray-300 transition-colors group-hover:text-gray-400 active:cursor-grabbing dark:text-neutral-600 dark:group-hover:text-neutral-500">
-                <GripVertical className="h-5 w-5" />
+            <div className="cursor-grab text-gray-400 active:cursor-grabbing">
+                <GripVertical className="h-4 w-4" />
             </div>
 
-            {/* Sequence badge */}
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600 dark:bg-neutral-700 dark:text-gray-300">
-                {module.order_sequence}
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-50 text-xs font-semibold text-gray-500 dark:bg-neutral-800">
+                {index + 1}
             </div>
 
-            {/* Module info */}
             <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-gray-800 dark:text-gray-200">{module.title}</p>
-                {contentTypes.length > 0 && (
-                    <div className="mt-0.5 flex flex-wrap gap-1">
-                        {contentTypes.map((t) => (
-                            <span
-                                key={t}
-                                className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-neutral-700 dark:text-gray-400"
-                            >
-                                {t}
-                            </span>
-                        ))}
-                    </div>
-                )}
+                <h4 className="truncate text-sm font-medium text-gray-900 dark:text-white">{module.title}</h4>
             </div>
 
-            {/* Controls */}
-            <div className="flex shrink-0 items-center gap-1">
-                <button
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
                     type="button"
-                    onClick={() => onMove(index, 'up')}
+                    variant="ghost"
+                    size="icon"
                     disabled={index === 0}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30 dark:border-white/10 dark:hover:border-white/20 dark:hover:text-gray-300"
-                    title="Move up"
+                    onClick={() => onMove(index, 'up')}
+                    className="h-8 w-8 text-gray-500"
                 >
-                    <ChevronUp className="h-3.5 w-3.5" />
-                </button>
-                <button
+                    <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
                     type="button"
-                    onClick={() => onMove(index, 'down')}
+                    variant="ghost"
+                    size="icon"
                     disabled={index === total - 1}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-600 disabled:pointer-events-none disabled:opacity-30 dark:border-white/10 dark:hover:border-white/20 dark:hover:text-gray-300"
-                    title="Move down"
+                    onClick={() => onMove(index, 'down')}
+                    className="h-8 w-8 text-gray-500"
                 >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                </button>
-                <Link
-                    href={`/courses/${courseId}/modules/${module.id}/edit`}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-blue-300 hover:text-blue-600 dark:border-white/10 dark:hover:border-blue-700 dark:hover:text-blue-400"
-                    title="Edit module"
-                >
-                    <Edit3 className="h-3.5 w-3.5" />
-                </Link>
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-gray-500">
+                    <Link href={`/courses/${courseId}/modules/${module.id}/edit`}>
+                        <Edit3 className="h-4 w-4" />
+                    </Link>
+                </Button>
+
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <button
-                            type="button"
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 text-gray-400 transition-colors hover:border-red-300 hover:text-red-500 dark:border-white/10 dark:hover:border-red-700 dark:hover:text-red-400"
-                            title="Hapus modul"
-                        >
-                            <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Modul?</AlertDialogTitle>
+                            <AlertDialogTitle>Hapus Modul</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Modul <span className="font-semibold text-foreground">{module.title}</span> akan dihapus secara permanen beserta seluruh konten dan progres siswa di modul ini.
+                                Apakah Anda yakin ingin menghapus modul ini? Tindakan ini tidak dapat dibatalkan.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Batal</AlertDialogCancel>
                             <AlertDialogAction
                                 onClick={() => onDelete(module.id)}
-                                className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                                className="bg-red-600 hover:bg-red-700 text-white"
                             >
                                 Hapus
                             </AlertDialogAction>

@@ -6,6 +6,8 @@ use App\Models\Module;
 use App\Models\ModuleChecklistItem;
 use App\Models\ModuleProgress;
 use App\Models\Enrollment;
+use App\Models\Quiz; // Tambahkan ini
+use App\Models\UserQuizAttempt; // Tambahkan ini
 use App\Services\ModuleProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +17,33 @@ class ModuleProgressController extends Controller
     public function __construct(private readonly ModuleProgressService $progressService)
     {
     }
+
+    /**
+     * Trigger Pembuka Kunci Kuis Otomatis
+     */
+   private function checkAndUnlockQuiz($userId, $moduleId)
+{
+    // 1. Cari kuis yang terikat dengan modul ini
+    $quiz = Quiz::where('module_id', $moduleId)->first();
+
+    if ($quiz) {
+        // 2. Cek apakah kuis ini memang sedang terkunci (attempts sudah 3 atau lebih)
+        $attemptsCount = UserQuizAttempt::where('user_id', $userId)
+            ->where('quiz_id', $quiz->id)
+            ->count();
+
+        // 3. JIKA kuisnya terkunci, DAN user SEKARANG sudah selesai membaca ulang materinya
+        // (Fungsi ini dipicu di dalam blok if ($this->shouldCompleteText) dll)
+        if ($attemptsCount >= 3) {
+            
+            // PENTING: Hapus history percobaan LAMA agar user mendapatkan 3 KESEMPATAN BARU
+            UserQuizAttempt::where('user_id', $userId)
+                ->where('quiz_id', $quiz->id)
+                ->delete();
+                
+        }
+    }
+}
 
     public function markTextRead(Request $request, $moduleId)
     {
@@ -42,6 +71,9 @@ class ModuleProgressController extends Controller
             $progress->is_text_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            // TRIGGER UNLOCK KUIS (BACA TEKS)
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -90,6 +122,9 @@ class ModuleProgressController extends Controller
             $progress->is_video_watched = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            // TRIGGER UNLOCK KUIS (NONTON VIDEO)
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -136,6 +171,9 @@ class ModuleProgressController extends Controller
             $progress->is_document_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
+
+            // TRIGGER UNLOCK KUIS (BACA DOKUMEN / SLIDE SELESAI)
+            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -191,8 +229,6 @@ class ModuleProgressController extends Controller
 
     private function resolveProgress(Enrollment $enrollment, Module $module, ?ModuleChecklistItem $checklistItem): ModuleProgress
     {
-        // Always include checklist_item_id so we never accidentally match a row
-        // belonging to a different checklist item (video/text) on the same module.
         return ModuleProgress::firstOrCreate([
             'enrollment_id'     => $enrollment->id,
             'module_id'         => $module->id,

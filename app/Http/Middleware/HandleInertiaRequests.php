@@ -51,6 +51,27 @@ class HandleInertiaRequests extends Middleware
                 'status' => fn () => $request->session()->get('status'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            
+            'divisions' => \App\Models\User::whereNotNull('division')
+                ->where('division', '<>', '')
+                ->where('division', '<>', '-')
+                ->distinct()
+                ->pluck('division')
+                ->filter()
+                ->sort()
+                ->values()
+                ->toArray(),
+                
+            'regions' => \App\Models\User::whereNotNull('region')
+                ->where('region', '<>', '')
+                ->where('region', '<>', '-')
+                ->distinct()
+                ->pluck('region')
+                ->filter()
+                ->sort()
+                ->values()
+                ->toArray(),
         ];
+    
     }
 }
