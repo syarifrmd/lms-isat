@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CertificateTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB; // Ditambahkan untuk query tabel pivot
 use Inertia\Inertia;
 
 class CertificateTemplateController extends Controller
@@ -20,8 +21,16 @@ class CertificateTemplateController extends Controller
 
     public function create()
     {
+        
+        $divisions = DB::table('course_division')
+            ->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
+
         return Inertia::render('admin/certificate-designs/Form', [
             'template' => null,
+            'divisions' => $divisions, 
         ]);
     }
 
@@ -29,6 +38,7 @@ class CertificateTemplateController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'division' => 'nullable|string|max:255', 
             'background_image' => 'required|image|mimes:jpeg,png,jpg|max:10240',
             'signature_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'layout_data' => 'required|json',
@@ -44,6 +54,7 @@ class CertificateTemplateController extends Controller
 
             CertificateTemplate::create([
                 'name' => $validated['name'],
+                'division' => $validated['division'] ?? null, 
                 'background_image_path' => $imagePath,
                 'signature_image_path' => $signatureImagePath,
                 'layout_data' => json_decode($validated['layout_data'], true),
@@ -57,8 +68,16 @@ class CertificateTemplateController extends Controller
 
     public function edit(CertificateTemplate $certificateTemplate)
     {
+    
+        $divisions = DB::table('course_division')
+            ->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
+
         return Inertia::render('admin/certificate-designs/Form', [
             'template' => $certificateTemplate,
+            'divisions' => $divisions, 
         ]);
     }
 
@@ -66,6 +85,7 @@ class CertificateTemplateController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'division' => 'nullable|string|max:255',
             'background_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'signature_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             'layout_data' => 'required|json',
@@ -73,13 +93,13 @@ class CertificateTemplateController extends Controller
 
         $updateData = [
             'name' => $validated['name'],
+            'division' => $validated['division'] ?? null, // Update data divisi
             'layout_data' => json_decode($validated['layout_data'], true),
         ];
 
         // Handle background image upload
         if ($request->hasFile('background_image')) {
             try {
-                // Hapus file background lama jika ada
                 if ($certificateTemplate->background_image_path && Storage::disk('public')->exists($certificateTemplate->background_image_path)) {
                     Storage::disk('public')->delete($certificateTemplate->background_image_path);
                 }
@@ -94,7 +114,6 @@ class CertificateTemplateController extends Controller
         // Handle signature image upload
         if ($request->hasFile('signature_image')) {
             try {
-                // Hapus file signature lama jika ada
                 if ($certificateTemplate->signature_image_path && Storage::disk('public')->exists($certificateTemplate->signature_image_path)) {
                     Storage::disk('public')->delete($certificateTemplate->signature_image_path);
                 }
@@ -119,9 +138,14 @@ class CertificateTemplateController extends Controller
 
     public function activate(CertificateTemplate $certificateTemplate)
     {
-        CertificateTemplate::where('is_active', true)->update(['is_active' => false]);
+        
+        CertificateTemplate::where('division', $certificateTemplate->division)
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
+
+        
         $certificateTemplate->update(['is_active' => true]);
 
-        return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil diaktifkan');
+        return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil diaktifkan untuk divisi tersebut');
     }
 }

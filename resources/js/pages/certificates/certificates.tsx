@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import { Award, Download, Eye, Search } from 'lucide-react';
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface Course {
     id: number;
@@ -36,11 +36,14 @@ export default function Certificates({ courses }: CertificatesProps) {
                 <DialogContent className="flex max-w-4xl h-[80vh] flex-col gap-2 p-6">
                     <DialogHeader>
                         <DialogTitle className="text-base">{selectedCourse?.title}</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Pratinjau dokumen sertifikat resmi Anda.
+                        </DialogDescription>
                     </DialogHeader>
                     {selectedCourse && (
                         <iframe
                             src={`/certificate/${selectedCourse.id}?t=${Date.now()}`}
-                            className="w-full flex-1 rounded-lg border border-gray-100 dark:border-gray-700"
+                            className="w-full flex-1 rounded-lg border border-gray-100 dark:border-gray-700 bg-white"
                             title="Certificate Preview"
                         />
                     )}
@@ -144,4 +147,3 @@ export default function Certificates({ courses }: CertificatesProps) {
         </AppLayout>
     );
 }
-

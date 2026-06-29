@@ -24,8 +24,14 @@ class CertificateService
         $this->pdf->AddPage();
 
         // 1. Ambil Active Template
-        $template = CertificateTemplate::where('is_active', true)->first();
-        
+        $userDivision = $user->division; 
+
+        $template = CertificateTemplate::where('division', $userDivision)
+                ->where('is_active', true)
+                ->first()
+            ?? CertificateTemplate::whereNull('division')
+                ->where('is_active', true)
+                ->first();
         if (!$template) {
             throw new \Exception('Tidak ada desain sertifikat yang aktif. Admin harus mengatur terlebih dahulu.');
         }

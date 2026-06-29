@@ -41,6 +41,7 @@ interface LayoutElement {
 interface CertificateTemplate {
     id: number;
     name: string;
+    division?: string | null;
     background_image_path: string;
     signature_image_path?: string | null;
     layout_data: {
@@ -58,7 +59,7 @@ const defaultElements: LayoutElement[] = [
    
 ];
 
-export default function Form({ template }: { template?: CertificateTemplate }) {
+export default function Form({ template, divisions = [] }: { template?: CertificateTemplate; divisions?: string[] }) {
     const { errors } = usePage().props;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const signatureInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +88,7 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
 
     const { data, setData, post, put, processing } = useForm({
         name: template?.name || '',
+        division: template?.division || '',
         background_image: null as File | null,
         signature_image: null as File | null,
         layout_data: JSON.stringify({ elements, canvasWidth, canvasHeight }),
@@ -239,14 +241,18 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
         }
 
         if (template) {
-            put(certificateTemplates.update.url({ certificateTemplate: template.id }), {
-                forceFormData: true,
-            });
-        } else {
-            post(certificateTemplates.store.url(), {
-                forceFormData: true,
-            });
-        }
+
+    router.post(certificateTemplates.update.url({ certificateTemplate: template.id }), {
+        ...data,
+        _method: 'PUT',
+    }, {
+        forceFormData: true,
+    });
+} else {
+    post(certificateTemplates.store.url(), {
+        forceFormData: true,
+    });
+}
     };
 
     if (!imagePreview) {
@@ -285,6 +291,24 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                     />
                                     {(clientErrors.name || errors.name) && (
                                         <p className="text-sm text-red-600 mt-1">{clientErrors.name || errors.name}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="division">Target Divisi Sertifikat</Label>
+                                    <select
+                                        id="division"
+                                        value={data.division}
+                                        onChange={(e) => setData('division', e.target.value)}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1"
+                                    >
+                                        <option value="">Semua Divisi (Template Default)</option>
+                                        {divisions.map((div, idx) => (
+                                            <option key={idx} value={div}>{div}</option>
+                                        ))}
+                                    </select>
+                                    {errors.division && (
+                                        <p className="text-sm text-red-600 mt-1">{errors.division}</p>
                                     )}
                                 </div>
 
@@ -363,6 +387,24 @@ export default function Form({ template }: { template?: CertificateTemplate }) {
                                     />
                                     {(clientErrors.name || errors.name) && (
                                         <p className="text-sm text-red-600 mt-1">{clientErrors.name || errors.name}</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="division">Target Divisi Sertifikat</Label>
+                                    <select
+                                        id="division"
+                                        value={data.division}
+                                        onChange={(e) => setData('division', e.target.value)}
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-1"
+                                    >
+                                        <option value="">Semua Divisi (Template Default)</option>
+                                        {divisions.map((div, idx) => (
+                                            <option key={idx} value={div}>{div}</option>
+                                        ))}
+                                    </select>
+                                    {errors.division && (
+                                        <p className="text-sm text-red-600 mt-1">{errors.division}</p>
                                     )}
                                 </div>
 

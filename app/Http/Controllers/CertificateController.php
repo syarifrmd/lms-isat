@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\CertificateTemplate; // <--- 1. IMPORT MODEL TEMPLATE DI ATAS
 use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +17,7 @@ class CertificateController extends Controller
         $user = Auth::user();
         
         $completedCourses = Enrollment::where('user_id', $user->id)
-            ->whereNotNull('completed_at') // Atau where('status', 'completed')
+            ->whereNotNull('completed_at')
             ->with('course')
             ->get()
             ->map(function ($enrollment) {
@@ -37,10 +38,15 @@ class CertificateController extends Controller
             ->where('course_id', $courseId)
             ->first();
 
-        $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]);
-        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment);
+        $template = CertificateTemplate::where('division', $course->division)
+            ->where('is_active', 1)
+            ->first() 
+            ?? CertificateTemplate::whereNull('division')->where('is_active', 1)->first();
 
-        // Inline: tampilkan di browser (iframe/tab baru)
+        $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]);
+        
+        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment, $template);
+
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="Sertifikat-' . $user->name . '.pdf"',
@@ -50,18 +56,22 @@ class CertificateController extends Controller
     public function download(Request $request, $courseId, CertificateService $certificateService)
     {
         $user = Auth::user();
-        
         $course = Course::findOrFail($courseId);
 
         $enrollment = Enrollment::where('user_id', $user->id)
             ->where('course_id', $courseId)
             ->first();
 
+    
+        $template = CertificateTemplate::where('division', $course->division)
+            ->where('is_active', 1)
+            ->first() 
+            ?? CertificateTemplate::whereNull('division')->where('is_active', 1)->first();
+
         $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]); 
 
-        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment);
+        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment, $template);
 
-        // Attachment: force download
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="Sertifikat-' . $user->name . '.pdf"',

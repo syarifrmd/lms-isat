@@ -8,6 +8,7 @@ class CertificateTemplate extends Model
 {
     protected $fillable = [
         'name',
+        'division',
         'background_image_path',
         'signature_image_path',
         'layout_data',

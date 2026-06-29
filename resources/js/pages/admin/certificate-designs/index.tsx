@@ -36,9 +36,11 @@ import {
     CheckCircle,
     Palette
 } from 'lucide-react';
+
 interface CertificateTemplate {
     id: number;
     name: string;
+    division?: string | null; // Ditambahkan sesuai perubahan database & controller
     background_image_path: string;
     is_active: boolean;
     created_at: string;
@@ -99,6 +101,7 @@ export default function Index() {
                             <TableHeader>
                                 <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 dark:bg-gray-900/40 dark:hover:bg-gray-900/40">
                                     <TableHead>Nama Desain</TableHead>
+                                    <TableHead>Divisi</TableHead>
                                     <TableHead>Preview</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Dibuat Pada</TableHead>
@@ -110,6 +113,15 @@ export default function Index() {
                                     templates.map((template: CertificateTemplate) => (
                                         <TableRow key={template.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-900/30">
                                             <TableCell className="font-medium">{template.name}</TableCell>
+                                            <TableCell>
+                                                {template.division ? (
+                                                    <Badge variant="secondary" className="font-normal">
+                                                        {template.division}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">Semua Divisi</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>
                                                 <img
                                                     src={`/storage/${template.background_image_path}`}
@@ -170,7 +182,7 @@ export default function Index() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                                             Belum ada desain sertifikat. Buat desain baru untuk memulai.
                                         </TableCell>
                                     </TableRow>
@@ -188,6 +200,9 @@ export default function Index() {
                                 <div className="mb-3 flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{template.name}</p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground font-medium">
+                                            {template.division ? `Divisi: ${template.division}` : 'Semua Divisi'}
+                                        </p>
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             {new Date(template.created_at).toLocaleDateString('id-ID')}
                                         </p>
