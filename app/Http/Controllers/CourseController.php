@@ -20,127 +20,132 @@ class CourseController extends Controller
     {
     }
 
-   public function index(Request $request)
-{
-    $user = Auth::user();
-    
-    $search = $request->input('search');
-    $category = $request->input('category');
-    $courseType = $request->input('course_type', 'mandatory');
-    $progressStatus = $request->input('progress_status');
-    $divisionFilter = $request->input('division'); 
-
-$query = Course::with('creator')
-    ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-    ->select('courses.*', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
-    ->groupBy('courses.id', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
-    ->withExists(['enrollments as is_enrolled' => function ($query) {
-        $query->where('user_id', Auth::id())
-            ->whereIn('status', ['enrolled', 'in_progress']);
-    }])
-    ->withExists(['enrollments as is_completed' => function ($query) {
-        $query->where('user_id', Auth::id())
-            ->where(function ($q) {
-                $q->where('status', 'completed')
-                    ->orWhereNotNull('completed_at');
-            });
-    }]);
+    public function index(Request $request)
+    {
+        $user = Auth::user();
         
-    if ($user && $user->role === 'admin') {
-        if ($divisionFilter && $divisionFilter !== 'all') {
-            $query->where('course_division.target_division', $divisionFilter);
-        }
-    } elseif ($user && $user->role === 'trainer') {
-        // DIUBAH SIKIT: Menggunakan orWhereNull untuk menampung data kursus lama tanpa divisi
-        $query->where(function ($q) use ($user) {
-            $q->where('course_division.target_division', $user->division)
-              ->orWhereNull('course_division.target_division');
-        })
-        ->where(function ($q) use ($user) {
-            $q->where('courses.status', 'published')
-              ->orWhere('courses.created_by', $user->id);
-        });
-    } else {
-        $query->where('courses.status', 'published')
-              ->where('course_division.target_division', $user->division);
-    }
-    
-    if ($courseType === 'mandatory') {
-        $query->where('courses.is_mandatory', true);
-    } elseif ($courseType === 'non_mandatory') {
-        $query->where('courses.is_mandatory', false);
-    }
-   
-    if ($search) {
-        $query->where(function($q) use ($search) {
-            $q->where('courses.title', 'like', '%' . $search . '%')
-              ->orWhere('courses.description', 'like', '%' . $search . '%');
-        });
-    }
+        $search = $request->input('search');
+        $category = $request->input('category');
+        $courseType = $request->input('course_type', 'mandatory');
+        $progressStatus = $request->input('progress_status');
+        $divisionFilter = $request->input('division'); 
 
-    if ($category) {
-        $query->where('courses.category', $category);
-    }
+        // --- PERBAIKAN UNTUK MENANGGULANGI ERROR 500 ONLY_FULL_GROUP_BY PADA SERVER PRODUCTION/HOSTING ---
+        config()->set('database.connections.mysql.strict', false);
+        DB::reconnect();
+        // -------------------------------------------------------------------------------------------------
 
-    if ($progressStatus === 'ongoing') {
-        $query->whereHas('enrollments', function ($q) {
-            $q->where('user_id', Auth::id())
-                ->whereIn('status', ['enrolled', 'in_progress']);
-        });
-    } elseif ($progressStatus === 'completed') {
-        $query->whereHas('enrollments', function ($q) {
-            $q->where('user_id', Auth::id())
-                ->where(function ($q2) {
-                    $q2->where('status', 'completed')
-                        ->orWhereNotNull('completed_at');
-                });
-        });
-    } elseif ($progressStatus === 'not_enrolled') {
-        $query->whereDoesntHave('enrollments', function ($q) {
-            $q->where('user_id', Auth::id());
-        });
-    }
-
-    $courses = $query->orderByRaw('CASE WHEN course_division.position IS NULL THEN 1 ELSE 0 END, course_division.position asc')
-                     ->orderBy('courses.created_at', 'desc')
-                     ->get();
-    
-    $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
-    $userEnrollments = Auth::check() 
-        ? Enrollment::where('user_id', $user->id)->get()->keyBy('course_id') 
-        : collect();
-
-    foreach ($courses as $course) {
-        $isLocked = false;
-        if (!$isTrainerOrAdmin && $course->prerequisite_course_id) {
-            $prereqEnrollment = $userEnrollments->get($course->prerequisite_course_id);
-            if (!$prereqEnrollment || $prereqEnrollment->status !== 'completed') {
-                $isLocked = true;
+        $query = Course::with('creator')
+            ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.*', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
+            ->groupBy('courses.id', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
+            ->withExists(['enrollments as is_enrolled' => function ($query) {
+                $query->where('user_id', Auth::id())
+                    ->whereIn('status', ['enrolled', 'in_progress']);
+            }])
+            ->withExists(['enrollments as is_completed' => function ($query) {
+                $query->where('user_id', Auth::id())
+                    ->where(function ($q) {
+                        $q->where('status', 'completed')
+                            ->orWhereNotNull('completed_at');
+                    });
+            }]);
+                
+        if ($user && $user->role === 'admin') {
+            if ($divisionFilter && $divisionFilter !== 'all') {
+                $query->where('course_division.target_division', $divisionFilter);
             }
+        } elseif ($user && $user->role === 'trainer') {
+            $query->where(function ($q) use ($user) {
+                $q->where('course_division.target_division', $user->division)
+                  ->orWhereNull('course_division.target_division');
+            })
+            ->where(function ($q) use ($user) {
+                $q->where('courses.status', 'published')
+                  ->orWhere('courses.created_by', $user->id);
+            });
+        } else {
+            $query->where('courses.status', 'published')
+                  ->where('course_division.target_division', $user->division);
         }
-        $course->is_locked = $isLocked;
-    }
-    
-    $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
-    
-    $divisions = DB::table('course_division')->distinct()
-        ->whereNotNull('target_division')
-        ->where('target_division', '!=', '')
-        ->pluck('target_division');
         
-    return Inertia::render('Courses/Index', [
-        'courses' => $courses,
-        'filters' => [
-            'search' => $search,
-            'category' => $category,
-            'course_type' => $courseType,
-            'progress_status' => $progressStatus,
-            'division' => $divisionFilter, 
-        ],
-        'categories' => $categories,
-        'divisions' => $divisions 
-    ]);
-}
+        if ($courseType === 'mandatory') {
+            $query->where('courses.is_mandatory', true);
+        } elseif ($courseType === 'non_mandatory') {
+            $query->where('courses.is_mandatory', false);
+        }
+       
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('courses.title', 'like', '%' . $search . '%')
+                  ->orWhere('courses.description', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($category) {
+            $query->where('courses.category', $category);
+        }
+
+        if ($progressStatus === 'ongoing') {
+            $query->whereHas('enrollments', function ($q) {
+                $q->where('user_id', Auth::id())
+                    ->whereIn('status', ['enrolled', 'in_progress']);
+            });
+        } elseif ($progressStatus === 'completed') {
+            $query->whereHas('enrollments', function ($q) {
+                $q->where('user_id', Auth::id())
+                    ->where(function ($q2) {
+                        $q2->where('status', 'completed')
+                            ->orWhereNotNull('completed_at');
+                    });
+            });
+        } elseif ($progressStatus === 'not_enrolled') {
+            $query->whereDoesntHave('enrollments', function ($q) {
+                $q->where('user_id', Auth::id());
+            });
+        }
+
+        $courses = $query->orderByRaw('CASE WHEN course_division.position IS NULL THEN 1 ELSE 0 END, course_division.position asc')
+                         ->orderBy('courses.created_at', 'desc')
+                         ->get();
+        
+        $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
+        $userEnrollments = Auth::check() 
+            ? Enrollment::where('user_id', $user->id)->get()->keyBy('course_id') 
+            : collect();
+
+        foreach ($courses as $course) {
+            $isLocked = false;
+            if (!$isTrainerOrAdmin && $course->prerequisite_course_id) {
+                $prereqEnrollment = $userEnrollments->get($course->prerequisite_course_id);
+                if (!$prereqEnrollment || $prereqEnrollment->status !== 'completed') {
+                    $isLocked = true;
+                }
+            }
+            $course->is_locked = $isLocked;
+        }
+        
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+        
+        $divisions = DB::table('course_division')->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
+            
+        return Inertia::render('Courses/Index', [
+            'courses' => $courses,
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+                'course_type' => $courseType,
+                'progress_status' => $progressStatus,
+                'division' => $divisionFilter, 
+            ],
+            'categories' => $categories,
+            'divisions' => $divisions 
+        ]);
+    }
+
     public function create()
     {
         $user = Auth::user();
@@ -193,7 +198,6 @@ $query = Course::with('creator')
             $coverPath = $request->file('cover_image')->store('covers', 'public');
         }
 
-        // 1. Simpan inti kursus ke tabel courses
         $course = Course::create([
             'title' => $validated['title'],
             'description' => $validated['description'],
@@ -208,7 +212,6 @@ $query = Course::with('creator')
             'end_date' => $request->input('end_date'),
         ]);
 
-        // 2. Simpan mapping tiap divisi ke dalam tabel pivot `course_division`
         foreach ($targetDivisions as $division) {
             $positionsMap = $request->input('position', []);
             $position = ($isMandatory && isset($positionsMap[$division])) ? (int)$positionsMap[$division] : 1;
@@ -408,7 +411,6 @@ $query = Course::with('creator')
             abort(403, 'Unauthorized action.');
         }
 
-        // Ambil riwayat relasi dari tabel pivot untuk dikembalikan ke frontend
         $pivotRecords = DB::table('course_division')->where('course_id', $course->id)->get();
         
         $targetDivisions = $pivotRecords->pluck('target_division')->toArray();
@@ -417,7 +419,6 @@ $query = Course::with('creator')
             $positionsMap[$rec->target_division] = $rec->position;
         }
 
-        // Ikat ke instance model agar dibaca oleh template Edit.tsx
         $course->target_division = $targetDivisions;
         $course->position = $positionsMap;
 
@@ -500,7 +501,6 @@ $query = Course::with('creator')
 
         $course->update($updateData);
 
-        // Bersihkan data pivot lama untuk course ini, lalu bangun ulang berdasarkan pilihan baru
         DB::table('course_division')->where('course_id', $course->id)->delete();
 
         foreach ($targetDivisions as $division) {
