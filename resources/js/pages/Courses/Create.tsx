@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 interface CreateCourseProps {
     categories: string[];
     divisions: string[]; 
-    mandatoryCourses: { id: number; title: string }[];
+    mandatoryCourses: { id: number; title: string; position?: number; target_division?: string | string[] | null }[];
     auth: {
         user: {
             id: number;
@@ -25,57 +25,70 @@ interface CreateCourseProps {
 export default function CreateCourse({ categories, divisions, mandatoryCourses, auth }: CreateCourseProps) {
     const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
-    const { data, setData, post, processing, errors } = useForm({
-        title: '',
-        description: '',
-        category: '',
-        status: 'draft',
-        start_date: '',
-        end_date: '',
-        cover_image: null as File | null,
-        is_mandatory: false,
-        target_division: isTrainer ? (auth.user.division ?? '') : 'all', 
-        is_timer_active: true, // DEFAULT HIDUP: Ubah ke false jika defaultnya mati
-        duration_minutes: 5,  // DEFAULT TIME: Ubah angka 5 ini jika ingin waktu dasar yang berbeda
-        position: 1,                    
-        prerequisite_course_id: '',     
-    });
+  const { data, setData, post, processing, errors } = useForm({
+    title: '',
+    description: '',
+    category: '',
+    status: 'draft',
+    start_date: '',
+    end_date: '',
+    cover_image: null as File | null,
+    is_mandatory: false,
+    target_division: isTrainer ? (auth.user.division ? [auth.user.division] : []) : [] as string[], 
+    is_timer_active: true, 
+    duration_minutes: 5,  
+    // SEKARANG BERBENTUK OBJEK: contoh { DSE: 1, HSO: 5 }
+    position: {} as Record<string, number | string>,                    
+    prerequisite_course_id: '',     
+});
 
-    const [isCustomCategory, setIsCustomCategory] = useState(false);
+const [isCustomCategory, setIsCustomCategory] = useState(false);
 
-    // Sinkronisasi otomatis 
-    useEffect(() => {
-    // 1. Logic Reset Timer 
+// Sinkronisasi otomatis (Sudah dihapus logika auto-suggest position yang merusak input)
+useEffect(() => {
+    // Logic Reset Timer & Position jika non-mandatory
     if (!data.is_mandatory) {
-        setData(prev => ({
-            ...prev,
-            is_timer_active: false,
-            duration_minutes: 5,
-            position: 1, 
-            prerequisite_course_id: ''
-        }));
-    } 
-    // 2. Logic Auto-Suggest 
-    else {
-        // Filter kursus mandatory
-        const filtered = (mandatoryCourses || [])
-            .filter((c: any) => {
-                if (!data.target_division || data.target_division === 'all') {
-                    return true;
-                }
-                return c.target_division === data.target_division;
-            });
-        
-        // Cari angka posisi tertinggi
-        if (filtered.length > 0) {
-            const maxPosition = Math.max(...filtered.map((c: any) => c.position || 0));
-            setData('position', maxPosition + 1);
-        } else {
-            // Jika divisi ini belum punya kursus mandatory sama sekali, otomatis mulai dari 1
-            setData('position', 1);
+        if (data.is_timer_active !== false || data.duration_minutes !== 5 || Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
+            setData(prev => ({
+                ...prev,
+                is_timer_active: false,
+                duration_minutes: 5,
+                position: {}, 
+                prerequisite_course_id: ''
+            }));
         }
     }
-}, [data.is_mandatory, data.target_division, mandatoryCourses]);
+}, [data.is_mandatory]);
+
+    const handleDivisionChange = (value: string) => {
+        if (value === 'all') {
+            setData(prev => ({
+                ...prev,
+                target_division: [],
+                position: {} // Ikut mereset objek posisi jika ganti ke semua divisi
+            }));
+        } else {
+            setData(prev => {
+                const currentDivisions = prev.target_division;
+                const isSelected = currentDivisions.includes(value);
+                const nextDivisions = isSelected
+                    ? currentDivisions.filter(d => d !== value)
+                    : [...currentDivisions, value];
+                
+                // Menghapus key posisi divisi jika divisi tersebut di-uncheck
+                const nextPosition = { ...prev.position };
+                if (isSelected && nextPosition[value] !== undefined) {
+                    delete nextPosition[value];
+                }
+                
+                return {
+                    ...prev,
+                    target_division: nextDivisions,
+                    position: nextPosition
+                };
+            });
+        }
+    };
 
     const handleCategoryChange = (value: string) => {
         if (value === 'Lainnya') {
@@ -90,9 +103,11 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Membungkus payload agar target_division tetap sesuai logic lama, 
+        // namun struktur objek position dikirim utuh ke backend controller.
         const payload = {
             ...data,
-            target_division: data.target_division === 'all' ? null : data.target_division,
+            target_division: data.target_division.length === 0 ? null : data.target_division,
         };
 
         post('/courses', { 
@@ -150,26 +165,33 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                     </Label>
                                     
                                     {!isTrainer ? (
-
                                        <Select
-                                        value={data.target_division || "all"} 
-                                        onValueChange={value => setData('target_division', value)}
+                                        value={data.target_division.length === 0 ? "all" : data.target_division[data.target_division.length - 1]} 
+                                        onValueChange={handleDivisionChange}
                                     >
-
-                                            <SelectTrigger id="target_division" className="rounded-lg h-10">
-                                                <SelectValue placeholder="Pilih Target Divisi" />
+                                            <SelectTrigger id="target_division" className="rounded-lg h-10 w-full overflow-hidden text-left">
+                                                <div className="truncate">
+                                                    {data.target_division.length === 0 
+                                                        ? "Semua Divisi" 
+                                                        : `Terpilih (${data.target_division.length}): ${data.target_division.join(', ')}`
+                                                    }
+                                                </div>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">Semua Divisi</SelectItem>
-                                                {divisions && divisions.map((div) => (
-                                                    <SelectItem key={div} value={div}>
-                                                        {div}
-                                                    </SelectItem>
-                                                ))}
+                                                <SelectItem value="all">
+                                                    {data.target_division.length === 0 ? "✓ Semua Divisi" : "Semua Divisi (Reset)"}
+                                                </SelectItem>
+                                                {divisions && divisions.map((div) => {
+                                                    const isSelected = data.target_division.includes(div);
+                                                    return (
+                                                        <SelectItem key={div} value={div}>
+                                                            {isSelected ? `✓ ${div}` : div}
+                                                        </SelectItem>
+                                                    );
+                                                })}
                                             </SelectContent>
                                         </Select>
                                     ) : (
-                                        // TAMPILAN TRAINER: Terkunci total, berupa boks teks statis yang tidak bisa di-klik
                                         <div className="flex items-center h-10 px-3 rounded-lg border border-gray-200 bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-sm font-medium select-none cursor-not-allowed">
                                             <span>Divisi {auth.user.division ?? 'Belum Ditentukan'}</span>
                                         </div>
@@ -178,7 +200,7 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                     <p className="text-[10px] text-gray-400">
                                         {isTrainer 
                                             ? `Target otomatis dikunci berdasarkan divisi akun Trainer Anda (${auth.user.division}).` 
-                                            : 'Akun Admin dapat menentukan target kursus ke divisi spesifik atau semua divisi.'}
+                                            : 'Klik divisi beberapa kali untuk memilih lebih dari 1 divisi. Pilih "Semua Divisi" untuk mereset.'}
                                     </p>
                                     <InputError message={errors.target_division} />
                                 </div>
@@ -208,7 +230,7 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                 </div>
                             </div>
 
-                            {/* PENGATURAN TIMER DINAMIS (Hanya muncul jika Sifat Kursus = Mandatory) */}
+                            {/* PENGATURAN TIMER DINAMIS */}
                             {data.is_mandatory && (
                                 <div className="p-4 rounded-xl border border-sky-100 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20 flex flex-col gap-4">
                                     <div className="flex items-center justify-between">
@@ -216,7 +238,6 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                             <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Batasi Waktu Materi dan Kuis</Label>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">Aktifkan batas waktu baca materi sampai penyelesaian kuis.</p>
                                         </div>
-                                        {/* Custom Toggle Switch Menggunakan Standard Tailwind */}
                                         <label className="relative inline-flex items-center cursor-pointer select-none">
                                             <input 
                                                 type="checkbox" 
@@ -228,7 +249,6 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                         </label>
                                     </div>
 
-                                    {/* Input Menit hanya muncul jika toggle di atas bernilai TRUE */}
                                     {data.is_timer_active && (
                                         <div className="flex items-end gap-3 border-t border-sky-100 dark:border-sky-900/40 pt-3">
                                             <div className="w-32 space-y-1.5">
@@ -248,103 +268,129 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
                                 </div>
                             )}
 
-                            {/* INPUT POSISI DAN SYARAT GEMBOK KURSUS WAJIB */}
+                           {/* INPUT POSISI DAN SYARAT GEMBOK KURSUS WAJIB */}
 {data.is_mandatory && (
     <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 mt-4 space-y-4">
         <h4 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
             Pengaturan Kursus Wajib (Mandatory)
         </h4>
         
-        {/* Input Urutan Posisi Card */}
-<div className="space-y-1">
-    <Label htmlFor="position" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        Urutan Posisi Tampilan Course
-    </Label>
-    <Input
-        id="position"
-        type="number"
-        min="1"
-       value={data.position === 0 ? '' : data.position} 
-    onChange={e => {
-        const val = e.target.value;
-        setData('position', val === '' ? 0 : parseInt(val));
-    }}
-        placeholder="Contoh: 1 untuk pertama, 2 untuk kedua"
-    />
-    {errors.position && <InputError message={errors.position} />}
-</div>
-
-        {/* Hint informatif boks urutan posisi  */}
-<div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-    <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
-        <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
-        <span className="text-xs font-semibold uppercase tracking-wider">
-            Urutan Posisi Terpakai ({data.target_division || 'Semua Divisi'})
-        </span>
-    </div>
-
-    <div className="flex flex-wrap gap-2 mt-1">
-        {(() => {
-            const filteredCourses = (mandatoryCourses || [])
-                .filter((c: any) => {
-                    const matchesMandatory = c.is_mandatory || true; 
-                    if (!data.target_division || data.target_division === 'all') {
-                        return matchesMandatory;
-                    }
-                    return matchesMandatory && (!c.target_division || c.target_division === data.target_division);
-                })
-                // URUTKAN: Berdasarkan angka posisi dari terkecil ke terbesar
-                .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-            if (filteredCourses.length > 0) {
-                return filteredCourses.map((c: any) => (
-                    <div 
-                        key={c.id} 
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 shadow-xs text-xs"
-                    >
-                        <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
-                            #{c.position || 1}
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
-                            {c.title}
-                        </span>
+        {/* Urutan Posisi Tampilan */}
+        <div className="space-y-3.5">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Urutan Posisi Tampilan Course per Divisi
+            </Label>
+            
+            {(() => {
+                const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
+                
+                return targetDivs.map((divName) => (
+                    <div key={divName} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-150 shadow-xs">
+                        <div className="sm:w-1/3">
+                            <span className="text-xs font-bold text-gray-400 uppercase block">Divisi Target</span>
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{divName}</span>
+                        </div>
+                        <div className="sm:w-2/3 space-y-1">
+                            <Input
+                                type="number"
+                                min="0"
+                                placeholder="Masukkan nomor urutan posisi (Contoh: 1, 2, 5)"
+                                value={data.position[divName] !== undefined ? data.position[divName] : ''}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setData('position', {
+                                        ...data.position,
+                                        [divName]: val === '' ? '' : parseInt(val, 10)
+                                    });
+                                }}
+                            />
+                        </div>
                     </div>
                 ));
-            }
+            })()}
+            {errors.position && <InputError message={errors.position} />}
+        </div>
 
-            return (
-                <div className="w-full text-center py-2 text-xs text-gray-400 dark:text-gray-500 italic bg-white dark:bg-gray-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
-                    Belum ada posisi terpakai untuk divisi {data.target_division || 'ini'}. Nomor ini aman digunakan sebagai nomor 1.
-                </div>
-            );
-        })()}
-    </div>
-</div>
+        {/* Hint boks urutan posisi terpakai */}
+        <div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
+                <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                    Referensi Urutan Posisi Terpakai Saat Ini
+                </span>
+            </div>
+
+            <div className="space-y-3 mt-2">
+                {(() => {
+                    const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
+
+                    return targetDivs.map((divName) => {
+                        const filteredCourses = (mandatoryCourses || [])
+                            .filter((c: any) => {
+                                if (divName === 'Semua Divisi') return true;
+                                if (Array.isArray(c.target_division)) {
+                                    return c.target_division.includes(divName);
+                                }
+                                return c.target_division === divName;
+                            })
+                            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+                        return (
+                            <div key={divName} className="space-y-1.5">
+                                <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 block uppercase">
+                                    Divisi: {divName}
+                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                    {filteredCourses.length > 0 ? (
+                                        filteredCourses.map((c: any) => (
+                                            <div 
+                                                key={c.id} 
+                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 text-xs"
+                                            >
+                                                <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
+                                                    #{c.position}
+                                                </span>
+                                                <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
+                                                    {c.title}
+                                                </span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 italic py-1">
+                                            Belum ada posisi terpakai di divisi ini.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    });
+                })()}
+            </div>
+        </div>
 
        {/* Dropdown Memilih Kursus Prasyarat (Gembok) */}
-<div className="space-y-1">
-    <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-        Kursus Syarat (Course Terkunci)
-    </Label>
-    <Select
-        value={data.prerequisite_course_id || "none"}
-        onValueChange={value => setData('prerequisite_course_id', value === 'none' ? '' : value)}
-    >
-        <SelectTrigger className="w-full">
-            <SelectValue placeholder=" Pilih Course Awal " />
-        </SelectTrigger>
-        <SelectContent>
-            <SelectItem value="none"> Pilih Course Awal (Tanpa Prasyarat) </SelectItem>
-            
-            {mandatoryCourses && mandatoryCourses.map((course) => (
-                <SelectItem key={course.id} value={course.id.toString()}>
-                    {course.title}
-                </SelectItem>
-            ))}
-        </SelectContent>
-    </Select>
-    {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
-</div>
+        <div className="space-y-1">
+            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Kursus Syarat (Course Terkunci)
+            </Label>
+            <Select
+                value={data.prerequisite_course_id || "none"}
+                onValueChange={value => setData('prerequisite_course_id', value === 'none' ? '' : value)}
+            >
+                <SelectTrigger className="w-full">
+                    <SelectValue placeholder=" Pilih Course Awal " />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="none"> Pilih Course Awal (Tanpa Prasyarat) </SelectItem>
+                    {mandatoryCourses && mandatoryCourses.map((course) => (
+                        <SelectItem key={course.id} value={course.id.toString()}>
+                            {course.title}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
+        </div>
     </div>
 )}
 

@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CourseController extends Controller
 {
@@ -19,118 +20,127 @@ class CourseController extends Controller
     {
     }
 
-    public function index(Request $request)
-    {
-        $user = Auth::user();
-        
-        $search = $request->input('search');
-        $category = $request->input('category');
-        $courseType = $request->input('course_type', 'mandatory');
-        $progressStatus = $request->input('progress_status');
-        $divisionFilter = $request->input('division'); 
+   public function index(Request $request)
+{
+    $user = Auth::user();
+    
+    $search = $request->input('search');
+    $category = $request->input('category');
+    $courseType = $request->input('course_type', 'mandatory');
+    $progressStatus = $request->input('progress_status');
+    $divisionFilter = $request->input('division'); 
 
-        $query = Course::with('creator')
-            ->withExists(['enrollments as is_enrolled' => function ($query) {
-                $query->where('user_id', Auth::id())
-                    ->whereIn('status', ['enrolled', 'in_progress']);
-            }])
-            ->withExists(['enrollments as is_completed' => function ($query) {
-                $query->where('user_id', Auth::id())
-                    ->where(function ($q) {
-                        $q->where('status', 'completed')
-                            ->orWhereNotNull('completed_at');
-                    });
-            }]);
-            
-        if ($user && $user->role === 'admin') {
-            if ($divisionFilter && $divisionFilter !== 'all') {
-                $query->where('target_division', $divisionFilter);
-            }
-        } elseif ($user && $user->role === 'trainer') {
-            $query->where('target_division', $user->division)
-                  ->where(function ($q) use ($user) {
-                      $q->where('status', 'published')
-                        ->orWhere('created_by', $user->id);
-                  });
-        } else {
-            $query->where('status', 'published')
-                  ->where('target_division', $user->division);
-        }
-        
-        if ($courseType === 'mandatory') {
-            $query->where('is_mandatory', true);
-        } elseif ($courseType === 'non_mandatory') {
-            $query->where('is_mandatory', false);
-        }
-       
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('title', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%');
+$query = Course::with('creator')
+    ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+    ->select('courses.*', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
+    ->groupBy('courses.id', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
+    ->withExists(['enrollments as is_enrolled' => function ($query) {
+        $query->where('user_id', Auth::id())
+            ->whereIn('status', ['enrolled', 'in_progress']);
+    }])
+    ->withExists(['enrollments as is_completed' => function ($query) {
+        $query->where('user_id', Auth::id())
+            ->where(function ($q) {
+                $q->where('status', 'completed')
+                    ->orWhereNotNull('completed_at');
             });
-        }
-
-        if ($category) {
-            $query->where('category', $category);
-        }
-
-        if ($progressStatus === 'ongoing') {
-            $query->whereHas('enrollments', function ($q) {
-                $q->where('user_id', Auth::id())
-                    ->whereIn('status', ['enrolled', 'in_progress']);
-            });
-        } elseif ($progressStatus === 'completed') {
-            $query->whereHas('enrollments', function ($q) {
-                $q->where('user_id', Auth::id())
-                    ->where(function ($q2) {
-                        $q2->where('status', 'completed')
-                            ->orWhereNotNull('completed_at');
-                    });
-            });
-        } elseif ($progressStatus === 'not_enrolled') {
-            $query->whereDoesntHave('enrollments', function ($q) {
-                $q->where('user_id', Auth::id());
-            });
-        }
-
-        $courses = $query->orderBy('position', 'asc')->get();
+    }]);
         
-        $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
-        $userEnrollments = Auth::check() 
-            ? Enrollment::where('user_id', $user->id)->get()->keyBy('course_id') 
-            : collect();
-
-        foreach ($courses as $course) {
-            $isLocked = false;
-            if (!$isTrainerOrAdmin && $course->prerequisite_course_id) {
-                $prereqEnrollment = $userEnrollments->get($course->prerequisite_course_id);
-                if (!$prereqEnrollment || $prereqEnrollment->status !== 'completed') {
-                    $isLocked = true;
-                }
-            }
-            $course->is_locked = $isLocked;
+    if ($user && $user->role === 'admin') {
+        if ($divisionFilter && $divisionFilter !== 'all') {
+            $query->where('course_division.target_division', $divisionFilter);
         }
-        
-        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
-        $divisions = Course::distinct()
-            ->whereNotNull('target_division')
-            ->where('target_division', '!=', '')
-            ->pluck('target_division');
-            
-        return Inertia::render('Courses/Index', [
-            'courses' => $courses,
-            'filters' => [
-                'search' => $search,
-                'category' => $category,
-                'course_type' => $courseType,
-                'progress_status' => $progressStatus,
-                'division' => $divisionFilter, 
-            ],
-            'categories' => $categories,
-            'divisions' => $divisions 
-        ]);
+    } elseif ($user && $user->role === 'trainer') {
+        // DIUBAH SIKIT: Menggunakan orWhereNull untuk menampung data kursus lama tanpa divisi
+        $query->where(function ($q) use ($user) {
+            $q->where('course_division.target_division', $user->division)
+              ->orWhereNull('course_division.target_division');
+        })
+        ->where(function ($q) use ($user) {
+            $q->where('courses.status', 'published')
+              ->orWhere('courses.created_by', $user->id);
+        });
+    } else {
+        $query->where('courses.status', 'published')
+              ->where('course_division.target_division', $user->division);
+    }
+    
+    if ($courseType === 'mandatory') {
+        $query->where('courses.is_mandatory', true);
+    } elseif ($courseType === 'non_mandatory') {
+        $query->where('courses.is_mandatory', false);
+    }
+   
+    if ($search) {
+        $query->where(function($q) use ($search) {
+            $q->where('courses.title', 'like', '%' . $search . '%')
+              ->orWhere('courses.description', 'like', '%' . $search . '%');
+        });
     }
 
+    if ($category) {
+        $query->where('courses.category', $category);
+    }
+
+    if ($progressStatus === 'ongoing') {
+        $query->whereHas('enrollments', function ($q) {
+            $q->where('user_id', Auth::id())
+                ->whereIn('status', ['enrolled', 'in_progress']);
+        });
+    } elseif ($progressStatus === 'completed') {
+        $query->whereHas('enrollments', function ($q) {
+            $q->where('user_id', Auth::id())
+                ->where(function ($q2) {
+                    $q2->where('status', 'completed')
+                        ->orWhereNotNull('completed_at');
+                });
+        });
+    } elseif ($progressStatus === 'not_enrolled') {
+        $query->whereDoesntHave('enrollments', function ($q) {
+            $q->where('user_id', Auth::id());
+        });
+    }
+
+    $courses = $query->orderByRaw('CASE WHEN course_division.position IS NULL THEN 1 ELSE 0 END, course_division.position asc')
+                     ->orderBy('courses.created_at', 'desc')
+                     ->get();
+    
+    $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
+    $userEnrollments = Auth::check() 
+        ? Enrollment::where('user_id', $user->id)->get()->keyBy('course_id') 
+        : collect();
+
+    foreach ($courses as $course) {
+        $isLocked = false;
+        if (!$isTrainerOrAdmin && $course->prerequisite_course_id) {
+            $prereqEnrollment = $userEnrollments->get($course->prerequisite_course_id);
+            if (!$prereqEnrollment || $prereqEnrollment->status !== 'completed') {
+                $isLocked = true;
+            }
+        }
+        $course->is_locked = $isLocked;
+    }
+    
+    $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+    
+    $divisions = DB::table('course_division')->distinct()
+        ->whereNotNull('target_division')
+        ->where('target_division', '!=', '')
+        ->pluck('target_division');
+        
+    return Inertia::render('Courses/Index', [
+        'courses' => $courses,
+        'filters' => [
+            'search' => $search,
+            'category' => $category,
+            'course_type' => $courseType,
+            'progress_status' => $progressStatus,
+            'division' => $divisionFilter, 
+        ],
+        'categories' => $categories,
+        'divisions' => $divisions 
+    ]);
+}
     public function create()
     {
         $user = Auth::user();
@@ -140,7 +150,10 @@ class CourseController extends Controller
         }
 
         $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
-        $mandatoryCourses = Course::where('is_mandatory', true)->get(['id', 'title', 'position', 'target_division']);
+        
+        $mandatoryCourses = Course::join('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->where('courses.is_mandatory', true)
+            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
         
         return Inertia::render('Courses/Create', [
             'categories' => $categories,
@@ -163,64 +176,79 @@ class CourseController extends Controller
             'description' => 'required|string',
             'category' => 'required|string',
             'is_mandatory' => 'required|boolean',
-            'target_division' => $user->role === 'admin' ? 'required|string' : 'nullable|string', 
+            'target_division' => $user->role === 'admin' ? 'required|array' : 'nullable|array', 
             'is_timer_active' => 'required|boolean',
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
-            'position' => 'nullable|integer|min:1',
+            'position' => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
         $isTimerActive = $request->boolean('is_timer_active');
 
-        if ($user->role !== 'admin') {
-            $validated['target_division'] = $user->division;
-        }
-        
-        $position = $isMandatory ? ($request->position ?? 1) : 1;
-        $targetDivision = $validated['target_division']; 
+        $targetDivisions = $user->role === 'admin' ? $request->input('target_division', []) : [$user->division];
 
-        if ($isMandatory) {
-            $existingCourse = Course::where('is_mandatory', true)
-                ->where('position', $position)
-                ->where('target_division', $targetDivision)
-                ->exists();
-
-            if ($existingCourse) {
-                Course::where('is_mandatory', true)
-                    ->where('target_division', $targetDivision)
-                    ->where('position', '>=', $position)
-                    ->increment('position');
-            }
+        $coverPath = null;
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $request->file('cover_image')->store('covers', 'public');
         }
 
-        $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
-
-        if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
-            $previousCourse = Course::where('is_mandatory', true)
-                ->where('position', $position - 1)
-                ->where('target_division', $targetDivision) 
-                ->first();
-                
-            if ($previousCourse) {
-                $prerequisiteCourseId = $previousCourse->id;
-            }
-        }
-
-        Course::create([
+        // 1. Simpan inti kursus ke tabel courses
+        $course = Course::create([
             'title' => $validated['title'],
             'description' => $validated['description'],
             'category' => $validated['category'],
-            'created_by'=> $user->id, 
-            'status' => $user->role === 'admin' ? 'published' : 'draft', 
+            'created_by' => $user->id, 
+            'status' => $request->input('status', 'draft'), 
             'is_mandatory' => $isMandatory,
-            'target_division' => $validated['target_division'],
             'is_timer_active' => $isTimerActive,
-            // FIX: Gunakan pencegahan nilai null dengan default 0 pada data baru
-            'duration_minutes' => $isTimerActive ? $validated['duration_minutes'] : 0,
-            'position' => $position,
-            'prerequisite_course_id' => $prerequisiteCourseId, 
+            'duration_minutes' => $isTimerActive ? (int)$validated['duration_minutes'] : 0,
+            'cover_url' => $coverPath ? Storage::url($coverPath) : null,
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
         ]);
+
+        // 2. Simpan mapping tiap divisi ke dalam tabel pivot `course_division`
+        foreach ($targetDivisions as $division) {
+            $positionsMap = $request->input('position', []);
+            $position = ($isMandatory && isset($positionsMap[$division])) ? (int)$positionsMap[$division] : 1;
+
+            if ($isMandatory) {
+                $existingCourse = DB::table('course_division')
+                    ->where('target_division', $division)
+                    ->where('position', $position)
+                    ->exists();
+
+                if ($existingCourse) {
+                    DB::table('course_division')
+                        ->where('target_division', $division)
+                        ->where('position', '>=', $position)
+                        ->increment('position');
+                }
+            }
+
+            $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
+
+            if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
+                $previousCoursePivot = DB::table('course_division')
+                    ->where('position', $position - 1)
+                    ->where('target_division', $division) 
+                    ->first();
+                    
+                if ($previousCoursePivot) {
+                    $prerequisiteCourseId = $previousCoursePivot->course_id;
+                }
+            }
+
+            DB::table('course_division')->insert([
+                'course_id' => $course->id,
+                'target_division' => $division,
+                'position' => $position,
+                'prerequisite_course_id' => $prerequisiteCourseId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         return redirect()->route('courses.index')->with('success', 'Course berhasil dibuat!');
     }
@@ -229,8 +257,9 @@ class CourseController extends Controller
     {
         $userId = Auth::id() ?? 0;
 
-        // OPTIMASI: Eager loading untuk aggregate hitungan rating biar tidak memicu N+1 query
         $course = Course::withAvg('ratings as average_rating', 'rating')
+            ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.*', 'course_division.position', 'course_division.prerequisite_course_id')
             ->withCount('ratings')
             ->with(['creator', 'modules' => function($query) {
                 $query->orderBy('order_sequence', 'asc');
@@ -363,7 +392,6 @@ class CourseController extends Controller
             'isLockedByPrerequisite'  => $isLockedByPrerequisite,   
             'prerequisiteCourseTitle' => $prerequisiteCourseTitle, 
             'ratingData'   => [
-                // Menggunakan variabel hasil eager loading agar jauh lebih cepat
                 'average'      => $course->average_rating ? round((float) $course->average_rating, 1) : null,
                 'count'        => $course->ratings_count,
                 'distribution' => $course->ratings()->selectRaw('rating, count(*) as total')->groupBy('rating')->orderByDesc('rating')->pluck('total', 'rating'),
@@ -380,14 +408,32 @@ class CourseController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Ambil riwayat relasi dari tabel pivot untuk dikembalikan ke frontend
+        $pivotRecords = DB::table('course_division')->where('course_id', $course->id)->get();
+        
+        $targetDivisions = $pivotRecords->pluck('target_division')->toArray();
+        $positionsMap = [];
+        foreach ($pivotRecords as $rec) {
+            $positionsMap[$rec->target_division] = $rec->position;
+        }
+
+        // Ikat ke instance model agar dibaca oleh template Edit.tsx
+        $course->target_division = $targetDivisions;
+        $course->position = $positionsMap;
+
+        $firstPivot = $pivotRecords->first();
+        $course->prerequisite_course_id = $firstPivot ? $firstPivot->prerequisite_course_id : null;
+
         $course->load(['modules' => function ($q) {
             $q->orderBy('order_sequence', 'asc'); 
         }]);
 
         $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
-        $mandatoryCourses = Course::where('is_mandatory', true)
-            ->where('id', '!=', $course->id)
-            ->get(['id', 'title', 'position', 'target_division']);
+        
+        $mandatoryCourses = Course::join('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->where('courses.is_mandatory', true)
+            ->where('courses.id', '!=', $course->id)
+            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
 
         return Inertia::render('Courses/Edit', [
             'course' => $course,
@@ -421,44 +467,15 @@ class CourseController extends Controller
             'is_mandatory'     => 'required|boolean', 
             'is_timer_active'  => 'required|boolean',
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
-            'position'         => 'nullable|integer|min:1',
+            'target_division'  => 'nullable|array',
+            'position'         => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
         $isTimerActive = $request->boolean('is_timer_active');
 
-        $position = $isMandatory ? ($request->position ?? 1) : 1;
-        $targetDivision = $user->role === 'admin' ? $request->target_division : $user->division;
-
-        if ($isMandatory && $position != $course->position) {
-            $existingCourse = Course::where('is_mandatory', true)
-                ->where('position', $position)
-                ->where('target_division', $targetDivision)
-                ->where('id', '!=', $course->id) 
-                ->exists();
-
-            if ($existingCourse) {
-                Course::where('is_mandatory', true)
-                    ->where('target_division', $targetDivision)
-                    ->where('position', '>=', $position)
-                    ->where('id', '!=', $course->id)
-                    ->increment('position');
-            }
-        }
-
-        $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
-        if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
-            $previousCourse = Course::where('is_mandatory', true)
-                ->where('position', $position - 1)
-                ->where('target_division', $targetDivision) 
-                ->where('id', '!=', $course->id) 
-                ->first();
-                
-            if ($previousCourse) {
-                $prerequisiteCourseId = $previousCourse->id;
-            }
-        }
+        $targetDivisions = $user->role === 'admin' ? $request->input('target_division', []) : [$user->division];
 
         $updateData = [
             'title'                  => $request->title,
@@ -469,12 +486,8 @@ class CourseController extends Controller
             'end_date'               => $request->end_date,
             'is_mandatory'           => $isMandatory, 
             'is_timer_active'        => $isTimerActive,
-            'duration_minutes'       => $isTimerActive ? $request->duration_minutes : 0,
-            'position'               => $position,
-            'prerequisite_course_id' => $prerequisiteCourseId, 
+            'duration_minutes'       => $isTimerActive ? (int)$request->duration_minutes : 0,
         ];
-           
-        $updateData['target_division'] = $targetDivision;
 
         if ($request->hasFile('cover_image')) {
             if ($course->cover_url) {
@@ -486,6 +499,52 @@ class CourseController extends Controller
         }
 
         $course->update($updateData);
+
+        // Bersihkan data pivot lama untuk course ini, lalu bangun ulang berdasarkan pilihan baru
+        DB::table('course_division')->where('course_id', $course->id)->delete();
+
+        foreach ($targetDivisions as $division) {
+            $positionsMap = $request->input('position', []);
+            $position = ($isMandatory && isset($positionsMap[$division])) ? (int)$positionsMap[$division] : 1;
+
+            if ($isMandatory) {
+                $existingCourse = DB::table('course_division')
+                    ->where('target_division', $division)
+                    ->where('position', $position)
+                    ->where('course_id', '!=', $course->id) 
+                    ->exists();
+
+                if ($existingCourse) {
+                    DB::table('course_division')
+                        ->where('target_division', $division)
+                        ->where('position', '>=', $position)
+                        ->where('course_id', '!=', $course->id)
+                        ->increment('position');
+                }
+            }
+
+            $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
+            if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
+                $previousCoursePivot = DB::table('course_division')
+                    ->where('position', $position - 1)
+                    ->where('target_division', $division) 
+                    ->where('course_id', '!=', $course->id) 
+                    ->first();
+                    
+                if ($previousCoursePivot) {
+                    $prerequisiteCourseId = $previousCoursePivot->course_id;
+                }
+            }
+
+            DB::table('course_division')->insert([
+                'course_id' => $course->id,
+                'target_division' => $division,
+                'position' => $position,
+                'prerequisite_course_id' => $prerequisiteCourseId,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
 
         return redirect()->route('courses.edit', $course->id)
             ->with('success', 'Course updated successfully.');
@@ -499,7 +558,7 @@ class CourseController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $course->delete();
+        $course->delete(); 
 
         return redirect()->route('courses.index')->with('success', 'Course deleted successfully.');
     }
@@ -536,9 +595,9 @@ class CourseController extends Controller
         ]);
 
         foreach ($request->input('courses') as $courseData) {
-            Course::where('id', $courseData['id'])->update([
-                'position' => $courseData['position']
-            ]);
+            DB::table('course_division')
+                ->where('course_id', $courseData['id'])
+                ->update(['position' => $courseData['position']]);
         }
 
         return redirect()->back()->with('success', 'Urutan posisi kursus berhasil diperbarui!');
@@ -550,14 +609,12 @@ class CourseController extends Controller
         $userDivision = $user->division; 
 
         $mandatoryCourses = Course::query()
-            ->where('status', 'published') 
-            ->where('is_mandatory', true)  
-            ->where(function ($query) use ($userDivision) {
-                $query->whereNull('target_division')
-                      ->orWhere('target_division', '')
-                      ->orWhere('target_division', $userDivision);
-            })
-            ->orderBy('position', 'asc') 
+            ->join('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.*', 'course_division.position', 'course_division.target_division')
+            ->where('courses.status', 'published') 
+            ->where('courses.is_mandatory', true)  
+            ->where('course_division.target_division', $userDivision)
+            ->orderBy('course_division.position', 'asc') 
             ->get();
 
         return inertia('Student/Dashboard', [

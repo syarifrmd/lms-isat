@@ -57,14 +57,16 @@ interface Course {
     description: string | null;
     category: string | null;
     status: 'draft' | 'published' | 'archived';
-    course_type: 'mandatory' | 'non-mandatory'; // Sifat Kursus
+    course_type: 'mandatory' | 'non-mandatory';
     is_timer_active: boolean | number;
     duration_minutes: number | null;
     cover_url: string | null;
     start_date: string | null;
     end_date: string | null;
     created_by: string;
-    target_division: string | null;
+    target_division: string | string[] | null; // Mendukung string atau array dari backend
+    position: number | Record<string, number | string> | null; // Mendukung tipe lama/baru
+    prerequisite_course_id: string | number | null;
     modules: Module[];
 }
 
@@ -72,7 +74,7 @@ interface EditProps {
     course: Course;
     categories: string[];
     divisions: string[]; 
-    mandatoryCourses: { id: number; title: string }[];
+    mandatoryCourses: { id: number; title: string; position?: number; target_division?: string | string[] | null }[];
     auth: {
         user: {
             id: number;
@@ -98,43 +100,82 @@ const statusConfig = {
     },
 } as const;
 
-function formatDate(dateStr: string | null) {
-    if (!dateStr) return '';
-    return dateStr.slice(0, 16);
-}
-
 export default function EditCourse({ course, categories, divisions, mandatoryCourses, auth }: EditProps) {
     const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
-    // ── Course Info Form ─────────────────────────────────────────────────────
-    const { data, setData, put, processing, errors } = useForm({
+    // ── PARSING DATA AWAL DARI DATABASE AGAR COCOK DENGAN STRUKTUR MULTI-SELECT ──
+    const initialDivisions = (() => {
+        if (isTrainer) return auth.user.division ? [auth.user.division] : [];
+        if (!course.target_division || course.target_division === 'all') return [];
+        if (Array.isArray(course.target_division)) return course.target_division;
+        // Jika dari database berupa string "HSO, DSE", kita pecah menjadi array
+        if (typeof course.target_division === 'string') {
+            return course.target_division.split(',').map(d => d.trim()).filter(Boolean);
+        }
+        return [];
+    })();
+const initialPositions = (() => {
+    const posObj: Record<string, number | string> = {};
+    
+    // JIKA data course memiliki relasi divisions dari table pivot
+    if (course.divisions && Array.isArray(course.divisions)) {
+        course.divisions.forEach((div: any) => {
+            // div.name adalah nama divisi (misal 'DSE')
+            // div.pivot.position adalah nilai posisi dari table pivot
+            posObj[div.name] = div.pivot?.position ?? 1;
+        });
+        return posObj;
+    }
+
+    // Fallback jika data masih berbentuk objek kosongan
+    if (course.position && typeof course.position === 'object' && !Array.isArray(course.position)) {
+        return course.position as Record<string, number | string>;
+    }
+    
+    // Fallback default bawaan kode asli kamu jika berupa single value
+    const defaultPos = parseInt(String(course.position || 1), 10) || 1;
+    if (initialDivisions.length === 0) {
+        posObj['Semua Divisi'] = defaultPos;
+    } else {
+        initialDivisions.forEach(div => {
+            posObj[div] = defaultPos;
+        });
+    }
+    return posObj;
+})();
+
+    // ── FORM STATE ──
+    const { data, setData, post, processing, errors } = useForm({
         title: course.title || '',
         description: course.description || '',
         category: course.category || '',
         status: course.status || 'draft',
         start_date: course.start_date || '',
         end_date: course.end_date || '',
-        // Sinkronisasi pendeteksian is_mandatory dari tipe string database atau property bawaan
         is_mandatory: course.course_type === 'mandatory',
         is_timer_active: (course.course_type === 'mandatory' && (course.is_timer_active === true || course.is_timer_active === 1 || String(course.is_timer_active) === '1')),
         duration_minutes: course.duration_minutes || 5,
         cover_image: null as File | null,
-        target_division: isTrainer ? (auth.user.division ?? '') : (course.target_division || 'all'),
-        position: course.position || 1, 
-        prerequisite_course_id: course.prerequisite_course_id || '',
+        target_division: initialDivisions as string[],
+        position: initialPositions as Record<string, number | string>, 
+        prerequisite_course_id: course.prerequisite_course_id ? course.prerequisite_course_id.toString() : '',
     });
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(course.cover_url);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Sinkronisasi otomatis saat sifat kursus berubah (Reset timer jika dirubah ke Non-Mandatory)
+    // Sinkronisasi reset otomatis yang aman (Tanpa auto-suggest angka posisi yang merusak inputan)
     useEffect(() => {
         if (!data.is_mandatory) {
-            setData(prev => ({
-                ...prev,
-                is_timer_active: false,
-                duration_minutes: 5
-            }));
+            if (data.is_timer_active !== false || data.duration_minutes !== 5 || Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
+                setData(prev => ({
+                    ...prev,
+                    is_timer_active: false,
+                    duration_minutes: 5,
+                    position: {},
+                    prerequisite_course_id: ''
+                }));
+            }
         }
     }, [data.is_mandatory]);
 
@@ -146,19 +187,47 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
         }
     };
 
+    // Fungsi handle klik multi-select target divisi
+    const handleDivisionChange = (value: string) => {
+        if (value === 'all') {
+            setData('target_division', []);
+        } else {
+            setData(prev => {
+                const currentDivisions = prev.target_division;
+                const nextDivisions = currentDivisions.includes(value)
+                    ? currentDivisions.filter(d => d !== value)
+                    : [...currentDivisions, value];
+                
+                // Jaga agar objek posisi tidak hilang saat menambah divisi baru
+                const nextPositions = { ...prev.position };
+                if (!nextPositions[value] && value !== 'all') {
+                    nextPositions[value] = 1; // Default posisi 1 untuk divisi baru yang dipilih
+                }
+
+                return {
+                    ...prev,
+                    target_division: nextDivisions,
+                    position: nextPositions
+                };
+            });
+        }
+    };
+
     const submitCourseInfo = (e: React.FormEvent) => {
         e.preventDefault();
+        
         const payload = {
             ...data,
-            _method: 'PUT', // 
-            target_division: data.target_division === 'all' ? null : data.target_division,
+            _method: 'PUT', // Digunakan Laravel agar mendukung pengiriman File via Post Request bawaan multipart form
+            target_division: data.target_division.length === 0 ? null : data.target_division,
             course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
             is_timer_active: data.is_timer_active ? 1 : 0,
             duration_minutes: data.is_timer_active ? Number(data.duration_minutes) : null,
-            position: parseInt(String(data.position)) || 1,
-            prerequisite_course_id: data.prerequisite_course_id === 'none' ? null : (data.prerequisite_course_id || null),
+            position: data.position, // Mengirim objek data posisi per divisi {[divisi]: angka}
+            prerequisite_course_id: data.prerequisite_course_id === 'none' || data.prerequisite_course_id === '' ? null : data.prerequisite_course_id,
         };
         
+        // Menggunakan router.post dengan spoofing _method: 'PUT' demi kelancaran upload File multipart
         router.post(`/courses/${course.id}`, payload, {
             forceFormData: true,
         });
@@ -176,7 +245,7 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
         }
     };
 
-    // ── Module Ordering ───────────────────────────────────────────────────────
+    // ── Module Ordering ──
     const [modules, setModules] = useState<Module[]>(
         [...course.modules].sort((a, b) => a.order_sequence - b.order_sequence),
     );
@@ -297,8 +366,9 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
                                 <CardContent className="space-y-5 pt-5">
                                     
                                     {/* Grid Target Divisi & Sifat Kursus */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Target Divisi Dinamis */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        
+                                        {/* Target Divisi - UPDATED (Mendukung Multi-Select) */}
                                         <div className="space-y-1.5">
                                             <Label htmlFor="target_division" className="flex items-center gap-1.5 text-sm font-medium">
                                                 <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
@@ -310,22 +380,35 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
                                                 </div>
                                             ) : (
                                                 <Select
-                                                    value={data.target_division ?? 'all'}
-                                                    onValueChange={(v) => setData('target_division', v)}
+                                                    value={data.target_division.length === 0 ? "all" : data.target_division[data.target_division.length - 1]} 
+                                                    onValueChange={handleDivisionChange}
                                                 >
-                                                    <SelectTrigger className="h-10">
-                                                        <SelectValue placeholder="Pilih Target Divisi" />
+                                                    <SelectTrigger id="target_division" className="h-10 w-full text-left overflow-hidden">
+                                                        <div className="truncate">
+                                                            {data.target_division.length === 0 
+                                                                ? "Semua Divisi (Akses Global Admin)" 
+                                                                : `Terpilih (${data.target_division.length}): ${data.target_division.join(', ')}`
+                                                            }
+                                                        </div>
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="all">Semua Divisi (Akses Global Admin)</SelectItem>
-                                                        {divisions && divisions.map((div) => (
-                                                            <SelectItem key={div} value={div}>
-                                                                {div}
-                                                            </SelectItem>
-                                                        ))}
+                                                        <SelectItem value="all">
+                                                            {data.target_division.length === 0 ? "✓ Semua Divisi" : "Semua Divisi (Reset)"}
+                                                        </SelectItem>
+                                                        {divisions && divisions.map((div) => {
+                                                            const isSelected = data.target_division.includes(div);
+                                                            return (
+                                                                <SelectItem key={div} value={div}>
+                                                                    {isSelected ? `✓ ${div}` : div}
+                                                                </SelectItem>
+                                                            );
+                                                        })}
                                                     </SelectContent>
                                                 </Select>
                                             )}
+                                            <p className="text-[10px] text-gray-400">
+                                                {!isTrainer ? 'Klik divisi beberapa kali untuk memilih lebih dari 1 divisi. Pilih "Semua Divisi" untuk mereset.' : ''}
+                                            </p>
                                             <InputError message={errors.target_division} />
                                         </div>
 
@@ -351,7 +434,7 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
                                         </div>
                                     </div>
 
-                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) - Hanya muncul jika is_mandatory bernilai TRUE */}
+                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) */}
                                     {data.is_mandatory && (
                                         <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-white/5 dark:bg-neutral-800/30 space-y-4">
                                             <div className="flex items-center justify-between">
@@ -407,107 +490,152 @@ export default function EditCourse({ course, categories, divisions, mandatoryCou
                                         </div>
                                     )}
 
-                                    {/* INPUT POSISI DAN SYARAT GEMBOK KURSUS WAJIB (EDIT MODAL) */}
-{data.is_mandatory && (
-    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 mt-4 space-y-4">
-        <h4 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
-            Pengaturan Kursus Wajib (Mandatory)
-        </h4>
-        
-        {/* Input Urutan Posisi Card */}
-        <div className="space-y-1">
-            <Label htmlFor="position" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Urutan Posisi Tampilan Card
-            </Label>
-            <Input
-                id="position"
-                type="number"
-                min="1"
-               value={data.position === 0 ? '' : data.position}
-    onChange={e => {
-        const val = e.target.value;
-        setData('position', val === '' ? 0 : parseInt(val));
-    }}
-    placeholder="Contoh: 1 untuk pertama, 2 untuk kedua"
-            />
-            {errors.position && <InputError message={errors.position} />}
-        </div>
-        
-        {/* Hint informatif boks urutan posisi */}
-<div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-    <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
-        <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
-        <span className="text-xs font-semibold uppercase tracking-wider">
-            Urutan Posisi Terpakai ({data.target_division || 'Semua Divisi'})
-        </span>
-    </div>
+                                    {/* INPUT POSISI DAN SYARAT GEMBOK KURSUS WAJIB - UPDATED (Dinamis Per Divisi & Anti-Bug Ketikan) */}
+                                    {data.is_mandatory && (
+                                        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 mt-4 space-y-4">
+                                            <h4 className="font-semibold text-gray-700 dark:text-gray-200 text-sm">
+                                                Pengaturan Kursus Wajib (Mandatory)
+                                            </h4>
+                                            
+                                            {/* Input Urutan Posisi Dinamis per Divisi */}
+                                            <div className="space-y-3.5">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Urutan Posisi Tampilan Course per Divisi
+                                                </Label>
+                                                
+                                                {(() => {
+                                                    const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
+                                                    
+                                                    return targetDivs.map((divName) => (
+                                                        <div key={divName} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 shadow-xs">
+                                                            <div className="sm:w-1/3">
+                                                                <span className="text-xs font-bold text-gray-400 uppercase block">Divisi Target</span>
+                                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{divName}</span>
+                                                            </div>
+                                                            <div className="sm:w-2/3 space-y-1">
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    placeholder="Masukkan nomor urutan posisi (Contoh: 1, 2, 5)"
+                                                                    value={data.position[divName] !== undefined ? data.position[divName] : ''}
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        setData('position', {
+                                                                            ...data.position,
+                                                                            [divName]: val === '' ? '' : parseInt(val, 10)
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ));
+                                                })()}
+                                                {errors.position && <InputError message={errors.position} />}
+                                            </div>
+                                            
+                                            {/* Hint referensi urutan posisi terpakai */}
+                                            <div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
+                                                    <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
+                                                    <span className="text-xs font-semibold uppercase tracking-wider">
+                                                        Referensi Urutan Posisi Terpakai Saat Ini
+                                                    </span>
+                                                </div>
 
-    <div className="flex flex-wrap gap-2 mt-1">
-        {(() => {
-            const filteredCourses = (mandatoryCourses || [])
-                .filter((c: any) => {
-                    const matchesMandatory = c.is_mandatory || true; 
-                    
-                    if (!data.target_division || data.target_division === 'all') {
-                        return matchesMandatory;
-                    }
-                    return matchesMandatory && (!c.target_division || c.target_division === data.target_division);
-                })
-                // URUTKAN: Berdasarkan angka posisi dari terkecil ke terbesar
-                .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                                                <div className="space-y-3 mt-2">
+                                                    {(() => {
+                                                        const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
 
-            if (filteredCourses.length > 0) {
-                return filteredCourses.map((c: any) => (
-                    <div 
-                        key={c.id} 
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 shadow-xs text-xs"
-                    >
-                        <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
-                            #{c.position || 1}
-                        </span>
-                        <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
-                            {c.title}
-                        </span>
-                    </div>
-                ));
-            }
+                                                        return targetDivs.map((divName) => {
+                                                            const filteredCourses = (mandatoryCourses || [])
+                                                                .filter((c: any) => {
+                                                                    // Jangan tampilkan course ini sendiri di boks referensi urutan agar tidak bingung
+                                                                    if (c.id === course.id) return false;
 
-            return (
-                <div className="w-full text-center py-2 text-xs text-gray-400 dark:text-gray-500 italic bg-white dark:bg-gray-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
-                    Belum ada posisi terpakai untuk divisi {data.target_division || 'ini'}. Nomor ini aman digunakan sebagai nomor 1.
-                </div>
-            );
-        })()}
-    </div>
-</div>
+                                                                    if (divName === 'Semua Divisi') return true;
+                                                                    if (Array.isArray(c.target_division)) {
+                                                                        return c.target_division.includes(divName);
+                                                                    }
+                                                                    return c.target_division === divName || !c.target_division || c.target_division === 'all';
+                                                                })
+                                                                .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
-        {/* Dropdown Memilih Kursus Prasyarat (Gembok) */}
-        <div className="space-y-1">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Kursus Syarat (Kunci Gembok)
-            </Label>
-            <Select
-                value={data.prerequisite_course_id ? data.prerequisite_course_id.toString() : "none"}
-                onValueChange={value => {
-                    setData('prerequisite_course_id', value === 'none' ? '' : value);
-                }}
-            >
-                <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Kursus Pertama / Tidak Ada Prasyarat" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="none">Kursus Pertama / Tidak Ada Prasyarat</SelectItem>
-                    {mandatoryCourses && mandatoryCourses.map((c) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
-                            {c.title}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
-        </div>
-    </div>
-)}
+                                                            return (
+                                                                <div key={divName} className="space-y-1.5">
+                                                                    <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 block uppercase">
+                                                                        Divisi: {divName}
+                                                                    </span>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {filteredCourses.length > 0 ? (
+                                                                            filteredCourses.map((c: any) => (
+                                                                                <div 
+                                                                                    key={c.id} 
+                                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 text-xs"
+                                                                                >
+                                                                                    <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
+                                                                                        #{c.position || 1}
+                                                                                    </span>
+                                                                                    <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
+                                                                                        {c.title}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))
+                                                                        ) : (
+                                                                            <div className="text-[11px] text-gray-400 dark:text-gray-500 italic py-1">
+                                                                                Belum ada posisi terpakai di divisi ini selain course ini.
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
+                                                </div>
+                                            </div>
+
+                                            {/* Dropdown Memilih Kursus Prasyarat (Gembok) */}
+                                            <div className="space-y-1">
+                                                <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    Kursus Syarat (Kunci Gembok)
+                                                </Label>
+                                                <Select
+                                                    value={data.prerequisite_course_id || "none"}
+                                                    onValueChange={value => {
+                                                        setData('prerequisite_course_id', value === 'none' ? '' : value);
+                                                    }}
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Kursus Pertama / Tidak Ada Prasyarat" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                       <SelectItem value="none">Kursus Pertama </SelectItem>
+{mandatoryCourses && (() => {
+    // 1. Filter out data duplikat berdasarkan ID terlebih dahulu
+    const uniqueCourses = [];
+    const seenIds = new Set();
+    
+    mandatoryCourses.forEach(c => {
+        if (!seenIds.has(c.id)) {
+            seenIds.add(c.id);
+            uniqueCourses.push(c);
+        }
+    });
+
+    // 2. Lakukan filter exclude course aktif dan render seperti biasa
+    return uniqueCourses
+        .filter(c => c.id !== course.id)
+        .map((c, index) => (
+            <SelectItem key={`${c.id}-option-${index}`} value={c.id.toString()}>
+                {c.title}
+            </SelectItem>
+        ));
+})()}
+                                                    </SelectContent>
+                                                </Select>
+                                                {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Course Title */}
                                     <div className="space-y-1.5">

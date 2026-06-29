@@ -40,6 +40,7 @@ interface Course {
     is_completed?: boolean;
     is_locked?: boolean;   // Sinkronisasi properti gembok dari backend
     isLocked?: boolean;    // Antisipasi penamaan camelCase dari backend
+    divisions?: Array<{ id: number; name: string; pivot?: { position: number } }>; // Sinkronisasi relasi pivot table
 }
 
 export default function CoursesIndex({ 
@@ -54,7 +55,7 @@ export default function CoursesIndex({
     divisions: string[]; 
 }) {
     const { auth } = usePage<SharedData>().props;
-    const canCreateCourse = auth.user.role === 'trainer' || auth.user.role === 'admin';
+    const canCreateCourse = auth.user.role?.toLowerCase() === 'trainer' || auth.user.role?.toLowerCase() === 'admin';
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
     
@@ -73,18 +74,30 @@ export default function CoursesIndex({
         }
     }, []);
 
+    // Efek Debounce untuk fitur auto-search saat mengetik langsung muncul
+    useEffect(() => {
+        // Jangan trigger filter saat inisialisasi pertama jika nilai search masih sama dengan filter awal URL
+        if (search === (filters?.search || '')) return;
+
+        const delayDebounceFn = setTimeout(() => {
+            updateFilters(search, category, courseType, division);
+        }, 500); // Menunggu 500ms setelah user berhenti mengetik
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [search]);
+
     // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
     const updateFilters = (newSearch: string, newCategory: string, newCourseType: string, newDivision: string) => {
         router.get(
             '/courses',
             {
-                search: newSearch,
+                search: newSearch || undefined,
                 category: newCategory === 'all' ? undefined : newCategory,
                 course_type: newCourseType, 
                 division: newDivision === 'all' ? undefined : newDivision, 
             },
             {
-                preserveState: false,
+                preserveState: true, // Diubah ke true agar ketikan di input search tidak hilang/reset saat refresh data
                 replace: true,
             }
         );
@@ -92,12 +105,6 @@ export default function CoursesIndex({
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearch(e.target.value);
-    };
-    
-    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            updateFilters(search, category, courseType, division);
-        }
     };
 
     const handleCategoryChange = (val: string) => {
@@ -164,7 +171,6 @@ export default function CoursesIndex({
                                 placeholder="Cari kursus..."
                                 value={search}
                                 onChange={handleSearchChange}
-                                onKeyDown={handleSearchKeyDown}
                                 className="pl-9"
                             />
                         </div>
@@ -192,7 +198,7 @@ export default function CoursesIndex({
                             </SelectContent>
                         </Select>
 
-                        {/* FILTER DROPDOWN DIVISI (Hanya login adalah admin) */}
+                        {/* FILTER DROPDOWN DIVISI  */}
                         {auth?.user?.role === 'admin' && (
                             <Select value={division} onValueChange={handleDivisionChange}>
                                 <SelectTrigger className="w-full sm:w-48">
@@ -236,13 +242,18 @@ export default function CoursesIndex({
                         </div>
                     ) : (
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                            {courses.map((course) => {
-                                // Pengecekan status lock (berlaku untuk non-admin/trainer)
+                            {courses.map((course, index) => {
+                                // Pengecekan status gembok (berlaku untuk non-admin/trainer)
                                 const isLocked = !canCreateCourse && (course.is_locked || course.isLocked);
+
+                                // Proteksi Pengguna Biasa: Jika statusnya bukan published, jangan dirender ke tampilan USER biasa
+                                if (!canCreateCourse && ['draft', 'archived'].includes(course.status?.toLowerCase())) {
+                                    return null;
+                                }
 
                                 return (
                                     <div
-                                        key={course.id}
+                                        key={`${course.id}-${index}`}
                                         className="relative rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
                                     >
                                         {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
@@ -291,8 +302,7 @@ export default function CoursesIndex({
 
                                                 {/* SINKRONISASI LABEL WAKTU - KHUSUS USER BIASA DAN MANDATORY*/}
                                                 {(() => {
-                                                    const { auth } = usePage<any>().props; 
-                                                    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
+                                                    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role?.toLowerCase());
 
                                                     // Timer HANYA muncul jika: yang melihat adalah User biasa DAN course ini Mandatory
                                                     if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && course.duration_minutes) {
