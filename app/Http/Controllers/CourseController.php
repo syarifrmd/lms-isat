@@ -266,6 +266,10 @@ class CourseController extends Controller
     {
         $userId = Auth::id() ?? 0;
 
+        // Disable strict mode for grouping
+        config()->set('database.connections.mysql.strict', false);
+        \Illuminate\Support\Facades\DB::reconnect();
+
         $course = Course::withAvg('ratings as average_rating', 'rating')
             ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
             ->select(
