@@ -20,32 +20,99 @@ class AssessmentsController extends Controller
      */
     private function canManageCourse(Course $course): bool
     {
-        return Auth::user()->role === 'admin' || $course->created_by === Auth::id();
+        $user = Auth::user();
+        if ($user->role === 'admin') return true;
+        if ($course->created_by === $user->id) return true;
+        
+        if ($user->role === 'trainer') {
+            $hasDivision = DB::table('course_division')
+                ->where('course_id', $course->id)
+                ->where(function($q) use ($user) {
+                    $q->where('target_division', $user->division)
+                      ->orWhereNull('target_division');
+                })
+                ->exists();
+            return $hasDivision;
+        }
+        return false;
     }
 
     /**
      * Display a listing of trainer's courses for assessment management.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $userId = Auth::id();
-        $isAdmin = Auth::user()->role === 'admin';
+        $user = Auth::user();
+        $isAdmin = $user->role === 'admin';
+        $search = $request->input('search');
+        $category = $request->input('category');
+        $courseType = $request->input('course_type');
+        $divisionFilter = $request->input('division');
+
+        // Disable strict mode for grouping
+        config()->set('database.connections.mysql.strict', false);
+        DB::reconnect();
 
         $query = Course::query()
+            ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
             ->withCount('quizzes')
             ->with(['quizzes' => function($query) {
                 $query->select('id', 'course_id', 'title', 'passing_score');
-            }])
-            ->orderBy('created_at', 'desc');
+            }]);
 
-        if (!$isAdmin) {
-            $query->where('created_by', $userId);
+        if ($search) {
+            $query->where('courses.title', 'like', '%' . $search . '%');
         }
 
-        $courses = $query->get();
+        if ($category && $category !== 'all') {
+            $query->where('courses.category', $category);
+        }
+
+        if ($courseType === 'mandatory') {
+            $query->where('courses.is_mandatory', true);
+        } elseif ($courseType === 'non_mandatory') {
+            $query->where('courses.is_mandatory', false);
+        }
+
+        if ($divisionFilter && $divisionFilter !== 'all') {
+            $query->where('course_division.target_division', $divisionFilter);
+        }
+
+        if ($user->role === 'trainer') {
+            $query->where(function ($q) use ($user) {
+                $q->where('course_division.target_division', $user->division)
+                  ->orWhereNull('course_division.target_division');
+            })
+            ->where(function ($q) use ($user) {
+                $q->where('courses.status', 'published')
+                  ->orWhere('courses.created_by', $user->id);
+            });
+        } elseif (!$isAdmin) {
+            // normal user fallback
+            $query->where('courses.status', 'published')
+                  ->where('course_division.target_division', $user->division);
+        }
+
+        $courses = $query->orderBy('courses.created_at', 'desc')->paginate(9)->withQueryString();
+
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+        $divisions = DB::table('course_division')->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
 
         return Inertia::render('Assessments/Index', [
             'courses' => $courses,
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+                'course_type' => $courseType,
+                'division' => $divisionFilter,
+            ],
+            'categories' => $categories,
+            'divisions' => $divisions,
         ]);
     }
 

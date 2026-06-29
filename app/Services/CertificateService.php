@@ -19,7 +19,7 @@ class CertificateService
         $this->pdf->SetMargins(0, 0, 0);
     }
 
-    public function generate($user, $course, $verificationUrl)
+    public function generate($user, $course, $verificationUrl, $enrollment = null)
     {
         $this->pdf->AddPage();
 
@@ -88,7 +88,7 @@ class CertificateService
 
             if ($element['type'] === 'text') {
                 // Tentukan nilai text berdasarkan ID elemen
-                $textValue = $this->getElementValue($element, $user, $course);
+                $textValue = $this->getElementValue($element, $user, $course, $enrollment);
                 
                 // Set warna teks
                 $color = $element['color'] ?? '#000000';
@@ -118,15 +118,23 @@ class CertificateService
     /**
      * Dapatkan nilai text untuk setiap elemen berdasarkan ID
      */
-    private function getElementValue(array $element, $user, $course)
+    private function getElementValue(array $element, $user, $course, $enrollment = null)
     {
         $elementId = $element['id'] ?? '';
         $customValue = trim((string) ($element['value'] ?? ''));
 
+        // Gunakan tanggal selesai dari enrollment jika ada, jika tidak gunakan tanggal hari ini
+        $completionDateStr = 'Diselesaikan pada: ';
+        if ($enrollment && $enrollment->completed_at) {
+            $completionDateStr .= \Carbon\Carbon::parse($enrollment->completed_at)->translatedFormat('d F Y');
+        } else {
+            $completionDateStr .= date('d F Y');
+        }
+
         return match($elementId) {
             'userName' => strtoupper($user->name),
             'courseTitle' => $course->title,
-            'completionDate' => 'Diselesaikan pada: ' . date('d F Y'),
+            'completionDate' => $completionDateStr,
             'customMessage' => $customValue !== '' ? $customValue : 'Dengan hormat diberikan kepada',
             default => $customValue,
         };

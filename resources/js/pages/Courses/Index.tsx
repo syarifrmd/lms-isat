@@ -26,6 +26,8 @@ interface Course {
     cover_url: string;
     category: string;
     status: string; // draft, published, archived
+    target_division: string;
+    created_by: number;
     is_mandatory: boolean; 
     is_timer_active?: number | boolean;
     duration_minutes?: number;
@@ -49,7 +51,13 @@ export default function CoursesIndex({
     categories,
     divisions 
 }: { 
-    courses: Course[];
+    courses: {
+        data: Course[];
+        current_page: number;
+        last_page: number;
+        total: number;
+        links: { url: string | null; label: string; active: boolean }[];
+    };
     filters: { search?: string; category?: string; progress_status?: string; course_type?: string; division?: string }; 
     categories: string[];
     divisions: string[]; 
@@ -157,7 +165,7 @@ export default function CoursesIndex({
                     </div>
                     <div className="text-right">
                         <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total</p>
-                        <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.length}</p>
+                        <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.total}</p>
                         <p className="text-xs text-gray-400 dark:text-gray-500">courses available</p>
                     </div>
                 </div>
@@ -233,16 +241,16 @@ export default function CoursesIndex({
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">All Courses</h2>
-                        <span className="text-xs text-gray-300 dark:text-gray-600">{courses.length} courses</span>
+                        <span className="text-xs text-gray-300 dark:text-gray-600">{courses.total} courses</span>
                     </div>
 
-                    {courses.length === 0 ? (
+                    {courses.data.length === 0 ? (
                         <div className="py-16 text-center text-sm text-gray-400">
                             No courses available yet for this selection.
                         </div>
                     ) : (
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                            {courses.map((course, index) => {
+                            {courses.data.map((course, index) => {
                                 // Pengecekan status gembok (berlaku untuk non-admin/trainer)
                                 const isLocked = !canCreateCourse && (course.is_locked || course.isLocked);
 
@@ -278,10 +286,15 @@ export default function CoursesIndex({
                                                     <span className="text-3xl font-bold">{course.title.charAt(0)}</span>
                                                 </div>
                                             )}
-                                            <div className="absolute top-2 right-2">
+                                            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                                                 <span className="inline-block bg-sky-100/90 dark:bg-sky-900/80 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
                                                     {course.category || 'General'}
                                                 </span>
+                                                {course.target_division && (
+                                                    <span className="inline-block bg-indigo-100/90 dark:bg-indigo-900/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm border border-indigo-200 dark:border-indigo-800">
+                                                        {course.target_division}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -355,13 +368,15 @@ export default function CoursesIndex({
                                                 <div className="flex items-center gap-2">
                                                     {canCreateCourse ? (
                                                         <>
-                                                            <button
-                                                                onClick={() => setCourseToDelete(course.id)}
-                                                                className="group inline-flex items-center gap-1 cursor-pointer border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-700 dark:hover:text-white px-2.5 py-1 rounded-xl text-xs font-medium transition-all duration-200"
-                                                            >
-                                                                <Trash className="h-3.5 w-3.5" />
-                                                                Remove
-                                                            </button>
+                                                            {(auth?.user?.role === 'admin' || auth?.user?.id === course.created_by || (auth?.user?.role === 'trainer' && course.target_division === auth?.user?.division)) && (
+                                                                <button
+                                                                    onClick={() => setCourseToDelete(course.id)}
+                                                                    className="group inline-flex items-center gap-1 cursor-pointer border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-700 dark:hover:text-white px-2.5 py-1 rounded-xl text-xs font-medium transition-all duration-200"
+                                                                >
+                                                                    <Trash className="h-3.5 w-3.5" />
+                                                                    Remove
+                                                                </button>
+                                                            )}
                                                             <Link
                                                                 href={`/courses/${course.id}`}
                                                                 className="inline-flex items-center px-2.5 py-1 rounded-xl border border-sky-200 dark:border-sky-800 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/40 text-xs font-medium transition-colors"
@@ -397,6 +412,28 @@ export default function CoursesIndex({
                                     </div>
                                 );
                             })}
+                        </div>
+                    )}
+                    
+                    {/* Pagination */}
+                    {courses.links && courses.links.length > 3 && (
+                        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-center">
+                            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                {courses.links.map((link, i) => (
+                                    <Link
+                                        key={i}
+                                        href={link.url || '#'}
+                                        preserveState
+                                        className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
+                                            link.active
+                                                ? 'z-10 bg-sky-50 border-sky-500 text-sky-600 dark:bg-sky-900/50 dark:border-sky-500 dark:text-sky-400'
+                                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
+                                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}
+                                        ${i === 0 ? 'rounded-l-md' : ''} ${i === courses.links.length - 1 ? 'rounded-r-md' : ''}`}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
+                                ))}
+                            </nav>
                         </div>
                     )}
                 </div>

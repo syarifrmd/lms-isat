@@ -40,6 +40,7 @@ interface Course {
     modules: Module[];
     quizzes?: Quiz[];
     created_by: string;
+    target_division?: string;
     creator?: CourseCreator;
 }
 
@@ -1377,8 +1378,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const isAdmin = auth.user.role === 'admin';
     const isTrainer = auth.user.role === 'trainer' || isAdmin;
     const canTakeQuiz = auth.user.role === 'user';
-    const isCreator = course.created_by === auth.user.id;
-    const canManage = isAdmin || isCreator; // admin can manage all, trainer only own
+    const isCreator = Number(course.created_by) === Number(auth.user.id);
+    const canManage = isAdmin || isCreator || (auth.user.role === 'trainer' && course.target_division === auth.user.division); // admin can manage all, trainer own or if assigned to their division
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
     const [isTimerFinished, setIsTimerFinished] = useState(false);

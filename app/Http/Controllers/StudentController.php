@@ -9,6 +9,7 @@ use App\Models\ModuleProgress;
 use App\Models\UserQuizAttempt;
 use App\Services\ModuleProgressService;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
 {
@@ -16,14 +17,35 @@ class StudentController extends Controller
     {
     }
 
-    /**
-     * Daftar semua course untuk dipilih trainer/admin.
-     */
     public function index()
     {
-        $courses = Course::withCount('enrollments')
-            ->orderBy('created_at', 'desc')
-            ->get(['id', 'title', 'description', 'category', 'status', 'created_at']);
+        $user = Auth::user();
+
+        // Disable strict mode for grouping
+        config()->set('database.connections.mysql.strict', false);
+        \Illuminate\Support\Facades\DB::reconnect();
+        
+        $query = Course::withCount('enrollments')
+            ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->orderBy('courses.created_at', 'desc');
+            
+        if ($user->role === 'trainer') {
+            $query->where(function ($q) use ($user) {
+                $q->where('course_division.target_division', $user->division)
+                  ->orWhereNull('course_division.target_division');
+            })
+            ->where(function ($q) use ($user) {
+                $q->where('courses.status', 'published')
+                  ->orWhere('courses.created_by', $user->id);
+            });
+        } elseif ($user->role !== 'admin') {
+            $query->where('courses.status', 'published')
+                  ->where('course_division.target_division', $user->division);
+        }
+
+        $courses = $query->get();
 
         return Inertia::render('students/index', [
             'courses' => $courses,
@@ -36,6 +58,32 @@ class StudentController extends Controller
     public function show($courseId)
     {
         $course = Course::findOrFail($courseId);
+        $user = Auth::user();
+        
+        if ($user->role !== 'admin') {
+            $hasAccess = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+                ->where('courses.id', $courseId)
+                ->where(function ($q) use ($user) {
+                    $q->where('courses.created_by', $user->id)
+                      ->orWhere(function ($q2) use ($user) {
+                          if ($user->role === 'trainer') {
+                              $q2->where('courses.status', 'published')
+                                 ->where(function ($q3) use ($user) {
+                                     $q3->where('course_division.target_division', $user->division)
+                                        ->orWhereNull('course_division.target_division');
+                                 });
+                          } else {
+                              $q2->where('courses.status', 'published')
+                                 ->where('course_division.target_division', $user->division);
+                          }
+                      });
+                })
+                ->exists();
+
+            if (!$hasAccess) {
+                abort(403, 'Unauthorized access to this course\'s students.');
+            }
+        }
 
         // Load modules with quizzes for this course
         $modules = Module::where('course_id', $courseId)

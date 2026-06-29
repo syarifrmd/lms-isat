@@ -33,8 +33,12 @@ class CertificateController extends Controller
         $user = Auth::user();
         $course = Course::findOrFail($courseId);
 
+        $enrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $courseId)
+            ->first();
+
         $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]);
-        $pdfContent = $certificateService->generate($user, $course, $verificationUrl);
+        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment);
 
         // Inline: tampilkan di browser (iframe/tab baru)
         return response($pdfContent, 200, [
@@ -49,9 +53,13 @@ class CertificateController extends Controller
         
         $course = Course::findOrFail($courseId);
 
+        $enrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $courseId)
+            ->first();
+
         $verificationUrl = route('dashboard', ['cert_id' => $courseId . '-' . $user->id]); 
 
-        $pdfContent = $certificateService->generate($user, $course, $verificationUrl);
+        $pdfContent = $certificateService->generate($user, $course, $verificationUrl, $enrollment);
 
         // Attachment: force download
         return response($pdfContent, 200, [

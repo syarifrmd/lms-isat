@@ -107,7 +107,8 @@ class CourseController extends Controller
 
         $courses = $query->orderByRaw('CASE WHEN course_division.position IS NULL THEN 1 ELSE 0 END, course_division.position asc')
                          ->orderBy('courses.created_at', 'desc')
-                         ->get();
+                         ->paginate(9)
+                         ->withQueryString();
         
         $isTrainerOrAdmin = $user && in_array($user->role, ['trainer', 'admin']);
         $userEnrollments = Auth::check() 
@@ -262,7 +263,7 @@ class CourseController extends Controller
 
         $course = Course::withAvg('ratings as average_rating', 'rating')
             ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-            ->select('courses.*', 'course_division.position', 'course_division.prerequisite_course_id')
+            ->select('courses.*', 'course_division.position', 'course_division.prerequisite_course_id', 'course_division.target_division')
             ->withCount('ratings')
             ->with(['creator', 'modules' => function($query) {
                 $query->orderBy('order_sequence', 'asc');

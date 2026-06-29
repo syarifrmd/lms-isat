@@ -11,10 +11,10 @@ class LeaderboardController extends Controller
 {
     public function index()
     {
-        // 1. Ambil 50 user teratas berdasarkan XP tertinggi
+        // 1. Ambil 10 user teratas berdasarkan XP tertinggi
         $topUsers = User::where('role', 'user')
             ->orderBy('xp', 'desc')
-            ->take(50)
+            ->take(10)
             ->get();
 
         // 2. Format data untuk mempermudah frontend (tambah ranking)
