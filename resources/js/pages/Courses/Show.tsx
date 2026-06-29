@@ -1379,7 +1379,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const isTrainer = auth.user.role === 'trainer' || isAdmin;
     const canTakeQuiz = auth.user.role === 'user';
     const isCreator = Number(course.created_by) === Number(auth.user.id);
-    const canManage = isAdmin || isCreator || (auth.user.role === 'trainer' && course.target_division === auth.user.division); // admin can manage all, trainer own or if assigned to their division
+    const canManage = isAdmin || isCreator || (auth.user.role === 'trainer' && !!course.target_division && !!auth.user.division && course.target_division.split(', ').includes(auth.user.division)); // admin can manage all, trainer own or if assigned to their division
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
     const [isTimerFinished, setIsTimerFinished] = useState(false);

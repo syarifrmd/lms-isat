@@ -37,8 +37,13 @@ class CourseController extends Controller
 
         $query = Course::with('creator')
             ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-            ->select('courses.*', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
-            ->groupBy('courses.id', 'course_division.target_division', 'course_division.position', 'course_division.prerequisite_course_id')
+            ->select(
+                'courses.*', 
+                DB::raw("GROUP_CONCAT(DISTINCT course_division.target_division SEPARATOR ', ') as target_division"), 
+                DB::raw("MAX(course_division.position) as position"), 
+                DB::raw("MAX(course_division.prerequisite_course_id) as prerequisite_course_id")
+            )
+            ->groupBy('courses.id')
             ->withExists(['enrollments as is_enrolled' => function ($query) {
                 $query->where('user_id', Auth::id())
                     ->whereIn('status', ['enrolled', 'in_progress']);
@@ -263,7 +268,13 @@ class CourseController extends Controller
 
         $course = Course::withAvg('ratings as average_rating', 'rating')
             ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-            ->select('courses.*', 'course_division.position', 'course_division.prerequisite_course_id', 'course_division.target_division')
+            ->select(
+                'courses.*', 
+                DB::raw("GROUP_CONCAT(DISTINCT course_division.target_division SEPARATOR ', ') as target_division"),
+                DB::raw("MAX(course_division.position) as position"), 
+                DB::raw("MAX(course_division.prerequisite_course_id) as prerequisite_course_id")
+            )
+            ->groupBy('courses.id')
             ->withCount('ratings')
             ->with(['creator', 'modules' => function($query) {
                 $query->orderBy('order_sequence', 'asc');

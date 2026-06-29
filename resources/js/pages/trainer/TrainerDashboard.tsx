@@ -111,7 +111,7 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                             {user.full_name || user.name}
                         </h1>
                         <span className="mt-2 inline-block rounded-full border border-white/20 bg-white/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-100">
-                            Trainer
+                            {user.division || user.role}
                         </span>
                     </div>
                     <div className="flex items-center justify-center rounded-2xl">

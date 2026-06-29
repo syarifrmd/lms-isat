@@ -33,6 +33,7 @@ interface Enrollment {
     name: string;
     email: string;
     region?: string;
+    division?: string;
     employee_id?: string;
     status?: string;
     progress_percentage: number;
@@ -49,9 +50,21 @@ interface Course {
     status?: string;
 }
 
+
+
+interface PaginatedData<T> {
+    data: T[];
+    links: any[];
+    current_page: number;
+    last_page: number;
+    total: number;
+}
+
 interface Props {
     course: Course;
-    enrollments: Enrollment[];
+    enrollments: PaginatedData<Enrollment>;
+    total_enrollments: number;
+    total_completed: number;
 }
 
 function StatusCheckIcon({ done, label }: { done: boolean; label: string }) {
@@ -67,7 +80,7 @@ function StatusCheckIcon({ done, label }: { done: boolean; label: string }) {
     );
 }
 
-export default function StudentsShow({ course, enrollments }: Props) {
+export default function StudentsShow({ course, enrollments, total_enrollments, total_completed }: Props) {
     const [search, setSearch] = useState('');
     const [profileUser, setProfileUser] = useState<Enrollment | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -90,14 +103,13 @@ export default function StudentsShow({ course, enrollments }: Props) {
         { title: course.title, href: `/students/${course.id}` },
     ];
 
-    const filtered = enrollments.filter(
+    const filtered = (enrollments.data || []).filter(
         (e) =>
             e.name.toLowerCase().includes(search.toLowerCase()) ||
             e.email.toLowerCase().includes(search.toLowerCase()) ||
-            (e.employee_id ?? '').toLowerCase().includes(search.toLowerCase()),
+            (e.employee_id ?? '').toLowerCase().includes(search.toLowerCase()) ||
+            (e.division ?? '').toLowerCase().includes(search.toLowerCase()),
     );
-
-    const totalCompleted = enrollments.filter((e) => !!e.completed_at).length;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -146,6 +158,13 @@ export default function StudentsShow({ course, enrollments }: Props) {
                                         <p className="text-sm text-gray-800 dark:text-gray-100">{profileUser.region ?? '-'}</p>
                                     </div>
                                 </div>
+                                <div className="flex items-center gap-3 px-4 py-3">
+                                    <Users className="h-4 w-4 text-gray-400 shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-gray-400">Divisi</p>
+                                        <p className="text-sm text-gray-800 dark:text-gray-100">{profileUser.division ?? '-'}</p>
+                                    </div>
+                                </div>
                             </div>
                             <div className="rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex flex-col gap-2">
                                 <div className="flex justify-between text-xs text-gray-500">
@@ -191,7 +210,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Terdaftar</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{enrollments.length}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_enrollments}</p>
                             </div>
                         </div>
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm">
@@ -200,7 +219,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Selesai</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{totalCompleted}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_completed}</p>
                             </div>
                         </div>
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm">
@@ -209,7 +228,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Berjalan</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{enrollments.length - totalCompleted}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_enrollments - total_completed}</p>
                             </div>
                         </div>
                     </div>
@@ -224,7 +243,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                             <input
                                 type="text"
-                                placeholder="Cari nama, email, atau NIK..."
+                                placeholder="Cari nama, email, NIK, divisi..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-9 pr-4 py-2 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-sky-300 dark:focus:ring-sky-700 transition"
@@ -242,6 +261,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                                     <th className="px-5 py-3">Email</th>
                                     <th className="px-5 py-3">NIK</th>
                                     <th className="px-5 py-3">Region</th>
+                                    <th className="px-5 py-3">Divisi</th>
                                     <th className="px-5 py-3">Progress</th>
                                     <th className="px-5 py-3">Status</th>
                                     <th className="px-5 py-3">Tgl Daftar</th>
@@ -273,6 +293,7 @@ export default function StudentsShow({ course, enrollments }: Props) {
                                                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.email}</td>
                                                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.employee_id ?? '-'}</td>
                                                     <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.region ?? '-'}</td>
+                                                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">{enrollment.division ?? '-'}</td>
                                                     <td className="px-5 py-3">
                                                         <div className="flex items-center gap-2">
                                                             <div className="h-1.5 w-24 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
@@ -432,6 +453,34 @@ export default function StudentsShow({ course, enrollments }: Props) {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination */}
+                    {enrollments.last_page > 1 && (
+                        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                                Menampilkan {enrollments.data.length > 0 ? (enrollments.current_page - 1) * 10 + 1 : 0} hingga {Math.min(enrollments.current_page * 10, enrollments.total)} dari {enrollments.total} data
+                            </span>
+                            <div className="flex items-center gap-1">
+                                {enrollments.links.map((link, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => {
+                                            if (link.url) router.visit(link.url, { preserveState: true, preserveScroll: true });
+                                        }}
+                                        disabled={!link.url}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                                            link.active
+                                                ? 'bg-sky-500 text-white border border-sky-500'
+                                                : link.url
+                                                    ? 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700'
+                                                    : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700/50'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
             </div>

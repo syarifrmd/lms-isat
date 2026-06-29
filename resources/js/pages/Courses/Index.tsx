@@ -368,7 +368,7 @@ export default function CoursesIndex({
                                                 <div className="flex items-center gap-2">
                                                     {canCreateCourse ? (
                                                         <>
-                                                            {(auth?.user?.role === 'admin' || auth?.user?.id === course.created_by || (auth?.user?.role === 'trainer' && course.target_division === auth?.user?.division)) && (
+                                                            {(auth?.user?.role === 'admin' || auth?.user?.id === course.created_by || (auth?.user?.role === 'trainer' && !!course.target_division && !!auth?.user?.division && course.target_division.split(', ').includes(auth?.user?.division))) && (
                                                                 <button
                                                                     onClick={() => setCourseToDelete(course.id)}
                                                                     className="group inline-flex items-center gap-1 cursor-pointer border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-700 dark:hover:text-white px-2.5 py-1 rounded-xl text-xs font-medium transition-all duration-200"
