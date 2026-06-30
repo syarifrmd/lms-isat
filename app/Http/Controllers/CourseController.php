@@ -30,10 +30,10 @@ class CourseController extends Controller
         $progressStatus = $request->input('progress_status');
         $divisionFilter = $request->input('division'); 
 
-        // --- PERBAIKAN UNTUK MENANGGULANGI ERROR 500 ONLY_FULL_GROUP_BY PADA SERVER PRODUCTION/HOSTING ---
+    
         config()->set('database.connections.mysql.strict', false);
         DB::reconnect();
-        // -------------------------------------------------------------------------------------------------
+    
 
         $query = Course::with('creator')
             ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')

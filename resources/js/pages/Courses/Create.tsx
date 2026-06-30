@@ -37,14 +37,13 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
     target_division: isTrainer ? (auth.user.division ? [auth.user.division] : []) : [] as string[], 
     is_timer_active: true, 
     duration_minutes: 5,  
-    // SEKARANG BERBENTUK OBJEK: contoh { DSE: 1, HSO: 5 }
     position: {} as Record<string, number | string>,                    
     prerequisite_course_id: '',     
 });
 
 const [isCustomCategory, setIsCustomCategory] = useState(false);
 
-// Sinkronisasi otomatis (Sudah dihapus logika auto-suggest position yang merusak input)
+
 useEffect(() => {
     // Logic Reset Timer & Position jika non-mandatory
     if (!data.is_mandatory) {
@@ -61,35 +60,38 @@ useEffect(() => {
 }, [data.is_mandatory]);
 
     const handleDivisionChange = (value: string) => {
-        if (value === 'all') {
-            setData(prev => ({
-                ...prev,
-                target_division: [],
-                position: {} // Ikut mereset objek posisi jika ganti ke semua divisi
-            }));
-        } else {
-            setData(prev => {
-                const currentDivisions = prev.target_division;
-                const isSelected = currentDivisions.includes(value);
-                const nextDivisions = isSelected
-                    ? currentDivisions.filter(d => d !== value)
-                    : [...currentDivisions, value];
-                
-                // Menghapus key posisi divisi jika divisi tersebut di-uncheck
-                const nextPosition = { ...prev.position };
-                if (isSelected && nextPosition[value] !== undefined) {
-                    delete nextPosition[value];
-                }
-                
-                return {
-                    ...prev,
-                    target_division: nextDivisions,
-                    position: nextPosition
-                };
-            });
-        }
-    };
+    if (value === 'all') {
+        setData(prev => {
+            const isAllSelected = divisions && prev.target_division.length === divisions.length;
 
+            return {
+                ...prev,
+                target_division: isAllSelected ? [] : (divisions ? [...divisions] : []),
+                position: {} 
+            };
+        });
+    } else {
+        setData(prev => {
+            const currentDivisions = prev.target_division;
+            const isSelected = currentDivisions.includes(value);
+            const nextDivisions = isSelected
+                ? currentDivisions.filter(d => d !== value)
+                : [...currentDivisions, value];
+            
+            // Menghapus key posisi divisi jika divisi tersebut di-uncheck
+            const nextPosition = { ...prev.position };
+            if (isSelected && nextPosition[value] !== undefined) {
+                delete nextPosition[value];
+            }
+            
+            return {
+                ...prev,
+                target_division: nextDivisions,
+                position: nextPosition
+            };
+        });
+    }
+};
     const handleCategoryChange = (value: string) => {
         if (value === 'Lainnya') {
             setIsCustomCategory(true);
@@ -103,8 +105,7 @@ useEffect(() => {
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Membungkus payload agar target_division tetap sesuai logic lama, 
-        // namun struktur objek position dikirim utuh ke backend controller.
+        
         const payload = {
             ...data,
             target_division: data.target_division.length === 0 ? null : data.target_division,
@@ -157,53 +158,58 @@ useEffect(() => {
                             {/* Informasi Target Divisi & Sifat Kursus */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/30 p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
                                 
-                                {/* Target Divisi */}
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="target_division" className="flex items-center gap-1.5 text-sm font-medium">
-                                        <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
-                                        Target Divisi <span className="text-red-500">*</span>
-                                    </Label>
-                                    
-                                    {!isTrainer ? (
-                                       <Select
-                                        value={data.target_division.length === 0 ? "all" : data.target_division[data.target_division.length - 1]} 
-                                        onValueChange={handleDivisionChange}
-                                    >
-                                            <SelectTrigger id="target_division" className="rounded-lg h-10 w-full overflow-hidden text-left">
-                                                <div className="truncate">
-                                                    {data.target_division.length === 0 
-                                                        ? "Semua Divisi" 
-                                                        : `Terpilih (${data.target_division.length}): ${data.target_division.join(', ')}`
-                                                    }
-                                                </div>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">
-                                                    {data.target_division.length === 0 ? "✓ Semua Divisi" : "Semua Divisi (Reset)"}
-                                                </SelectItem>
-                                                {divisions && divisions.map((div) => {
-                                                    const isSelected = data.target_division.includes(div);
-                                                    return (
-                                                        <SelectItem key={div} value={div}>
-                                                            {isSelected ? `✓ ${div}` : div}
-                                                        </SelectItem>
-                                                    );
-                                                })}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <div className="flex items-center h-10 px-3 rounded-lg border border-gray-200 bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-sm font-medium select-none cursor-not-allowed">
-                                            <span>Divisi {auth.user.division ?? 'Belum Ditentukan'}</span>
-                                        </div>
-                                    )}
+                               {/* Target Divisi */}
+<div className="space-y-1.5">
+    <Label htmlFor="target_division" className="flex items-center gap-1.5 text-sm font-medium">
+        <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
+        Target Divisi <span className="text-red-500">*</span>
+    </Label>
+    
+    {!isTrainer ? (
+        <Select
+            value={divisions && data.target_division.length === divisions.length ? "all" : (data.target_division[data.target_division.length - 1] || "")} 
+            onValueChange={handleDivisionChange}
+        >
+            <SelectTrigger id="target_division" className="rounded-lg h-10 w-full overflow-hidden text-left">
+                <div className="truncate">
+                    {divisions && data.target_division.length === divisions.length ? (
+                        <span className="font-medium text-sky-600 dark:text-sky-400">✓ Semua Divisi Terpilih</span>
+                    ) : data.target_division.length === 0 ? (
+                        "Pilih Target Divisi..."
+                    ) : (
+                        `Terpilih (${data.target_division.length}): ${data.target_division.join(', ')}`
+                    )}
+                </div>
+            </SelectTrigger>
+            <SelectContent>
+                {divisions && (
+                    <SelectItem value="all">
+                        {data.target_division.length === divisions.length ? "✓ Semua Divisi (Terpilih)" : "Pilih Semua Divisi"}
+                    </SelectItem>
+                )}
+                {divisions && divisions.map((div) => {
+                    const isSelected = data.target_division.includes(div);
+                    return (
+                        <SelectItem key={div} value={div}>
+                            {isSelected ? `✓ ${div}` : div}
+                        </SelectItem>
+                    );
+                })}
+            </SelectContent>
+        </Select>
+    ) : (
+        <div className="flex items-center h-10 px-3 rounded-lg border border-gray-200 bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-sm font-medium select-none cursor-not-allowed">
+            <span>Divisi {auth.user.division ?? 'Belum Ditentukan'}</span>
+        </div>
+    )}
 
-                                    <p className="text-[10px] text-gray-400">
-                                        {isTrainer 
-                                            ? `Target otomatis dikunci berdasarkan divisi akun Trainer Anda (${auth.user.division}).` 
-                                            : 'Klik divisi beberapa kali untuk memilih lebih dari 1 divisi. Pilih "Semua Divisi" untuk mereset.'}
-                                    </p>
-                                    <InputError message={errors.target_division} />
-                                </div>
+    <p className="text-[10px] text-gray-400">
+        {isTrainer 
+            ? `Target otomatis dikunci berdasarkan divisi akun Trainer Anda (${auth.user.division}).` 
+            : 'Pilih "Pilih Semua Divisi" untuk mencakup semua divisi sekaligus, atau klik divisi satu per satu untuk memilih beberapa.'}
+    </p>
+    <InputError message={errors.target_division} />
+</div>
 
                                 {/* Sifat Kursus */}
                                 <div className="space-y-1.5">
