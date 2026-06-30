@@ -149,8 +149,17 @@ class StudentController extends Controller
         $enrollments = $enrollmentsQuery->paginate(10);
 
         $enrollments->getCollection()->transform(function ($enrollment) use ($modules) {
+            // Aggregate failure counts for this user across all quizzes in this course
+            $allAttempts = UserQuizAttempt::withTrashed()
+                ->where('user_id', $enrollment->user_id)
+                ->where('course_id', $enrollment->course_id)
+                ->get();
+
+            $scoreFailed = $allAttempts->where('is_passed', false)->where('is_time_up', false)->count();
+            $timeFailed = $allAttempts->where('is_time_up', true)->count();
+
             // Build per-module progress for this enrollment
-            $modulesProgress = $modules->map(function ($module) use ($enrollment) {
+            $modulesProgress = $modules->map(function ($module) use ($enrollment, $allAttempts) {
                 // Get progress records for this module + enrollment
                 $progresses = ModuleProgress::where('enrollment_id', $enrollment->id)
                     ->where('module_id', $module->id)
@@ -159,24 +168,28 @@ class StudentController extends Controller
                 $moduleState = $this->progressService->evaluateModule($module, $progresses);
 
                 // Build quiz results for each quiz in this module
-                $quizResults = $module->quizzes->map(function ($quiz) use ($enrollment) {
-                    $attempts = UserQuizAttempt::where('user_id', $enrollment->user_id)
-                        ->where('quiz_id', $quiz->id)
-                        ->orderBy('submitted_at', 'desc')
-                        ->get();
+                $quizResults = $module->quizzes->map(function ($quiz) use ($enrollment, $allAttempts) {
+                    $quizAttempts = $allAttempts->where('quiz_id', $quiz->id);
 
-                    $highestScore = $attempts->max('score');
-                    $isPassed = $attempts->contains('is_passed', true);
-                    $lastAttempt = $attempts->first();
+                    $activeAttempts = $quizAttempts->whereNull('deleted_at');
+                    $highestScore = $activeAttempts->max('score');
+                    $isPassed = $activeAttempts->contains('is_passed', true);
+                    $lastAttempt = $activeAttempts->sortByDesc('submitted_at')->first();
+
+                    // Failure breakdown per quiz (including soft-deleted)
+                    $failedScore = $quizAttempts->where('is_passed', false)->where('is_time_up', false)->count();
+                    $failedTime = $quizAttempts->where('is_time_up', true)->count();
 
                     return [
-                        'quiz_id'         => $quiz->id,
-                        'quiz_title'      => $quiz->title,
-                        'passing_score'   => (float) ($quiz->passing_score ?? $quiz->min_score ?? 0),
-                        'attempts_count'  => $attempts->count(),
-                        'is_passed'       => $isPassed,
-                        'highest_score'   => $highestScore !== null ? (float) $highestScore : null,
-                        'last_attempt_at' => $lastAttempt?->submitted_at?->format('d M Y H:i'),
+                        'quiz_id'           => $quiz->id,
+                        'quiz_title'        => $quiz->title,
+                        'passing_score'     => (float) ($quiz->passing_score ?? $quiz->min_score ?? 0),
+                        'attempts_count'    => $activeAttempts->count(),
+                        'is_passed'         => $isPassed,
+                        'highest_score'     => $highestScore !== null ? (float) $highestScore : null,
+                        'last_attempt_at'   => $lastAttempt?->submitted_at?->format('d M Y H:i'),
+                        'failed_score_count' => $failedScore,
+                        'failed_time_count'  => $failedTime,
                     ];
                 })->values()->toArray();
 
@@ -207,6 +220,8 @@ class StudentController extends Controller
                 'enrollment_at'       => $enrollment->enrollment_at?->format('d M Y'),
                 'completed_at'        => $enrollment->completed_at?->format('d M Y'),
                 'modules_progress'    => $modulesProgress,
+                'score_failed_count'  => $scoreFailed,
+                'time_failed_count'   => $timeFailed,
             ];
         });
 

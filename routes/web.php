@@ -97,6 +97,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/modules/{module}/progress/text', [ModuleProgressController::class, 'markTextRead'])->name('modules.progress.text');
     Route::post('/modules/{module}/progress/video', [ModuleProgressController::class, 'markVideoWatched'])->name('modules.progress.video');
     Route::post('/modules/{module}/progress/document', [ModuleProgressController::class, 'markDocumentRead'])->name('modules.progress.document');
+    Route::post('/modules/{module}/time-up', [ModuleProgressController::class, 'handleTimeUp'])->name('modules.time-up');
 
     // Certificates
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');

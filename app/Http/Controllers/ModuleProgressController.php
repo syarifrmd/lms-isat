@@ -189,6 +189,32 @@ class ModuleProgressController extends Controller
         return back()->with('success', $progress->is_document_read ? 'Document marked as read' : 'Document progress tracked');
     }
 
+    /**
+     * Catat kegagalan waktu modul (dipanggil dari frontend saat timer modul habis).
+     */
+    public function handleTimeUp(Request $request, $moduleId)
+    {
+        $user = Auth::user();
+        $module = Module::findOrFail($moduleId);
+
+        $quiz = Quiz::where('module_id', $moduleId)->first();
+
+        if ($quiz) {
+            // Catat sebagai attempt gagal waktu
+            UserQuizAttempt::create([
+                'user_id' => $user->id,
+                'quiz_id' => $quiz->id,
+                'course_id' => $quiz->course_id,
+                'score' => 0,
+                'is_passed' => false,
+                'is_time_up' => true,
+                'submitted_at' => now(),
+            ]);
+        }
+
+        return back()->with('info', 'Waktu modul habis dicatat.');
+    }
+
     private function shouldCompleteText(Module $module, Request $request): bool
     {
         $elapsedSeconds = (float) ($request->input('elapsed_seconds') ?? 0);

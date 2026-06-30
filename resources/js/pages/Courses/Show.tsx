@@ -1326,23 +1326,27 @@ interface ModuleTimerProps {
 function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) {
     const deadlineKey = `module_timer_deadline_${moduleId}`;
     const remainingKey = `module_timer_remaining_seconds_${moduleId}`;
+    const expiredCountKey = `module_timer_expired_count_${moduleId}`;
 
-    // 1. PERBAIKAN STATE: Cek localStorage dulu sebelum membuat waktu baru
+    const [isExpired, setIsExpired] = useState(false);
+
+    // 1. Inisialisasi / resume timer
     const [secondsLeft, setSecondsLeft] = useState(() => {
         const savedDeadline = localStorage.getItem(deadlineKey);
-        const savedRemaining = localStorage.getItem(remainingKey);
 
-        if (savedDeadline && savedRemaining) {
-            // Hitung sisa detik riil berdasarkan selisih waktu sekarang dengan deadline awal
+        if (savedDeadline) {
             const remaining = Math.ceil((parseInt(savedDeadline, 10) - Date.now()) / 1000);
-            
-            // Jika sisa waktu di penyimpanan masih valid, lanjutkan waktu tersebut (tidak di-reset)
             if (remaining > 0) {
+                localStorage.setItem(remainingKey, remaining.toString());
                 return remaining;
+            } else {
+                // Jika waktu sudah habis di background, kembalikan 0 agar useEffect 
+                // menangani pencatatan gagal (onTimeUp) dan me-restart timer.
+                return 0;
             }
         }
 
-        // Jika data tidak ditemukan di localStorage (atau waktu sudah habis), baru buat timer penuh yang baru
+        // Buat timer baru
         const totalSeconds = Math.max(durationMinutes, 0) * 60;
         const deadline = Date.now() + totalSeconds * 1000;
         localStorage.setItem(deadlineKey, deadline.toString());
@@ -1350,34 +1354,46 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
         return totalSeconds;
     });
 
-    // 2. LOGIKA INTERVAL HITUNG MUNDUR (Dependency secondsLeft dihapus agar interval stabil)
+    // 2. Countdown interval
     useEffect(() => {
+        if (isExpired) return;
         if (secondsLeft <= 0) {
+            // Waktu habis! Tandai expired, catat jumlah gagal waktu
+            const prevCount = parseInt(localStorage.getItem(expiredCountKey) || '0', 10);
+            localStorage.setItem(expiredCountKey, (prevCount + 1).toString());
+            
+            // Segera reset deadline di localStorage agar jika router.post memicu page reload,
+            // timer tidak dianggap expired lagi (mencegah infinite loop)
+            const totalSeconds = Math.max(durationMinutes, 0) * 60;
+            const newDeadline = Date.now() + totalSeconds * 1000;
+            localStorage.setItem(deadlineKey, newDeadline.toString());
+            localStorage.setItem(remainingKey, totalSeconds.toString());
+            
+            setIsExpired(true);
             onTimeUp();
-            localStorage.removeItem(deadlineKey);
-            localStorage.removeItem(remainingKey);
-            return;
+
+            // Auto restart UI setelah 5 detik
+            const restartTimeout = setTimeout(() => {
+                setSecondsLeft(totalSeconds);
+                setIsExpired(false);
+            }, 5000);
+            return () => clearTimeout(restartTimeout);
         }
 
         const timerId = setInterval(() => {
             setSecondsLeft((prev) => {
                 if (prev <= 1) {
                     clearInterval(timerId);
-                    onTimeUp();
-                    localStorage.removeItem(deadlineKey);
-                    localStorage.removeItem(remainingKey);
                     return 0;
                 }
                 const nextTime = prev - 1;
-                // Selalu update sisa detik ke localStorage setiap detik agar sinkron dengan kuis
                 localStorage.setItem(remainingKey, nextTime.toString());
                 return nextTime;
             });
         }, 1000);
 
         return () => clearInterval(timerId);
-    }, [deadlineKey, remainingKey, onTimeUp]);
-
+    }, [secondsLeft, isExpired, deadlineKey, remainingKey, expiredCountKey, onTimeUp, durationMinutes]);
 
     // Format tampilan ke bentuk MM:SS
     const formatTime = (totalSeconds: number) => {
@@ -1386,10 +1402,42 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
         return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
+    const expiredCount = parseInt(localStorage.getItem(expiredCountKey) || '0', 10);
+
+    // Tampilan saat waktu habis (5 detik sebelum restart otomatis)
+    if (isExpired) {
+        return (
+            <div className="flex flex-col gap-2 mb-4 animate-pulse">
+                <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-bold shadow-sm">
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <span>⏰ Waktu modul habis! Timer akan mengulang otomatis dalam 5 detik...</span>
+                </div>
+                {expiredCount > 0 && (
+                    <p className="text-[11px] text-red-500 font-medium pl-1">
+                        Gagal waktu: {expiredCount}x
+                    </p>
+                )}
+            </div>
+        );
+    }
+
     return (
-        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm animate-pulse mb-4">
-            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <span>Sisa waktu modul: {formatTime(secondsLeft)}</span>
+        <div className="flex flex-col gap-1 mb-4">
+            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm ${
+                secondsLeft <= 60
+                    ? 'bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 animate-pulse'
+                    : secondsLeft <= 180
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400 animate-pulse'
+                        : 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400'
+            }`}>
+                <Clock className="h-4 w-4" />
+                <span>Sisa waktu modul: {formatTime(secondsLeft)}</span>
+            </div>
+            {expiredCount > 0 && (
+                <p className="text-[11px] text-red-500 font-medium pl-1">
+                    Gagal waktu sebelumnya: {expiredCount}x
+                </p>
+            )}
         </div>
     );
 }
@@ -1405,19 +1453,14 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const trainerId = course?.creator?.id || 'N/A';
 
     // ── Timer per Modul (sumber durasi: course.duration_minutes) ───────────────
-    // Menyimpan id modul yang timer-nya sudah habis (time up) pada sesi ini.
-    const [finishedTimerModuleIds, setFinishedTimerModuleIds] = useState<Set<number>>(new Set());
-
-    // Placeholder: dipanggil saat timer modul menyentuh 00:00 dan modul belum selesai.
-    // Isi sesuai instruksi final PM (mis. kunci modul 24 jam, redirect user, dll).
-    const handleModuleTimeUp = (moduleId: number) => {
-        setFinishedTimerModuleIds((prev) => {
-            const next = new Set(prev);
-            next.add(moduleId);
-            return next;
+    // Dipanggil saat timer modul menyentuh 00:00 (timer akan otomatis restart sendiri).
+    const handleModuleTimeUp = useCallback((moduleId: number) => {
+        // Catat kegagalan waktu ke backend agar terekam di daftar "Gagal Waktu" students
+        router.post(`/modules/${moduleId}/time-up`, {}, {
+            preserveScroll: true,
+            preserveState: true,
         });
-        // TODO(PM): isi logic saat waktu modul habis di sini.
-    };
+    }, []);
 
     const trainerInitials = trainerName
         .split(' ')
@@ -1603,8 +1646,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                         && Number(course.is_timer_active) === 1
                                                         && isModuleActive
                                                         && !module.is_locked
-                                                        && !moduleAlreadyDone
-                                                        && !finishedTimerModuleIds.has(module.id);
+                                                        && !moduleAlreadyDone;
 
                                                     if (!shouldShowModuleTimer) return null;
 

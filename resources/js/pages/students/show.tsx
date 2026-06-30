@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, ChevronDown, ChevronRight, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, ChevronDown, ChevronRight, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 
@@ -12,6 +12,8 @@ interface QuizResult {
     is_passed: boolean;
     highest_score: number | null;
     last_attempt_at: string | null;
+    failed_score_count: number;
+    failed_time_count: number;
 }
 
 interface ModuleProgress {
@@ -40,6 +42,8 @@ interface Enrollment {
     enrollment_at?: string;
     completed_at?: string;
     modules_progress?: ModuleProgress[];
+    score_failed_count: number;
+    time_failed_count: number;
 }
 
 interface Course {
@@ -117,7 +121,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
 
             {/* Profile Modal */}
             <Dialog open={!!profileUser} onOpenChange={() => setProfileUser(null)}>
-                <DialogContent className="max-w-sm">
+                <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-base">Profil Student</DialogTitle>
                     </DialogHeader>
@@ -179,6 +183,83 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                     <span>Selesai: {profileUser.completed_at ?? '-'}</span>
                                 </div>
                             </div>
+
+                            {/* Ringkasan Kegagalan */}
+                            <div className="rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3">
+                                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Ringkasan Kegagalan</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 px-3 py-2">
+                                        <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                                        <div>
+                                            <p className="text-[10px] text-red-400">Gagal Nilai</p>
+                                            <p className="text-sm font-bold text-red-600 dark:text-red-400">{profileUser.score_failed_count ?? 0}x</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900 px-3 py-2">
+                                        <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                                        <div>
+                                            <p className="text-[10px] text-amber-400">Gagal Waktu</p>
+                                            <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{profileUser.time_failed_count ?? 0}x</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Detail per Modul */}
+                            {profileUser.modules_progress && profileUser.modules_progress.length > 0 && (
+                                <div className="rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Detail Kuis & Kegagalan</p>
+                                    <div className="space-y-3">
+                                        {profileUser.modules_progress.map((mod) => (
+                                            <div key={mod.module_id}>
+                                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                                                    {mod.order_sequence}. {mod.module_title}
+                                                </p>
+                                                {mod.quizzes.length > 0 ? (
+                                                    <div className="space-y-1.5 pl-3">
+                                                        {mod.quizzes.map((q) => (
+                                                            <div key={q.quiz_id} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
+                                                                q.is_passed
+                                                                    ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-950/20'
+                                                                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                                                            }`}>
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <Award className={`h-3 w-3 shrink-0 ${q.is_passed ? 'text-emerald-500' : 'text-gray-400'}`} />
+                                                                    <span className="truncate text-gray-700 dark:text-gray-200 font-medium">{q.quiz_title}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                                                    {q.failed_score_count > 0 && (
+                                                                        <span className="flex items-center gap-0.5 text-red-500 font-semibold">
+                                                                            <XCircle className="h-3 w-3" />{q.failed_score_count}
+                                                                        </span>
+                                                                    )}
+                                                                    {q.failed_time_count > 0 && (
+                                                                        <span className="flex items-center gap-0.5 text-amber-500 font-semibold">
+                                                                            <Clock className="h-3 w-3" />{q.failed_time_count}
+                                                                        </span>
+                                                                    )}
+                                                                    {q.is_passed && (
+                                                                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">LULUS</span>
+                                                                    )}
+                                                                    {!q.is_passed && q.attempts_count === 0 && q.failed_score_count === 0 && q.failed_time_count === 0 && (
+                                                                        <span className="text-gray-400">—</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-[11px] text-gray-400 pl-3">Tidak ada kuis</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center gap-4 text-[11px] text-gray-400">
+                                        <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-400" /> = Gagal Nilai</span>
+                                        <span className="flex items-center gap-1"><Clock className="h-3 w-3 text-amber-400" /> = Gagal Waktu</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </DialogContent>
@@ -273,6 +354,8 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                     <th className="px-5 py-3">Region</th>
                                     <th className="px-5 py-3">Divisi</th>
                                     <th className="px-5 py-3">Progress</th>
+                                    <th className="px-5 py-3 text-center">Gagal Nilai</th>
+                                    <th className="px-5 py-3 text-center">Gagal Waktu</th>
                                     <th className="px-5 py-3">Status</th>
                                     <th className="px-5 py-3">Tgl Daftar</th>
                                     <th className="px-5 py-3">Tgl Selesai</th>
@@ -312,6 +395,24 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                                             <span className="text-xs text-gray-400">{enrollment.progress_percentage ?? 0}%</span>
                                                         </div>
                                                     </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        {enrollment.score_failed_count > 0 ? (
+                                                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                                                                <XCircle className="h-3 w-3" />{enrollment.score_failed_count}x
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        {enrollment.time_failed_count > 0 ? (
+                                                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                                                <Clock className="h-3 w-3" />{enrollment.time_failed_count}x
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-5 py-3">
                                                         {enrollment.completed_at ? (
                                                             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Selesai</span>
@@ -334,7 +435,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                                 {/* ── Expandable Progress Detail Row ── */}
                                                 {isExpanded && hasModulesData && (
                                                     <tr key={`${enrollment.user_id}-detail`}>
-                                                        <td colSpan={11} className="p-0">
+                                                        <td colSpan={13} className="p-0">
                                                             <div className="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
                                                                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
                                                                     Detail Progress — {enrollment.name}
@@ -455,7 +556,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                     })
                                 ) : (
                                     <tr>
-                                        <td colSpan={11} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                        <td colSpan={13} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
                                             {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada student yang terdaftar.'}
                                         </td>
                                     </tr>

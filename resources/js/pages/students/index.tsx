@@ -230,11 +230,10 @@ export default function StudentsIndex({ courses, filters, categories, divisions 
                                     key={i}
                                     href={link.url || '#'}
                                     preserveState
-                                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
-                                        link.active
+                                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${link.active
                                             ? 'z-10 bg-sky-50 border-sky-500 text-sky-600 dark:bg-sky-900/50 dark:border-sky-500 dark:text-sky-400'
                                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700'
-                                    } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}
+                                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}
                                     ${i === 0 ? 'rounded-l-md' : ''} ${i === courses.links.length - 1 ? 'rounded-r-md' : ''}`}
                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                 />

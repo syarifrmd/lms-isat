@@ -41,6 +41,12 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
 
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
     const [isTimeCritical, setIsTimeCritical] = useState(false);
+
+    // Module timer sync (membaca sisa waktu modul dari localStorage)
+    const [moduleTimeRemaining, setModuleTimeRemaining] = useState<number | null>(null);
+    const [isModuleTimeCritical, setIsModuleTimeCritical] = useState(false);
+    const [isModuleTimeExpired, setIsModuleTimeExpired] = useState(false);
+
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>(() => {
         const saved = localStorage.getItem(`quiz_${quiz.id}_answers`);
         return saved ? JSON.parse(saved) : {};
@@ -53,11 +59,58 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const answeredCount = Object.keys(selectedAnswers).length;
     const progressPercent = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
 
-    
     const selectedAnswersRef = useRef(selectedAnswers);
     useEffect(() => {
         selectedAnswersRef.current = selectedAnswers;
     }, [selectedAnswers]);
+
+    // Module Timer Polling - baca dari localStorage yang ditulis oleh ModuleTimer di Show.tsx
+    const moduleExpiredRef = useRef(false);
+    useEffect(() => {
+        if (!quiz.module_id) return;
+        const remainingKey = `module_timer_remaining_seconds_${quiz.module_id}`;
+
+        // Baca awal
+        const initialVal = localStorage.getItem(remainingKey);
+        if (initialVal !== null) {
+            const val = parseInt(initialVal, 10);
+            setModuleTimeRemaining(val);
+            setIsModuleTimeCritical(val <= 60);
+            if (val <= 0) {
+                setIsModuleTimeExpired(true);
+                moduleExpiredRef.current = true;
+            }
+        }
+
+        const timerId = setInterval(() => {
+            const saved = localStorage.getItem(remainingKey);
+            if (saved !== null) {
+                const currentRemaining = parseInt(saved, 10);
+                setModuleTimeRemaining(currentRemaining);
+                setIsModuleTimeCritical(currentRemaining <= 60);
+
+                if (currentRemaining <= 0 && !moduleExpiredRef.current) {
+                    moduleExpiredRef.current = true;
+                    setIsModuleTimeExpired(true);
+                    clearInterval(timerId);
+
+                    // Catat kegagalan waktu ke backend agar terekam di daftar "Gagal Waktu" students
+                    router.post(`/modules/${quiz.module_id}/time-up`, {}, {
+                        preserveScroll: true,
+                        preserveState: true,
+                        onFinish: () => {
+                            // Redirect kembali ke halaman kursus setelah 3 detik
+                            setTimeout(() => {
+                                router.visit(`/courses/${quiz.course_id}`);
+                            }, 3000);
+                        }
+                    });
+                }
+            }
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, [quiz.module_id, quiz.course_id]);
 
     // Fungsi pembantu untuk memformat struktur jawaban yang akan dikirim ke backend
     const getFormattedAnswers = (answersObj: Record<number, number>) => {
@@ -282,6 +335,14 @@ useEffect(() => {
 
             <div className="container px-4 mx-auto py-6 max-w-4xl">
 
+                {/* ── Peringatan waktu modul habis ── */}
+                {isModuleTimeExpired && (
+                    <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-bold shadow-sm animate-pulse mb-4">
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                        <span>⏰ Waktu modul habis! Kembali ke halaman materi dalam 3 detik...</span>
+                    </div>
+                )}
+
                 {/* ── Sticky header: title + timer + progress ── */}
                 <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-3 bg-background/95 backdrop-blur border-b mb-6">
                     <div className="flex items-center justify-between gap-4 mb-2">
@@ -289,16 +350,28 @@ useEffect(() => {
                             <h1 className="font-bold text-lg leading-tight truncate">{quiz.title}</h1>
                             <p className="text-xs text-muted-foreground truncate">{course.title}</p>
                         </div>
-                        {timeRemaining !== null && (
-                            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shrink-0 font-mono font-semibold text-sm transition-colors ${
-                                isTimeCritical
-                                    ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 animate-pulse'
-                                    : 'border-border bg-muted/50'
-                            }`}>
-                                <Clock className="h-4 w-4" />
-                                {formatTime(timeRemaining)}
-                            </div>
-                        )}
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                            {timeRemaining !== null && (
+                                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono font-semibold text-sm transition-colors ${
+                                    isTimeCritical
+                                        ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 animate-pulse'
+                                        : 'border-border bg-muted/50'
+                                }`}>
+                                    <Clock className="h-4 w-4" />
+                                    <span>Kuis: {formatTime(timeRemaining)}</span>
+                                </div>
+                            )}
+                            {moduleTimeRemaining !== null && (
+                                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border font-mono font-semibold text-[10px] sm:text-xs transition-colors ${
+                                    isModuleTimeCritical
+                                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 animate-pulse'
+                                        : 'border-border bg-muted/50 text-muted-foreground'
+                                }`}>
+                                    <Clock className="h-3 w-3" />
+                                    <span>Modul: {formatTime(moduleTimeRemaining)}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <Progress value={progressPercent} className="flex-1 h-2" />
