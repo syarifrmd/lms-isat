@@ -200,7 +200,17 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                     <div>
                         <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Detail Kursus</p>
                         <h1 className="mt-0.5 text-xl font-bold text-gray-800 dark:text-gray-100">{course.title}</h1>
-                        {course.category && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{course.category}</p>}
+                        <div className="flex items-center gap-2 mt-1">
+                            {course.category && (
+                                <>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">{course.category}</span>
+                                    <span className="text-gray-300 dark:text-gray-600">•</span>
+                                </>
+                            )}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {total_enrollments} user terdaftar
+                            </span>
+                        </div>
                     </div>
                     {/* Stats */}
                     <div className="flex gap-3 shrink-0">

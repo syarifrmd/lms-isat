@@ -47,7 +47,7 @@ export default function StudentsIndex({ courses }: Props) {
                         <div>
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Pemantauan</p>
                             <p className="mt-0.5 text-2xl font-bold text-sky-600">{courses.length} Course</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">{totalStudents} total student terdaftar</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">{totalStudents} total user terdaftar</p>
                         </div>
                     </div>
                     {/* Search */}
@@ -108,7 +108,7 @@ export default function StudentsIndex({ courses }: Props) {
                                 <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                                     <Users className="h-3.5 w-3.5" />
                                     <span>
-                                        <span className="font-semibold text-gray-700 dark:text-gray-200">{course.enrollments_count}</span> student terdaftar
+                                        <span className="font-semibold text-gray-700 dark:text-gray-200">{course.enrollments_count ?? 0}</span> user terdaftar
                                     </span>
                                 </div>
 

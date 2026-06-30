@@ -25,10 +25,10 @@ class StudentController extends Controller
         config()->set('database.connections.mysql.strict', false);
         \Illuminate\Support\Facades\DB::reconnect();
         
-        $query = Course::withCount('enrollments')
-            ->leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+        $query = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
             ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
             ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->withCount('enrollments')
             ->orderBy('courses.created_at', 'desc');
             
         if ($user->role === 'trainer') {
