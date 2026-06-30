@@ -110,9 +110,6 @@ export default function TrainerDashboard({ data, youtube_connected }: TrainerDas
                         <h1 className="mt-1 text-2xl md:text-3xl font-bold leading-tight text-white">
                             {user.full_name || user.name}
                         </h1>
-                        <span className="mt-2 inline-block rounded-full border border-white/20 bg-white/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-100">
-                            {user.division || user.role}
-                        </span>
                     </div>
                     <div className="flex items-center justify-center rounded-2xl">
                       <img 

@@ -289,11 +289,6 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                         <div className="flex flex-col gap-0.5 min-w-0">
                             <p className="text-xs font-medium text-muted-foreground">{sapa}</p>
                             <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">{user.name}</h1>
-                            <div>
-                                <span className="inline-block rounded-full bg-orange-100 text-orange-700 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide dark:bg-orange-900/40 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50 mt-1">
-                                    {user.division || user.role}
-                                </span>
-                            </div>
                             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block mt-1">
                                 Teruslah belajar! setiap modul adalah langkah maju.
                             </p>

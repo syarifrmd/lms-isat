@@ -134,9 +134,9 @@ export function AppSidebar() {
                                             <span className="truncate text-xs text-muted-foreground mt-0.5 group-hover/profile:text-white transition-colors">
                                                 {user.email}
                                             </span>
-                                            {role === 'user' && (
-                                                <span className="text-xs font-medium text-yellow-500 mt-1">
-                                                    Level {user.level || 1} · {user.points || 0} pts
+                                            {(role === 'user' || role === 'trainer') && (
+                                                <span className="text-[10px] font-medium text-yellow-500 mt-1 uppercase tracking-wide">
+                                                    {user.division || user.role}
                                                 </span>
                                             )}
                                         </div>
