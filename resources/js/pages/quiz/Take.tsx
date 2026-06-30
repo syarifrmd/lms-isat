@@ -64,36 +64,25 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
         selectedAnswersRef.current = selectedAnswers;
     }, [selectedAnswers]);
 
-    // Module Timer Polling - baca dari localStorage yang ditulis oleh ModuleTimer di Show.tsx
+    // Module Timer - kalkulasi independen menggunakan deadlineKey agar tidak freeze saat pindah halaman
     const moduleExpiredRef = useRef(false);
     useEffect(() => {
         if (!quiz.module_id) return;
-        const remainingKey = `module_timer_remaining_seconds_${quiz.module_id}`;
+        const deadlineKey = `module_timer_deadline_${quiz.module_id}`;
 
-        // Baca awal
-        const initialVal = localStorage.getItem(remainingKey);
-        if (initialVal !== null) {
-            const val = parseInt(initialVal, 10);
-            setModuleTimeRemaining(val);
-            setIsModuleTimeCritical(val <= 60);
-            if (val <= 0) {
-                setIsModuleTimeExpired(true);
-                moduleExpiredRef.current = true;
-            }
-        }
-
-        const timerId = setInterval(() => {
-            const saved = localStorage.getItem(remainingKey);
-            if (saved !== null) {
-                const currentRemaining = parseInt(saved, 10);
+        const checkTime = () => {
+            const savedDeadline = localStorage.getItem(deadlineKey);
+            if (savedDeadline) {
+                const remaining = Math.ceil((parseInt(savedDeadline, 10) - Date.now()) / 1000);
+                const currentRemaining = Math.max(remaining, 0); // jangan minus
+                
                 setModuleTimeRemaining(currentRemaining);
-                setIsModuleTimeCritical(currentRemaining <= 60);
+                setIsModuleTimeCritical(currentRemaining <= 60 && currentRemaining > 0);
 
                 if (currentRemaining <= 0 && !moduleExpiredRef.current) {
                     moduleExpiredRef.current = true;
                     setIsModuleTimeExpired(true);
-                    clearInterval(timerId);
-
+                    
                     // Catat kegagalan waktu ke backend agar terekam di daftar "Gagal Waktu" students
                     router.post(`/modules/${quiz.module_id}/time-up`, {}, {
                         preserveScroll: true,
@@ -107,7 +96,13 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
                     });
                 }
             }
-        }, 1000);
+        };
+
+        // Langsung eksekusi 1x saat pertama dimuat
+        checkTime();
+
+        // Lalu jalankan interval setiap detik
+        const timerId = setInterval(checkTime, 1000);
 
         return () => clearInterval(timerId);
     }, [quiz.module_id, quiz.course_id]);

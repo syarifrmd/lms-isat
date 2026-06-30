@@ -1371,13 +1371,9 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
             
             setIsExpired(true);
             onTimeUp();
-
-            // Auto restart UI setelah 5 detik
-            const restartTimeout = setTimeout(() => {
-                setSecondsLeft(totalSeconds);
-                setIsExpired(false);
-            }, 5000);
-            return () => clearTimeout(restartTimeout);
+            
+            // Tampilkan popup sesuai permintaan user
+            alert("waktu telah habis, segera refresh laman untuk melihat waktu terbaru");
         }
 
         const timerId = setInterval(() => {
@@ -1410,7 +1406,7 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
             <div className="flex flex-col gap-2 mb-4 animate-pulse">
                 <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-bold shadow-sm">
                     <AlertCircle className="h-5 w-5 text-red-500" />
-                    <span>⏰ Waktu modul habis! Timer akan mengulang otomatis dalam 5 detik...</span>
+                    <span>waktu telah habis, segera refresh laman untuk melihat waktu terbaru</span>
                 </div>
                 {expiredCount > 0 && (
                     <p className="text-[11px] text-red-500 font-medium pl-1">
