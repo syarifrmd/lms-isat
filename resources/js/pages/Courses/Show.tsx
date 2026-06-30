@@ -1316,47 +1316,68 @@ const evaluateDocument = () => {
         );
     });
 
-    // Timer materi
-interface TimerProps {
+    // Timer materi (PER MODUL)
+interface ModuleTimerProps {
+    moduleId: number;
     durationMinutes: number;
-    courseId: number;
-    userId: number | string;
     onTimeUp: () => void;
 }
 
-function CourseTimer({ durationMinutes, courseId, userId, onTimeUp }: TimerProps) {
-    // Membuat kunci unik untuk penyimpanan di localStorage browser
-    const localStorageKey = `course_timer_${userId}_${courseId}`;
+function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) {
+    const deadlineKey = `module_timer_deadline_${moduleId}`;
+    const remainingKey = `module_timer_remaining_seconds_${moduleId}`;
 
-    // State awal mengambil dari localStorage jika ada, jika tidak ada baru pakai durasi asli (menit * 60)
+    // 1. PERBAIKAN STATE: Cek localStorage dulu sebelum membuat waktu baru
     const [secondsLeft, setSecondsLeft] = useState(() => {
-        const savedTime = localStorage.getItem(localStorageKey);
-        if (savedTime !== null) {
-            const parsedTime = parseInt(savedTime, 10);
-            // Jika waktu yang tersimpan ternyata sudah habis (<= 0), kembalikan 0
-            return parsedTime > 0 ? parsedTime : 0;
+        const savedDeadline = localStorage.getItem(deadlineKey);
+        const savedRemaining = localStorage.getItem(remainingKey);
+
+        if (savedDeadline && savedRemaining) {
+            // Hitung sisa detik riil berdasarkan selisih waktu sekarang dengan deadline awal
+            const remaining = Math.ceil((parseInt(savedDeadline, 10) - Date.now()) / 1000);
+            
+            // Jika sisa waktu di penyimpanan masih valid, lanjutkan waktu tersebut (tidak di-reset)
+            if (remaining > 0) {
+                return remaining;
+            }
         }
-        return durationMinutes * 60;
+
+        // Jika data tidak ditemukan di localStorage (atau waktu sudah habis), baru buat timer penuh yang baru
+        const totalSeconds = Math.max(durationMinutes, 0) * 60;
+        const deadline = Date.now() + totalSeconds * 1000;
+        localStorage.setItem(deadlineKey, deadline.toString());
+        localStorage.setItem(remainingKey, totalSeconds.toString());
+        return totalSeconds;
     });
 
+    // 2. LOGIKA INTERVAL HITUNG MUNDUR (Dependency secondsLeft dihapus agar interval stabil)
     useEffect(() => {
-        // Jika waktu sudah habis
         if (secondsLeft <= 0) {
             onTimeUp();
-            localStorage.removeItem(localStorageKey); // Hapus kunci karena sudah selesai
+            localStorage.removeItem(deadlineKey);
+            localStorage.removeItem(remainingKey);
             return;
         }
 
-        // Simpan sisa detik terbaru ke localStorage setiap kali detik berubah
-        localStorage.setItem(localStorageKey, secondsLeft.toString());
-
-        // Jalankan interval hitung mundur 1 detik
         const timerId = setInterval(() => {
-            setSecondsLeft((prev) => prev - 1);
+            setSecondsLeft((prev) => {
+                if (prev <= 1) {
+                    clearInterval(timerId);
+                    onTimeUp();
+                    localStorage.removeItem(deadlineKey);
+                    localStorage.removeItem(remainingKey);
+                    return 0;
+                }
+                const nextTime = prev - 1;
+                // Selalu update sisa detik ke localStorage setiap detik agar sinkron dengan kuis
+                localStorage.setItem(remainingKey, nextTime.toString());
+                return nextTime;
+            });
         }, 1000);
 
         return () => clearInterval(timerId);
-    }, [secondsLeft, localStorageKey]);
+    }, [deadlineKey, remainingKey, onTimeUp]);
+
 
     // Format tampilan ke bentuk MM:SS
     const formatTime = (totalSeconds: number) => {
@@ -1368,7 +1389,7 @@ function CourseTimer({ durationMinutes, courseId, userId, onTimeUp }: TimerProps
     return (
         <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm animate-pulse mb-4">
             <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <span>{formatTime(secondsLeft)}</span>
+            <span>Sisa waktu modul: {formatTime(secondsLeft)}</span>
         </div>
     );
 }
@@ -1382,7 +1403,21 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const canManage = isAdmin || isCreator || (auth.user.role === 'trainer' && !!course.target_division && !!auth.user.division && course.target_division.split(', ').includes(auth.user.division)); // admin can manage all, trainer own or if assigned to their division
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
-    const [isTimerFinished, setIsTimerFinished] = useState(false);
+
+    // ── Timer per Modul (sumber durasi: course.duration_minutes) ───────────────
+    // Menyimpan id modul yang timer-nya sudah habis (time up) pada sesi ini.
+    const [finishedTimerModuleIds, setFinishedTimerModuleIds] = useState<Set<number>>(new Set());
+
+    // Placeholder: dipanggil saat timer modul menyentuh 00:00 dan modul belum selesai.
+    // Isi sesuai instruksi final PM (mis. kunci modul 24 jam, redirect user, dll).
+    const handleModuleTimeUp = (moduleId: number) => {
+        setFinishedTimerModuleIds((prev) => {
+            const next = new Set(prev);
+            next.add(moduleId);
+            return next;
+        });
+        // TODO(PM): isi logic saat waktu modul habis di sini.
+    };
 
     const trainerInitials = trainerName
         .split(' ')
@@ -1458,25 +1493,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             </Button>
                         )}
 
-                        {/* timer materilayout user */}
-{/* timer materilayout user - KHUSUS USER BIASA DAN MANDATORY SAJA */}
-{(() => {
-    const { auth } = usePage<any>().props;
-    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
-
-    // Timer HANYA jalan/muncul jika yang buka adalah User biasa DAN course ini Mandatory
-    if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && !isTimerFinished) {
-        return (
-            <CourseTimer 
-                durationMinutes={course.duration_minutes ?? 5} 
-                onTimeUp={() => {
-                    setIsTimerFinished(true);
-                }} 
-            />
-        );
-    }
-    return null;
-})()}              </div>
+                        {/* Timer ditampilkan PER MODUL di dalam masing-masing modul */}
+                    </div>
                 </div>
 
 
@@ -1568,6 +1586,38 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                             </AccordionTrigger>
 
                                             <AccordionContent className="px-5 py-4 bg-gray-50/50 dark:bg-gray-700/20">
+                                                {/* timer materi PER MODUL - KHUSUS USER BIASA DAN MANDATORY SAJA */}
+                                                {(() => {
+                                                    const { auth } = usePage<any>().props;
+                                                    const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
+                                                    const isModuleActive = activeModuleItem === `item-${module.id}`;
+                                                    const quizzesAllPassed = (module.quizzes?.length ?? 0) === 0
+                                                        || module.quizzes!.every((q) => q.is_passed);
+                                                    // Kondisi 3: materi + semua kuis modul sudah lulus -> timer berhenti & hilang.
+                                                    // Kondisi 4: modul yang sudah pernah selesai -> timer tidak muncul sejak awal.
+                                                    const moduleAlreadyDone = !!module.is_completed && quizzesAllPassed;
+
+                                                    const shouldShowModuleTimer =
+                                                        isUserBiasa
+                                                        && course.is_mandatory
+                                                        && Number(course.is_timer_active) === 1
+                                                        && isModuleActive
+                                                        && !module.is_locked
+                                                        && !moduleAlreadyDone
+                                                        && !finishedTimerModuleIds.has(module.id);
+
+                                                    if (!shouldShowModuleTimer) return null;
+
+                                                    return (
+                                                        <ModuleTimer
+                                                            key={`module-timer-${module.id}`}
+                                                            moduleId={module.id}
+                                                            durationMinutes={course.duration_minutes ?? 5}
+                                                            onTimeUp={() => handleModuleTimeUp(module.id)}
+                                                        />
+                                                    );
+                                                })()}
+
                                                 <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} />
 
                                                 {((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0) && (
