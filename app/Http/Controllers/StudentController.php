@@ -10,6 +10,7 @@ use App\Models\UserQuizAttempt;
 use App\Services\ModuleProgressService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
@@ -17,7 +18,7 @@ class StudentController extends Controller
     {
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
@@ -25,11 +26,20 @@ class StudentController extends Controller
         config()->set('database.connections.mysql.strict', false);
         \Illuminate\Support\Facades\DB::reconnect();
         
+        $search = $request->input('search');
+        $category = $request->input('category');
+        $divisionFilter = $request->input('division');
+        $courseType = $request->input('course_type');
+
         $query = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-            ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
-            ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
+            ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
             ->withCount('enrollments')
             ->orderBy('courses.created_at', 'desc');
+
+        if ($courseType) {
+            $query->where('courses.is_mandatory', $courseType === 'mandatory' ? 1 : 0);
+        }
             
         if ($user->role === 'trainer') {
             $query->where(function ($q) use ($user) {
@@ -45,10 +55,39 @@ class StudentController extends Controller
                   ->where('course_division.target_division', $user->division);
         }
 
-        $courses = $query->get();
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('courses.title', 'like', '%' . $search . '%')
+                  ->orWhere('courses.category', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($category) {
+            $query->where('courses.category', $category);
+        }
+        
+        if ($divisionFilter && $divisionFilter !== 'all') {
+            $query->where('course_division.target_division', $divisionFilter);
+        }
+
+        $courses = $query->paginate(9)->withQueryString();
+        
+        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
+        $divisions = \Illuminate\Support\Facades\DB::table('course_division')->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
 
         return Inertia::render('students/index', [
             'courses' => $courses,
+            'filters' => [
+                'search' => $search,
+                'category' => $category,
+                'division' => $divisionFilter,
+                'course_type' => $courseType,
+            ],
+            'categories' => $categories,
+            'divisions' => $divisions,
         ]);
     }
 
