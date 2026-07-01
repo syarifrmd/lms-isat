@@ -121,7 +121,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
 
             {/* Profile Modal */}
             <Dialog open={!!profileUser} onOpenChange={() => setProfileUser(null)}>
-                <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-base">Profil Student</DialogTitle>
                     </DialogHeader>
