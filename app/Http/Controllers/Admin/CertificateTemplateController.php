@@ -136,6 +136,38 @@ class CertificateTemplateController extends Controller
         return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil dihapus');
     }
 
+    public function deactivate(CertificateTemplate $certificateTemplate)
+    {
+        $certificateTemplate->update(['is_active' => false]);
+        return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil dinonaktifkan');
+    }
+
+    public function duplicate(CertificateTemplate $certificateTemplate)
+    {
+        $newTemplate = $certificateTemplate->replicate();
+        $newTemplate->name = $certificateTemplate->name . ' (Copy)';
+        $newTemplate->is_active = false;
+        
+        // Copy images if they exist
+        if ($certificateTemplate->background_image_path && Storage::disk('public')->exists($certificateTemplate->background_image_path)) {
+            $extension = pathinfo($certificateTemplate->background_image_path, PATHINFO_EXTENSION);
+            $newPath = 'certificates/' . uniqid() . '.' . $extension;
+            Storage::disk('public')->copy($certificateTemplate->background_image_path, $newPath);
+            $newTemplate->background_image_path = $newPath;
+        }
+
+        if ($certificateTemplate->signature_image_path && Storage::disk('public')->exists($certificateTemplate->signature_image_path)) {
+            $extension = pathinfo($certificateTemplate->signature_image_path, PATHINFO_EXTENSION);
+            $newPath = 'certificates/signatures/' . uniqid() . '.' . $extension;
+            Storage::disk('public')->copy($certificateTemplate->signature_image_path, $newPath);
+            $newTemplate->signature_image_path = $newPath;
+        }
+
+        $newTemplate->save();
+
+        return redirect()->route('admin.certificate-templates.index')->with('success', 'Template sertifikat berhasil diduplikat');
+    }
+
     public function activate(CertificateTemplate $certificateTemplate)
     {
         

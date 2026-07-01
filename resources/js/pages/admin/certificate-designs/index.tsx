@@ -34,6 +34,8 @@ import {
     Edit,
     Trash2,
     CheckCircle,
+    XCircle,
+    Copy,
     Palette
 } from 'lucide-react';
 
@@ -59,6 +61,14 @@ export default function Index() {
 
     const handleActivate = (id: number) => {
         router.post(certificateTemplates.activate.url({ certificateTemplate: id }));
+    };
+
+    const handleDeactivate = (id: number) => {
+        router.post(certificateTemplates.deactivate.url({ certificateTemplate: id }));
+    };
+
+    const handleDuplicate = (id: number) => {
+        router.post(certificateTemplates.duplicate.url({ certificateTemplate: id }));
     };
 
     return (
@@ -158,7 +168,22 @@ export default function Index() {
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             Edit
                                                         </DropdownMenuItem>
-                                                        {!template.is_active && (
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleDuplicate(template.id)}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <Copy className="mr-2 h-4 w-4" />
+                                                            Duplikat
+                                                        </DropdownMenuItem>
+                                                        {template.is_active ? (
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleDeactivate(template.id)}
+                                                                className="cursor-pointer text-orange-600"
+                                                            >
+                                                                <XCircle className="mr-2 h-4 w-4" />
+                                                                Nonaktifkan Desain
+                                                            </DropdownMenuItem>
+                                                        ) : (
                                                             <DropdownMenuItem
                                                                 onClick={() => handleActivate(template.id)}
                                                                 className="cursor-pointer"
@@ -223,7 +248,22 @@ export default function Index() {
                                                 <Edit className="mr-2 h-4 w-4" />
                                                 Edit
                                             </DropdownMenuItem>
-                                            {!template.is_active && (
+                                            <DropdownMenuItem
+                                                onClick={() => handleDuplicate(template.id)}
+                                                className="cursor-pointer"
+                                            >
+                                                <Copy className="mr-2 h-4 w-4" />
+                                                Duplikat
+                                            </DropdownMenuItem>
+                                            {template.is_active ? (
+                                                <DropdownMenuItem
+                                                    onClick={() => handleDeactivate(template.id)}
+                                                    className="cursor-pointer text-orange-600"
+                                                >
+                                                    <XCircle className="mr-2 h-4 w-4" />
+                                                    Nonaktifkan Desain
+                                                </DropdownMenuItem>
+                                            ) : (
                                                 <DropdownMenuItem
                                                     onClick={() => handleActivate(template.id)}
                                                     className="cursor-pointer"

@@ -165,7 +165,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('/certificate-templates/{certificateTemplate}/edit', [CertificateTemplateController::class, 'edit'])->name('certificate-templates.edit');
     Route::put('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'update'])->name('certificate-templates.update');
     Route::delete('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'destroy'])->name('certificate-templates.destroy');
+    Route::post('/certificate-templates/{certificateTemplate}/duplicate', [CertificateTemplateController::class, 'duplicate'])->name('certificate-templates.duplicate');
     Route::post('/certificate-templates/{certificateTemplate}/activate', [CertificateTemplateController::class, 'activate'])->name('certificate-templates.activate');
+    Route::post('/certificate-templates/{certificateTemplate}/deactivate', [CertificateTemplateController::class, 'deactivate'])->name('certificate-templates.deactivate');
 });
 
 require __DIR__.'/settings.php';
