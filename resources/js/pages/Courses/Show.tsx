@@ -1139,7 +1139,7 @@ const evaluateDocument = () => {
                                         <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen</p>
                                         <p className="text-xs text-gray-400 truncate">
                                             {module.doc_url.startsWith('/storage/')
                                                 ? getFileName(module.doc_url)
@@ -1147,11 +1147,11 @@ const evaluateDocument = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <Button variant="outline" size="sm" asChild className="shrink-0">
+                                {/* <Button variant="outline" size="sm" asChild className="shrink-0">
                                     <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
                                         Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
                                     </a>
-                                </Button>
+                                </Button> */}
                             </div>
 
                             <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
@@ -1221,11 +1221,11 @@ const evaluateDocument = () => {
                                     </p>
                                 </div>
                             </div>
-                            <Button variant="outline" size="sm" asChild className="shrink-0">
+                            {/* <Button variant="outline" size="sm" asChild className="shrink-0">
                                 <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
                                     Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
                                 </a>
-                            </Button>
+                            </Button> */}
                         </div>
 
                         <div ref={docContainerRef} className="h-136 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -1790,13 +1790,13 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                         </div>
 
                         {/* Rating card */}
-                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-4 lg:p-5 space-y-3 lg:space-y-4">
+                        {/* <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-4 lg:p-5 space-y-3 lg:space-y-4">
                             <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
                                 <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> Course Rating
-                            </p>
+                            </p> */}
 
                             {/* Average */}
-                            <div className="flex items-end gap-3">
+                            {/* <div className="flex items-end gap-3">
                                 <span className="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 leading-none">
                                     {ratingData?.average ?? '—'}
                                 </span>
@@ -1812,10 +1812,10 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                     </div>
                                     <p className="text-[11px] sm:text-xs text-gray-400">{ratingData?.count ?? 0} rating{ratingData?.count !== 1 ? 's' : ''}</p>
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Distribution bars */}
-                            {(ratingData?.count ?? 0) > 0 && (
+                            {/* {(ratingData?.count ?? 0) > 0 && (
                                 <div className="space-y-1.5">
                                     {[5,4,3,2,1].map(star => {
                                         const count = ratingData?.distribution?.[star] ?? 0;
@@ -1832,10 +1832,10 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                         );
                                     })}
                                 </div>
-                            )}
+                            )} */}
 
                             {/* Rating form – enrolled users */}
-                            {!isTrainer && isEnrolled && (
+                            {/* {!isTrainer && isEnrolled && (
                                 <div className="border-t border-gray-100 dark:border-gray-700 pt-3 lg:pt-4 space-y-3">
                                     <p className="text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                                         {ratingData?.user_rating ? 'Rating Anda' : 'Beri Rating Kursus'}
@@ -1880,20 +1880,20 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                         </div>
                                     </form>
                                 </div>
-                            )}
+                            )} */}
 
                             {/* Not enrolled */}
-                            {!isTrainer && !isEnrolled && (
+                            {/* {!isTrainer && !isEnrolled && (
                                 <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2.5 text-xs text-gray-400">
                                     <MessageSquare className="w-4 h-4 shrink-0" />
                                     Daftar kursus untuk memberi rating
                                 </div>
-                            )}
+                            )} */}
                         </div>
 
                     </div>
                 </div>
-            </div>
+            {/* </div> */}
         {/* ── Quiz Confirmation Modal ── */}
             <Dialog open={!!confirmQuiz} onOpenChange={(open) => { if (!open) setConfirmQuiz(null); }}>
                 <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">

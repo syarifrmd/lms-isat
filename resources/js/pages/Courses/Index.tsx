@@ -183,7 +183,7 @@ export default function CoursesIndex({
                             />
                         </div>
                         
-                        <Select value={category} onValueChange={handleCategoryChange}>
+                        {/* <Select value={category} onValueChange={handleCategoryChange}>
                             <SelectTrigger className="w-full sm:w-48">
                                 <SelectValue placeholder="Semua Kategori" />
                             </SelectTrigger>
@@ -193,7 +193,7 @@ export default function CoursesIndex({
                                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                                 ))}
                             </SelectContent>
-                        </Select>
+                        </Select> */}
 
                         {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
                         <Select value={courseType} onValueChange={handleCourseTypeChange}>
@@ -207,7 +207,7 @@ export default function CoursesIndex({
                         </Select>
 
                         {/* FILTER DROPDOWN DIVISI  */}
-                        {auth?.user?.role === 'admin' && (
+                        {/* {auth?.user?.role === 'admin' && (
                             <Select value={division} onValueChange={handleDivisionChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue>
@@ -221,7 +221,7 @@ export default function CoursesIndex({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        )}
+                        )} */}
                     </div>
 
                     {canCreateCourse && (
@@ -265,13 +265,13 @@ export default function CoursesIndex({
                                         className="relative rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
                                     >
                                         {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
-                                        {isLocked && (
-                                            <div className="absolute inset-0 bg-gray-500/20 backdrop-blur-[1.5px] z-30 flex items-center justify-center transition-all duration-300">
-                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
-                                                    <Lock className="h-6 w-6" />
-                                                </div>
-                                            </div>
-                                        )}
+                                       {isLocked && (
+    <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
+        <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
+            <Lock className="h-6 w-6" />
+        </div>
+    </div>
+)}
 
                                         {/* Cover */}
                                         <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
