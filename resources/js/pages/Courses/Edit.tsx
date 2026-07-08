@@ -73,6 +73,7 @@ interface Course {
 interface EditProps {
     course: Course;
     categories: string[];
+    journeys: { id: number; title: string }[];
     divisions: string[]; 
     mandatoryCourses: { id: number; title: string; position?: number; target_division?: string | string[] | null }[];
     auth: {
@@ -100,7 +101,7 @@ const statusConfig = {
     },
 } as const;
 
-export default function EditCourse({ course, categories, divisions, mandatoryCourses, auth }: EditProps) {
+export default function EditCourse({ course, categories, journeys, divisions, mandatoryCourses, auth }: EditProps) {
     const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
     // ── PARSING DATA AWAL DARI DATABASE AGAR COCOK DENGAN STRUKTUR MULTI-SELECT ──
@@ -146,8 +147,10 @@ const initialPositions = (() => {
 
     // ── FORM STATE ──
     const { data, setData, post, processing, errors } = useForm({
+        _method: 'PUT',
         title: course.title || '',
         description: course.description || '',
+        journey_id: course.journey_id || '',
         category: course.category || '',
         status: course.status || 'draft',
         start_date: course.start_date || '',
@@ -247,7 +250,6 @@ const initialPositions = (() => {
         
         const payload = {
             ...data,
-            _method: 'PUT', // Digunakan Laravel agar mendukung pengiriman File via Post Request bawaan multipart form
             target_division: data.target_division.length === 0 ? null : data.target_division,
             course_type: data.is_mandatory ? 'mandatory' : 'non-mandatory',
             is_timer_active: data.is_timer_active ? 1 : 0,
@@ -705,6 +707,24 @@ const initialPositions = (() => {
                                             rows={4}
                                         />
                                         <InputError message={errors.description} />
+                                    </div>
+
+                                    {/* Journey Selection */}
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="journey_id" className="text-sm font-medium">
+                                            Pilih Journey (Wajib) <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Select value={data.journey_id ? data.journey_id.toString() : ''} onValueChange={(value) => setData('journey_id', value)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Pilih Journey..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {journeys && journeys.map(journey => (
+                                                    <SelectItem key={journey.id} value={journey.id.toString()}>{journey.title}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError message={errors.journey_id} />
                                     </div>
 
                                     {/* Category & Status */}

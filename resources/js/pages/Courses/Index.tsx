@@ -58,7 +58,7 @@ export default function CoursesIndex({
         total: number;
         links: { url: string | null; label: string; active: boolean }[];
     };
-    filters: { search?: string; category?: string; progress_status?: string; course_type?: string; division?: string }; 
+    filters: { search?: string; category?: string; progress_status?: string; course_type?: string; division?: string; journey_id?: string | number }; 
     categories: string[];
     divisions: string[]; 
 }) {
@@ -96,14 +96,16 @@ export default function CoursesIndex({
 
     // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
     const updateFilters = (newSearch: string, newCategory: string, newCourseType: string, newDivision: string) => {
+        const queryParams: any = {};
+        if (newSearch) queryParams.search = newSearch;
+        if (newCategory !== 'all') queryParams.category = newCategory;
+        if (newCourseType) queryParams.course_type = newCourseType;
+        if (newDivision !== 'all') queryParams.division = newDivision;
+        if (filters?.journey_id) queryParams.journey_id = filters.journey_id;
+
         router.get(
             '/courses',
-            {
-                search: newSearch || undefined,
-                category: newCategory === 'all' ? undefined : newCategory,
-                course_type: newCourseType, 
-                division: newDivision === 'all' ? undefined : newDivision, 
-            },
+            queryParams,
             {
                 preserveState: true, // Diubah ke true agar ketikan di input search tidak hilang/reset saat refresh data
                 replace: true,
@@ -274,7 +276,17 @@ export default function CoursesIndex({
                                         )}
 
                                         {/* Cover */}
-                                        <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
+                                        <div 
+                                            className={`relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 ${!isLocked ? 'cursor-pointer' : ''}`}
+                                            onClick={() => {
+                                                if (isLocked) return;
+                                                if (canCreateCourse || course.is_completed || course.is_enrolled) {
+                                                    router.get(`/courses/${course.id}`);
+                                                } else {
+                                                    handleEnrollClick(course);
+                                                }
+                                            }}
+                                        >
                                             {course.cover_url ? (
                                                 <img
                                                     src={course.cover_url}
@@ -351,7 +363,17 @@ export default function CoursesIndex({
                                                 )}
                                             </div>
 
-                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug">
+                                            <p 
+                                                className={`text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug ${!isLocked ? 'hover:text-sky-600 dark:hover:text-sky-400 cursor-pointer transition-colors' : ''}`}
+                                                onClick={() => {
+                                                    if (isLocked) return;
+                                                    if (canCreateCourse || course.is_completed || course.is_enrolled) {
+                                                        router.get(`/courses/${course.id}`);
+                                                    } else {
+                                                        handleEnrollClick(course);
+                                                    }
+                                                }}
+                                            >
                                                 {course.title}
                                             </p>
                                             <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-3 flex-1">

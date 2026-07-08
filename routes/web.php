@@ -55,6 +55,13 @@ Route::controller(SocialLoginController::class)->group(function () {
 
 // Trainer Only Routes - Course Create (Must be before /courses/{id})
 Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
+    // Journeys
+    Route::get('/journeys/create', [\App\Http\Controllers\JourneyController::class, 'create'])->name('journeys.create');
+    Route::post('/journeys', [\App\Http\Controllers\JourneyController::class, 'store'])->name('journeys.store');
+    Route::get('/journeys/{journey}/edit', [\App\Http\Controllers\JourneyController::class, 'edit'])->name('journeys.edit');
+    Route::put('/journeys/{journey}', [\App\Http\Controllers\JourneyController::class, 'update'])->name('journeys.update');
+    Route::delete('/journeys/{journey}', [\App\Http\Controllers\JourneyController::class, 'destroy'])->name('journeys.destroy');
+
     Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
     Route::post('/courses', [CourseController::class, 'store'])->name('courses.store');
     Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
@@ -71,6 +78,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Heartbeat aktivitas belajar (dipanggil frontend setiap 60 detik)
     Route::post('/session/ping', [SessionPingController::class, 'ping'])->name('session.ping');
     Route::post('/courses/reorder', [CourseController::class, 'reorderCourses'])->name('courses.reorder');
+
+    // Journeys (All authenticated users can view)
+    Route::get('/journeys', [\App\Http\Controllers\JourneyController::class, 'index'])->name('journeys.index');
+    Route::get('/journeys/{id}', [\App\Http\Controllers\JourneyController::class, 'show'])->name('journeys.show');
 
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
