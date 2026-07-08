@@ -84,12 +84,11 @@ export default function CoursesIndex({
 
     // Efek Debounce untuk fitur auto-search saat mengetik langsung muncul
     useEffect(() => {
-        // Jangan trigger filter saat inisialisasi pertama jika nilai search masih sama dengan filter awal URL
         if (search === (filters?.search || '')) return;
 
         const delayDebounceFn = setTimeout(() => {
             updateFilters(search, category, courseType, division);
-        }, 500); // Menunggu 500ms setelah user berhenti mengetik
+        }, 500); 
 
         return () => clearTimeout(delayDebounceFn);
     }, [search]);
@@ -146,6 +145,11 @@ export default function CoursesIndex({
         }
     };
 
+    const restrictedDivisions = ['dse', 'cse', 'rse'];
+const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
+const userDivision = auth?.user?.division?.toLowerCase() || '';
+const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
+
     return (
         <AppLayout breadcrumbs={[{ title: 'Courses', href: '/courses' }]}>
             <Head title="Courses" />
@@ -182,18 +186,19 @@ export default function CoursesIndex({
                                 className="pl-9"
                             />
                         </div>
-                        
-                        {/* <Select value={category} onValueChange={handleCategoryChange}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Semua Kategori" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua Kategori</SelectItem>
-                                {categories && categories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select> */}
+                       {showDropdown && (
+                <Select value={category} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue placeholder="Semua Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Kategori</SelectItem>
+                        {categories && categories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                )}
 
                         {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
                         <Select value={courseType} onValueChange={handleCourseTypeChange}>
