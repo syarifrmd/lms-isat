@@ -37,6 +37,24 @@ class ModuleProgressController extends Controller
     }
 }
 
+    /**
+     * Cek apakah kuis pada modul (jika ada) sudah lulus oleh user.
+     * Dipakai untuk mengunci dokumen modul sampai kuis lulus.
+     */
+    private function isModuleQuizPassed($userId, $moduleId): bool
+    {
+        $quiz = Quiz::where('module_id', $moduleId)->first();
+
+        if (!$quiz) {
+            return true;
+        }
+
+        return UserQuizAttempt::where('user_id', $userId)
+            ->where('quiz_id', $quiz->id)
+            ->where('is_passed', true)
+            ->exists();
+    }
+
     public function markTextRead(Request $request, $moduleId)
     {
         $user = Auth::user();
@@ -151,6 +169,17 @@ class ModuleProgressController extends Controller
             'total_pages' => 'required|integer|min:1',   
         ]);
 
+        if (!$this->isModuleQuizPassed($user->id, $moduleId)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokumen modul masih terkunci. Selesaikan dan lulus kuis terlebih dahulu.',
+                ], 403);
+            }
+
+            return back()->with('error', 'Dokumen modul masih terkunci. Selesaikan dan lulus kuis terlebih dahulu.');
+        }
+
         $checklistItem = ModuleChecklistItem::where('module_id', $moduleId)
             ->whereIN('type', ['document', 'doc'])
             ->first();
@@ -200,6 +229,11 @@ class ModuleProgressController extends Controller
         $quiz = Quiz::where('module_id', $moduleId)->first();
 
         if ($quiz) {
+            // RESET KESEMPATAN KUIS (disamakan dengan mekanisme reset saat percobaan mencapai 3x)
+            UserQuizAttempt::where('user_id', $user->id)
+                ->where('quiz_id', $quiz->id)
+                ->delete();
+
             // Catat sebagai attempt gagal waktu
             UserQuizAttempt::create([
                 'user_id' => $user->id,
@@ -210,6 +244,32 @@ class ModuleProgressController extends Controller
                 'is_time_up' => true,
                 'submitted_at' => now(),
             ]);
+        }
+
+        // RESET PROGRES MODUL (video/teks/dokumen) karena waktu modul telah habis,
+        // disamakan dengan mekanisme reset kesempatan kuis di atas.
+        $enrollment = Enrollment::where('user_id', $user->id)
+            ->where('course_id', $module->course_id)
+            ->first();
+
+        if ($enrollment) {
+            ModuleProgress::where('enrollment_id', $enrollment->id)
+                ->where('module_id', $module->id)
+                ->update([
+                    'is_text_read' => false,
+                    'is_video_watched' => false,
+                    'is_document_read' => false,
+                    'is_completed' => false,
+                    'completed_at' => null,
+                    'text_elapsed_seconds' => null,
+                    'text_scroll_percentage' => null,
+                    'video_last_position_seconds' => null,
+                    'video_max_position_seconds' => null,
+                    'doc_current_page' => null,
+                    'doc_total_pages' => null,
+                ]);
+
+            $this->progressService->recalculateEnrollmentProgress($enrollment);
         }
 
         return back()->with('info', 'Waktu modul habis dicatat.');

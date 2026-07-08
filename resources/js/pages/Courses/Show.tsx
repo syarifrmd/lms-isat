@@ -906,8 +906,12 @@ const OfficeViewer = memo(
     };
 
 
-    const ModuleProgressTracker = memo(function ModuleProgressTracker({ module, isTrainer, previewModuleId, setPreviewModuleId, setCurrentProgress, setLocalModules }: { module: Module, isTrainer: boolean, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, setCurrentProgress: (p: number) => void, setLocalModules: React.Dispatch<React.SetStateAction<Module[]>> }) {
+    const ModuleProgressTracker = memo(function ModuleProgressTracker({ module, isTrainer, previewModuleId, setPreviewModuleId, setCurrentProgress, setLocalModules, quizSection }: { module: Module, isTrainer: boolean, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, setCurrentProgress: (p: number) => void, setLocalModules: React.Dispatch<React.SetStateAction<Module[]>>, quizSection?: React.ReactNode }) {
         const isUser = !isTrainer;
+        // Dokumen modul terkunci selama kuis modul ini belum lulus (khusus user biasa)
+        const hasModuleQuiz = (module.quizzes?.length ?? 0) > 0;
+        const moduleQuizzesPassed = !hasModuleQuiz || module.quizzes!.every((q) => q.is_passed);
+        const isDocumentLocked = isUser && hasModuleQuiz && !moduleQuizzesPassed;
 
         const videoContainerRef = useRef<HTMLDivElement | null>(null);
         const videoPlayerRef = useRef<any>(null);
@@ -1131,6 +1135,8 @@ const evaluateDocument = () => {
                         </div>
                     )}
 
+                    {quizSection}
+
                     {module.doc_url && (
                         <div className="mb-4 space-y-3">
                             <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
@@ -1205,6 +1211,8 @@ const evaluateDocument = () => {
                     </div>
                 )}
 
+                {quizSection}
+
                 {module.doc_url && (
                     <div className="mb-4 space-y-3">
                         <div className="p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between gap-3">
@@ -1228,6 +1236,14 @@ const evaluateDocument = () => {
                             </Button> */}
                         </div>
 
+                        {isDocumentLocked ? (
+                            <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-8 text-center">
+                                <Lock className="h-5 w-5 text-amber-500" />
+                                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Dokumen terkunci</p>
+                                <p className="text-xs text-amber-600/80 dark:text-amber-400/70">Selesaikan dan lulus kuis modul ini terlebih dahulu untuk membuka dokumen.</p>
+                            </div>
+                        ) : (
+                        <>
                         <div ref={docContainerRef} className="h-136 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
                             {!previewModuleId || previewModuleId !== module.id ? (
                                 <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
@@ -1297,6 +1313,8 @@ const evaluateDocument = () => {
                         <p className="text-xs text-gray-400">
                             Progress dokumen: {Math.round(docScrollPercentage)}%.
                         </p>
+                        </>
+                        )}
                     </div>
                 )}
 
@@ -1656,10 +1674,14 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                     );
                                                 })()}
 
-                                                <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} />
+                                                <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} quizSection={(() => {
+                                                    if (!((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0)) return null;
 
-                                                {((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0) && (
-                                                    <div className="mt-5 border-t border-gray-100 dark:border-gray-700 pt-4 space-y-2">
+                                                    // Kuis modul terkunci sampai video modul ini selesai ditonton (khusus user biasa)
+                                                    const isQuizVideoLocked = !isTrainer && !!module.video_url && !module.is_video_watched;
+
+                                                    return (
+                                                    <div className="my-4 border-t border-b border-gray-100 dark:border-gray-700 py-4 space-y-2">
                                                         <div className="flex items-center justify-between">
                                                             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
                                                                 <FileQuestion className="w-3.5 h-3.5" /> Assessments
@@ -1673,7 +1695,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                             )}
                                                         </div>
                                                         <div className="space-y-2">
-                                                            {module.quizzes!.map((quiz) => (
+                                                            {(module.quizzes ?? []).map((quiz) => (
                                                                 <div key={quiz.id}
                                                                     className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50/60 dark:hover:bg-gray-700/40 transition-colors">
                                                                     <div className="flex-1 min-w-0 mr-4">
@@ -1701,6 +1723,11 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                     {(() => {
                                                                         const q = quiz;
                                                                         const attempts = q.attempts_count || 0;
+                                                                        if (isQuizVideoLocked) return (
+                                                                            <Button size="sm" variant="outline" disabled className="h-7 px-2 text-[11px] cursor-not-allowed">
+                                                                                <Lock className="w-3 h-3 mr-1" /> Selesaikan Video
+                                                                            </Button>
+                                                                        );
                                                                         if (!canTakeQuiz) return (
                                                                             <Button size="sm" variant="outline" disabled className="h-7 px-2 text-[11px] cursor-not-allowed">
                                                                                 <Lock className="w-3 h-3 mr-1" /> Khusus User
@@ -1736,7 +1763,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                             ))}
                                                         </div>
                                                     </div>
-                                                )}
+                                                    );
+                                                })()} />
                                             </AccordionContent>
                                         </AccordionItem>
                                     ))
@@ -1967,6 +1995,6 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </AppLayout>
+        </AppLayout>    
     );
 }
