@@ -66,6 +66,22 @@ export default function CoursesIndex({
     const canCreateCourse = auth.user.role?.toLowerCase() === 'trainer' || auth.user.role?.toLowerCase() === 'admin';
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
+
+    // Ambil gambar stempel yang sedang aktif, dipakai untuk menggantikan ikon gembok di card kursus terkunci
+    const [stampUrl, setStampUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetch('/certificates/active-stamp')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data?.url) {
+                    setStampUrl(data.url);
+                }
+            })
+            .catch(() => {
+                // Diamkan saja, overlay akan otomatis fallback ke ikon gembok default
+            });
+    }, []);
     
     const [search, setSearch] = useState(filters?.search || '');
     const [category, setCategory] = useState(filters?.category || 'all');
@@ -84,12 +100,11 @@ export default function CoursesIndex({
 
     // Efek Debounce untuk fitur auto-search saat mengetik langsung muncul
     useEffect(() => {
-        // Jangan trigger filter saat inisialisasi pertama jika nilai search masih sama dengan filter awal URL
         if (search === (filters?.search || '')) return;
 
         const delayDebounceFn = setTimeout(() => {
             updateFilters(search, category, courseType, division);
-        }, 500); // Menunggu 500ms setelah user berhenti mengetik
+        }, 500); 
 
         return () => clearTimeout(delayDebounceFn);
     }, [search]);
@@ -148,6 +163,11 @@ export default function CoursesIndex({
         }
     };
 
+    const restrictedDivisions = ['dse', 'cse', 'rse'];
+const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
+const userDivision = auth?.user?.division?.toLowerCase() || '';
+const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
+
     return (
         <AppLayout breadcrumbs={[{ title: 'Courses', href: '/courses' }]}>
             <Head title="Courses" />
@@ -184,18 +204,19 @@ export default function CoursesIndex({
                                 className="pl-9"
                             />
                         </div>
-                        
-                        <Select value={category} onValueChange={handleCategoryChange}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Semua Kategori" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua Kategori</SelectItem>
-                                {categories && categories.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                       {showDropdown && (
+                <Select value={category} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="w-full sm:w-48">
+                        <SelectValue placeholder="Semua Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Semua Kategori</SelectItem>
+                        {categories && categories.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                )}
 
                         {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
                         <Select value={courseType} onValueChange={handleCourseTypeChange}>
@@ -209,7 +230,7 @@ export default function CoursesIndex({
                         </Select>
 
                         {/* FILTER DROPDOWN DIVISI  */}
-                        {auth?.user?.role === 'admin' && (
+                        {/* {auth?.user?.role === 'admin' && (
                             <Select value={division} onValueChange={handleDivisionChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue>
@@ -223,7 +244,7 @@ export default function CoursesIndex({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        )}
+                        )} */}
                     </div>
 
                     {canCreateCourse && (
@@ -267,11 +288,22 @@ export default function CoursesIndex({
                                         className="relative rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
                                     >
                                         {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
-                                        {isLocked && (
-                                            <div className="absolute inset-0 bg-gray-500/20 backdrop-blur-[1.5px] z-30 flex items-center justify-center transition-all duration-300">
-                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
-                                                    <Lock className="h-6 w-6" />
-                                                </div>
+                                       {isLocked && (
+    <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
+        <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
+            <Lock className="h-6 w-6" />
+        </div>
+    </div>
+)}
+
+                                        {/* Stempel "Selesai" tampil besar menutupi seluruh card jika kursus sudah diselesaikan user. pointer-events-none supaya card tetap bisa diklik untuk masuk kursus */}
+                                        {!canCreateCourse && course.is_completed && stampUrl && (
+                                            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                                                <img
+                                                    src={stampUrl}
+                                                    alt="Stempel Selesai"
+                                                    className="w-2/3 h-2/3 object-contain drop-shadow-2xl -rotate-12 select-none opacity-90"
+                                                />
                                             </div>
                                         )}
 
@@ -298,6 +330,7 @@ export default function CoursesIndex({
                                                     <span className="text-3xl font-bold">{course.title.charAt(0)}</span>
                                                 </div>
                                             )}
+
                                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                                                 <span className="inline-block bg-sky-100/90 dark:bg-sky-900/80 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
                                                     {course.category || 'General'}

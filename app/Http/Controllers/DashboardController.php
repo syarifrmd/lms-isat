@@ -177,11 +177,21 @@ class DashboardController extends Controller
         // ── Default (User/Employee) ──────────────────────────────────────────
         $userId = $user->id;
 
-        // Stats
-        $enrolledCount    = Enrollment::where('user_id', $userId)->count();
-        $completedCount   = Enrollment::where('user_id', $userId)->whereNotNull('completed_at')->count();
-        $quizAttemptCount = UserQuizAttempt::where('user_id', $userId)->count();
-        $passedQuizCount  = UserQuizAttempt::where('user_id', $userId)->where('is_passed', true)->count();
+        // Stats (hanya untuk kursus mandatory)
+        $enrolledCount    = Enrollment::where('user_id', $userId)
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
+            ->count();
+        $completedCount   = Enrollment::where('user_id', $userId)
+            ->whereNotNull('completed_at')
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
+            ->count();
+        $quizAttemptCount = UserQuizAttempt::where('user_id', $userId)
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
+            ->count();
+        $passedQuizCount  = UserQuizAttempt::where('user_id', $userId)
+            ->where('is_passed', true)
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
+            ->count();
         $xp               = $user->xp ?? 0;
         $leaderboardRank  = DB::table('users')
             ->where('role', 'user')
@@ -196,7 +206,8 @@ class DashboardController extends Controller
                     ->orWhere('progress_percentage', '<', 100);
             })
             ->whereHas('course', function ($q) {
-                $q->where('status', 'published');
+                $q->where('status', 'published')
+                    ->where('is_mandatory', 1);
             })
             ->with(['course:id,title,cover_url,category,created_by', 'course.creator:id,name'])
             ->orderByRaw("CASE WHEN status = 'in_progress' THEN 0 ELSE 1 END")
@@ -215,6 +226,7 @@ class DashboardController extends Controller
 
         // Recent quiz attempts
         $recentAttempts = UserQuizAttempt::where('user_id', $userId)
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->with(['quiz:id,title', 'course:id,title'])
             ->orderByDesc('submitted_at')
             ->limit(5)
@@ -245,6 +257,7 @@ class DashboardController extends Controller
 
         // Kalender: course yang diikuti beserta durasi (start_date – end_date)
         $enrolledCourses = Enrollment::where('user_id', $userId)
+            ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->with('course:id,title,start_date,end_date')
             ->get()
             ->filter(fn ($e) => $e->course && ($e->course->start_date || $e->course->end_date))

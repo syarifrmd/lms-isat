@@ -59,7 +59,7 @@ export function AppSidebar() {
                     { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Desain Sertifikat', href: '/admin/certificate-templates', icon: Palette },
+                    { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
                     { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
@@ -73,7 +73,7 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/journeys', icon: BookOpen },
-                    { title: 'Certificates', href: '/certificates', icon: GraduationCap },
+                    // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:
@@ -94,10 +94,10 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" tooltip="Indosat LMS" asChild className="hover:bg-transparent active:bg-transparent cursor-default">
                             <Link href={dashboard().url}>
-                                <img 
-                                    src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
-                                    alt="Indosat Logo" 
-                                    className="h-6 w-6 shrink-0 object-contain" 
+                                <img
+                                    src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png"
+                                    alt="Indosat Logo"
+                                    className="h-6 w-6 shrink-0 object-contain"
                                 />
                                 <div className="flex flex-col leading-tight min-w-0">
                                     <span className="font-bold text-sidebar-foreground truncate">Indosat LMS</span>

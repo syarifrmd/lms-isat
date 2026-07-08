@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Enrollment;
-use App\Models\CertificateTemplate; // <--- 1. IMPORT MODEL TEMPLATE DI ATAS
+use App\Models\CertificateTemplate; 
 use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +26,19 @@ class CertificateController extends Controller
 
         return Inertia::render('certificates/certificates', [
             'courses' => $completedCourses
+        ]);
+    }
+
+   
+    public function activeStamp()
+    {
+        $template = CertificateTemplate::whereNull('division')
+            ->where('is_active', 1)
+            ->first()
+            ?? CertificateTemplate::where('is_active', 1)->first();
+
+        return response()->json([
+            'url' => $template ? asset('storage/' . $template->background_image_path) : null,
         ]);
     }
 
