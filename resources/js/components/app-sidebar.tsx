@@ -53,7 +53,7 @@ export function AppSidebar() {
                     { title: 'User Management', href: '/admin/users', icon: Users },
                     { title: 'Courses', href: '/courses', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                      { title: 'Desain Sertifikat', href: '/admin/certificate-templates', icon: Palette },
+                      { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
                     { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
@@ -67,7 +67,7 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/courses', icon: BookOpen },
-                    { title: 'Certificates', href: '/certificates', icon: GraduationCap },
+                    // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:

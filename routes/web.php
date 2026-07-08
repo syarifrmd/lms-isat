@@ -101,6 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Certificates
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
+    Route::get('/certificates/active-stamp', [CertificateController::class, 'activeStamp'])->name('certificates.active-stamp');
     Route::get('/certificate/{courseId}', [CertificateController::class, 'show'])->name('certificate.show');
     Route::get('/certificate/{courseId}/download', [CertificateController::class, 'download'])->name('certificate.download');
 
