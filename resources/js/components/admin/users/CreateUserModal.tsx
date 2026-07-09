@@ -36,9 +36,13 @@ interface CreateUserModalProps {
     onOpenChange: (open: boolean) => void;
     regions: string[];
     divisions: string[];
+    brands?: string[];            
+    microClusters?: string[];      
+    branches?: string[];           
+    areas?: string[];
 }
 
-export default function CreateUserModal({ open, onOpenChange, regions, divisions = [] }: CreateUserModalProps) {
+export default function CreateUserModal({ open, onOpenChange, regions, divisions = [],  brands = [],  microClusters = [], branches = [], areas = [] }: CreateUserModalProps) {
     const [isCustomDivision, setIsCustomDivision] = useState(false);
     const [customDivision, setCustomDivision] = useState('');
 
@@ -52,8 +56,12 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
         email: '',
         password: '',
         role: 'user',
-        region: '',
         division: '',
+        brand: '',          
+        micro_cluster: '',  
+        branch: '',        
+        area: '',
+        region: '',
     });
 
     useEffect(() => {
@@ -291,6 +299,52 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                 {errors.region && (
                                     <p className="text-xs text-destructive">{errors.region}</p>
                                 )}
+                            </div>
+                        </div>
+
+                        {/* === (BRAND & MICRO CLUSTER) === */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="brand" className="text-sm font-medium">Brand</Label>
+                                <Input
+                                    id="brand"
+                                    value={data.brand}
+                                    onChange={(e) => setData('brand', e.target.value)}
+                                    placeholder="Masukkan nama Brand"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="micro_cluster" className="text-sm font-medium">Micro Cluster</Label>
+                                <Input
+                                    id="micro_cluster"
+                                    value={data.micro_cluster}
+                                    onChange={(e) => setData('micro_cluster', e.target.value)}
+                                    placeholder="Masukkan Micro Cluster"
+                                />
+                            </div>
+                        </div>
+
+                        {/* === (BRANCH & AREA) === */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="branch" className="text-sm font-medium">Branch</Label>
+                                <Input
+                                    id="branch"
+                                    value={data.branch}
+                                    onChange={(e) => setData('branch', e.target.value)}
+                                    placeholder="Masukkan nama Branch"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="area" className="text-sm font-medium">Area</Label>
+                                <Input
+                                    id="area"
+                                    value={data.area}
+                                    onChange={(e) => setData('area', e.target.value)}
+                                    placeholder="Masukkan nama Area"
+                                />
                             </div>
                         </div>
 

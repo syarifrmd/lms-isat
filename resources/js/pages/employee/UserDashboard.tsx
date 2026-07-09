@@ -257,12 +257,12 @@ export default function UserDashboard({ data }: UserDashboardProps) {
         { label: 'Terdaftar',    value: stats?.enrolled_courses  ?? 0, icon: BookOpen,     color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-100 dark:border-blue-800/40' },
         { label: 'Selesai',      value: stats?.completed_courses ?? 0, icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800/40' },
         { label: 'Kuis',         value: stats?.quiz_attempts     ?? 0, icon: ClipboardList, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-100 dark:border-violet-800/40' },
-        { label: 'Sertifikat',   value: stats?.certificates      ?? 0, icon: GraduationCap, color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-100 dark:border-amber-800/40' },
+        { label: 'Stamp',   value: stats?.certificates      ?? 0, icon: GraduationCap, color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-100 dark:border-amber-800/40' },
     ];
 
     const quickLinks = [
         { label: 'Jelajahi Kursus',  href: '/courses',      icon: BookOpen,      color: 'bg-blue-500' },
-        { label: 'Sertifikat Saya',  href: '/certificates', icon: GraduationCap, color: 'bg-amber-500' },
+        // { label: 'Stamp Saya',  href: '/certificates', icon: GraduationCap, color: 'bg-amber-500' },
         { label: 'Papan Peringkat',  href: '/leaderboard',  icon: Trophy,        color: 'bg-purple-500' },
         { label: 'Progres Saya',     href: '/courses',      icon: BarChart3,     color: 'bg-emerald-500' },
     ];

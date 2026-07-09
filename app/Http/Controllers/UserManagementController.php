@@ -51,7 +51,26 @@ class UserManagementController extends Controller
         $query->where('division', $request->division);
     }
 
+    if ($request->filled('brand') && $request->brand !== 'all') {
+            $query->where('brand', $request->brand);
+        }
+        if ($request->filled('micro_cluster') && $request->micro_cluster !== 'all') {
+            $query->where('micro_cluster', $request->micro_cluster);
+        }
+        if ($request->filled('branch') && $request->branch !== 'all') {
+            $query->where('branch', $request->branch);
+        }
+        if ($request->filled('area') && $request->area !== 'all') {
+            $query->where('area', $request->area);
+        }
+        if ($request->filled('region') && $request->region !== 'all') {
+            $query->where('region', $request->region);
+        }
+
         // Sorting
+        $sortField = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        $query->orderBy($sortField, $sortDirection);
         $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
         $query->orderBy($sortField, $sortDirection);
@@ -62,12 +81,20 @@ class UserManagementController extends Controller
         $regions = User::distinct()->pluck('region')->filter()->sort()->values();
 
         $divisions = User::distinct()->pluck('division')->filter()->sort()->values();
+        $brands = User::distinct()->pluck('brand')->filter()->sort()->values();
+        $micro_clusters = User::distinct()->pluck('micro_cluster')->filter()->sort()->values();
+        $branches = User::distinct()->pluck('branch')->filter()->sort()->values();
+        $areas = User::distinct()->pluck('area')->filter()->sort()->values();
 
         return Inertia::render('admin/users/index', [
             'users' => $users,
             'regions' => $regions,
             'divisions' => $divisions,
-            'filters' => $request->only(['search', 'role', 'status', 'region', 'division', 'sort', 'direction'])
+            'brands' => $brands,
+            'micro_clusters' => $micro_clusters,
+            'branches' => $branches,
+            'areas' => $areas,
+            'filters' => $request->only(['search', 'role', 'status', 'region', 'division', 'brand', 'micro_cluster', 'branch', 'area', 'sort', 'direction'])
         ]);
     }
 
@@ -84,6 +111,11 @@ class UserManagementController extends Controller
             'role' => 'required|in:admin,trainer,user',
             'region' => 'nullable|string|max:255',
             'division' => 'nullable|string|max:255',
+            'brand' => 'nullable|string|max:255',
+            'micro_cluster' => 'nullable|string|max:255',
+            'branch' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
+            'region' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
@@ -94,6 +126,11 @@ class UserManagementController extends Controller
             'role' => $validated['role'],
             'region' => $validated['region'] ?? null,
             'division' => $validated['division'] ?? null,
+            'brand' => $validated['brand'] ?? null,
+            'micro_cluster' => $validated['micro_cluster'] ?? null,
+            'branch' => $validated['branch'] ?? null,
+            'area' => $validated['area'] ?? null,
+            'region' => $validated['region'] ?? null,
             'is_registered' => false,
             'email_verified_at' => now(),
         ]);
@@ -110,19 +147,25 @@ class UserManagementController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['nullable', 'email', Rule::unique('users')->ignore($user->id)],
             'role' => 'required|in:admin,trainer,user',
+            'division' => 'nullable|string|max:255',
+            'brand' => 'nullable|string|max:255',
+            'micro_cluster' => 'nullable|string|max:255',
+            'branch' => 'nullable|string|max:255',
+            'area' => 'nullable|string|max:255',
             'region' => 'nullable|string|max:255',
             'password' => 'nullable|string|min:8',
-            // === TAMBAHKAN VALIDASI EDIT DIVISI ===
-            'division' => 'nullable|string|max:255',
         ]);
 
         $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'] ?? null,
             'role' => $validated['role'],
-            'region' => $validated['region'] ?? null,
-            // === UPDATE DATA DIVISI ===
             'division' => $validated['division'] ?? null,
+            'brand' => $validated['brand'] ?? null,
+            'micro_cluster' => $validated['micro_cluster'] ?? null,
+            'branch' => $validated['branch'] ?? null,
+            'area' => $validated['area'] ?? null,
+            'region' => $validated['region'] ?? null,
         ];
 
         // Only update password if provided
@@ -187,10 +230,15 @@ class UserManagementController extends Controller
             'rows.*.nik'       => 'required|string',
             'rows.*.name'      => 'required|string|max:255',
             'rows.*.email'     => 'nullable|email',
+            'rows.*.password'      => 'nullable|string',
             'rows.*.role'      => 'nullable|in:admin,trainer,user',
             'rows.*.region'    => 'nullable|string|max:255',
-            'rows.*.status'    => 'nullable|string',
             'rows.*.division'  => 'nullable|string',
+            'rows.*.brand'         => 'nullable|string',
+            'rows.*.micro_cluster' => 'nullable|string',
+            'rows.*.branch'        => 'nullable|string',
+            'rows.*.area'          => 'nullable|string',
+            'rows.*.status'    => 'nullable|string',
         ]);
 
         $rows    = $request->input('rows');
@@ -232,15 +280,22 @@ class UserManagementController extends Controller
             }
 
             try {
+
+            $plainPassword = !empty($row['password']) ? trim($row['password']) : $nik;
+
                 User::create([
                     'id'           => $nik,
                     'name'         => trim($row['name']),
                     'email'        => $email,
-                    'password'     => null,
+                    'password'     => \Illuminate\Support\Facades\Hash::make($plainPassword),
                     'role'         => !empty($row['role']) ? $row['role'] : 'user',
-                    'region'       => !empty($row['region']) ? trim($row['region']) : null,
                     'division'     => !empty($row['division']) ? trim($row['division']) : null,
+                    'brand'         => !empty($row['brand']) ? trim($row['brand']) : null,
+                    'micro_cluster' => !empty($row['micro_cluster']) ? trim($row['micro_cluster']) : null,
+                    'branch'        => !empty($row['branch']) ? trim($row['branch']) : null,
+                    'area'          => !empty($row['area']) ? trim($row['area']) : null,
                     'is_registered'=> false,
+                    'region'       => !empty($row['region']) ? trim($row['region']) : null,
                 ]);
                 $success++;
             } catch (\Exception $e) {
@@ -270,12 +325,11 @@ class UserManagementController extends Controller
             'Content-Disposition' => 'attachment; filename="template_import_user.csv"',
         ];
 
-        // === TAMBAHKAN KOLOM division PADA HEADER DAN CONTOH DATA ===
-        $rows = [
-            ['nik', 'nama', 'email', 'role', 'region', 'division', 'status'],
-            ['1234567890', 'Budi Santoso', 'budi@example.com', 'user', 'Jakarta', 'DSE', 'active'],
-            ['0987654321', 'Siti Rahayu', '', 'user', 'Surabaya', 'BSM', 'active'],
-            ['1122334455', 'Joko Widodo', '', 'user', 'Bandung', 'HOS', 'off'],
+      $rows = [
+            ['nik', 'nama', 'email', 'password', 'role', 'division', 'brand', 'micro_cluster', 'branch', 'area', 'region', 'status'],
+            ['1234567890', 'Budi Santoso', 'budi@example.com', 'BudiSandi123', 'user', 'DSE', 'Samsung', 'Micro A', 'Branch Jkt', 'Area 1', 'Jakarta', 'active'],
+            ['0987654321', 'Siti Rahayu', '', 'SitiPass99', 'user', 'BSM', 'Oppo', 'Micro B', 'Branch Sby', 'Area 2', 'Surabaya', 'active'],
+            ['1122334455', 'Joko Widodo', '', 'JokoRahasia', 'user', 'HOS', 'Vivo', 'Micro C', 'Branch Bdg', 'Area 3', 'Bandung', 'off'],
         ];
 
         $callback = function () use ($rows) {

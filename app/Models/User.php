@@ -31,6 +31,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at',
         'role',
         'region',
+        'brand',          
+        'micro_cluster',  
+        'branch',         
+        'area',
         'division',
         'google_id', // Add google_id here
         'avatar',    // Add avatar if stored

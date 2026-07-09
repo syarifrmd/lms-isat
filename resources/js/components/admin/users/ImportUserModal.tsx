@@ -43,7 +43,7 @@ import {
 type Step = 'upload' | 'mapping' | 'preview' | 'result';
 
 interface SystemField {
-    key: 'nik' | 'name' | 'email' | 'role' | 'region' | 'status';
+    key: 'nik' | 'name' | 'email' |'password' | 'role' | 'brand' | 'micro_cluster' | 'branch' | 'area' | 'region' | 'status' | 'division';
     label: string;
     required: boolean;
     hint?: string;
@@ -53,7 +53,13 @@ interface Mapping {
     nik: string;
     name: string;
     email: string;
+    password: string;
     role: string;
+    division: string;      
+    brand: string;         
+    micro_cluster: string; 
+    branch: string;        
+    area: string;
     region: string;
     status: string;
 }
@@ -83,18 +89,29 @@ const SYSTEM_FIELDS: SystemField[] = [
     { key: 'nik',    label: 'NIK',    required: true,  hint: 'ID unik pegawai' },
     { key: 'name',   label: 'Nama',   required: true },
     { key: 'email',  label: 'Email',  required: false },
+    { key: 'password', label: 'Password', required: false, hint: 'Jika kosong, sistem tidak mengisi password default' },
     { key: 'role',   label: 'Role',   required: false, hint: 'admin / trainer / user (default: user)' },
+    { key: 'division', label: 'Division', required: false },
+    { key: 'brand',         label: 'Brand',         required: false },
+    { key: 'micro_cluster', label: 'Micro Cluster', required: false },
+    { key: 'branch',        label: 'Branch',        required: false },
+    { key: 'area',          label: 'Area',          required: false },
     { key: 'region', label: 'Region', required: false },
     { key: 'status', label: 'Status', required: false, hint: 'active = import, off = lewati (tidak diimport)' },
 ];
 
-/** Common header synonyms for auto-matching */
 const SYNONYMS: Record<string, string[]> = {
     nik:    ['nik', 'id', 'nip', 'no', 'nomor', 'employee_id', 'employeeid', 'kode'],
     name:   ['name', 'nama', 'fullname', 'full_name', 'namalengkap', 'nama_lengkap'],
     email:  ['email', 'e-mail', 'surel', 'mail'],
+    password: ['password', 'pass', 'kata_sandi', 'katasandi', 'sandi'],
     role:   ['role', 'peran', 'jabatan', 'tipe', 'type'],
-    region: ['region', 'wilayah', 'area', 'kota', 'daerah', 'lokasi'],
+    division: ['division', 'divisi', 'departemen', 'department'],
+    brand:         ['brand', 'merek', 'merk'],
+    micro_cluster: ['micro_cluster', 'micro', 'cluster', 'microcluster'],
+    branch:        ['branch', 'cabang'],
+    area:          ['area', 'zona', 'zone'],
+    region: ['region', 'wilayah', 'kota', 'daerah', 'lokasi'],
     status: ['status', 'kondisi', 'state', 'keterangan'],
 };
 
@@ -103,7 +120,7 @@ const NONE = '__none__';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function autoMatch(headers: string[]): Mapping {
-    const mapping: Mapping = { nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE };
+    const mapping: Mapping = { nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE };
     const lowerHeaders = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
 
     (Object.keys(SYNONYMS) as Array<keyof typeof SYNONYMS>).forEach(field => {
@@ -151,13 +168,17 @@ function applyMapping(rows: Record<string, string>[], mapping: Mapping) {
         nik:    mapping.nik    !== NONE ? String(row[mapping.nik]    ?? '').trim() : '',
         name:   mapping.name   !== NONE ? String(row[mapping.name]   ?? '').trim() : '',
         email:  mapping.email  !== NONE ? String(row[mapping.email]  ?? '').trim() : '',
+        password: mapping.password !== NONE ? String(row[mapping.password] ?? '').trim() : '',
         role:   mapping.role   !== NONE ? String(row[mapping.role]   ?? '').trim().toLowerCase() : 'user',
+        division: mapping.division !== NONE ? String(row[mapping.division] ?? '').trim() : '',
+        brand:         mapping.brand         !== NONE ? String(row[mapping.brand]         ?? '').trim() : '',
+        micro_cluster: mapping.micro_cluster !== NONE ? String(row[mapping.micro_cluster] ?? '').trim() : '',
+        branch:        mapping.branch        !== NONE ? String(row[mapping.branch]        ?? '').trim() : '',
+        area:          mapping.area          !== NONE ? String(row[mapping.area]          ?? '').trim() : '',
         region: mapping.region !== NONE ? String(row[mapping.region] ?? '').trim() : '',
         status: mapping.status !== NONE ? String(row[mapping.status] ?? '').trim().toLowerCase() : '',
     }));
 }
-
-// ─── Step indicators ──────────────────────────────────────────────────────────
 
 const STEPS: { id: Step; label: string }[] = [
     { id: 'upload',  label: 'Upload File' },
@@ -169,23 +190,23 @@ const STEPS: { id: Step; label: string }[] = [
 function StepIndicator({ current }: { current: Step }) {
     const currentIndex = STEPS.findIndex(s => s.id === current);
     return (
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6 w-full select-none">
             {STEPS.map((step, i) => (
                 <React.Fragment key={step.id}>
-                    <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-200 ${
                             i < currentIndex  ? 'bg-green-500 border-green-500 text-white' :
                             i === currentIndex ? 'bg-primary border-primary text-primary-foreground' :
                                                  'border-muted-foreground/30 text-muted-foreground'
                         }`}>
-                            {i < currentIndex ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+                            {i < currentIndex ? <CheckCircle2 className="w-4 h-4 stroke-[2.5]" /> : i + 1}
                         </div>
-                        <span className={`text-sm hidden sm:block ${i === currentIndex ? 'font-semibold' : 'text-muted-foreground'}`}>
+                        <span className={`text-sm hidden md:block transition-colors ${i === currentIndex ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                             {step.label}
                         </span>
                     </div>
                     {i < STEPS.length - 1 && (
-                        <div className={`flex-1 h-0.5 ${i < currentIndex ? 'bg-green-500' : 'bg-muted'}`} />
+                        <div className={`flex-1 h-0.5 min-w-[1.5rem] transition-colors duration-300 ${i < currentIndex ? 'bg-green-500' : 'bg-muted'}`} />
                     )}
                 </React.Fragment>
             ))}
@@ -193,14 +214,12 @@ function StepIndicator({ current }: { current: Step }) {
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props) {
     const [step, setStep]           = useState<Step>('upload');
     const [file, setFile]           = useState<File | null>(null);
     const [headers, setHeaders]     = useState<string[]>([]);
     const [rawRows, setRawRows]     = useState<Record<string, string>[]>([]);
-    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
+    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
     const [isDragging, setIsDragging] = useState(false);
     const [parseError, setParseError] = useState<string | null>(null);
     const [isParsing, setIsParsing]   = useState(false);
@@ -208,22 +227,18 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const [result, setResult]         = useState<ImportResult | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // ── Reset on close ────────────────────────────────────────────────────────
-
     const handleOpenChange = (val: boolean) => {
         if (!val) {
             setStep('upload');
             setFile(null);
             setHeaders([]);
             setRawRows([]);
-            setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
+            setMapping({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
             setParseError(null);
             setResult(null);
         }
         onOpenChange(val);
     };
-
-    // ── File handling ─────────────────────────────────────────────────────────
 
     const handleFile = useCallback(async (f: File) => {
         const allowed = [
@@ -263,403 +278,394 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (f) handleFile(f);
-        // Reset input so the same file can be re-uploaded
         e.target.value = '';
     };
 
-    // ── Mapping validation ────────────────────────────────────────────────────
-
     const mappingValid = mapping.nik !== NONE && mapping.name !== NONE;
-
-    // ── Mapped preview rows (first 10) ────────────────────────────────────────
-
     const mappedRows = applyMapping(rawRows, mapping);
     const importableRows = mappedRows.filter(r => r.status !== 'off');
     const skippedOffCount = mappedRows.filter(r => r.status === 'off').length;
     const previewRows = mappedRows.slice(0, 10);
 
-    // ── Import submit ─────────────────────────────────────────────────────────
-
     const handleImport = async () => {
         setIsImporting(true);
+        setParseError(null);
         try {
-            const { data } = await axios.post<ImportResult>('/admin/users/import', {
-                rows: mappedRows,
-            });
+            
+            const payloadData = mappedRows.filter(r => r.status !== 'off');
+
+            
+            const payload = {
+                rows: payloadData
+            };
+
+            const { data } = await axios.post<ImportResult>('/admin/users/import', payload);
+            
             setResult(data);
             setStep('result');
-            if (data.success > 0 && onSuccess) onSuccess();
+            if (onSuccess) onSuccess();
         } catch (err: unknown) {
-            const msg = axios.isAxiosError(err)
-                ? (err.response?.data?.message ?? 'Terjadi kesalahan saat import.')
-                : 'Terjadi kesalahan saat import.';
-            setParseError(msg);
+            if (axios.isAxiosError(err) && err.response) {
+                if (err.response.status === 422) {
+                    const validationErrors = err.response.data.errors;
+                    
+                    if (validationErrors && typeof validationErrors === 'object') {
+                       
+                        const errorMessages = Object.entries(validationErrors)
+                            .map(([key, messages]) => `${key}: ${(messages as string[]).join(', ')}`)
+                            .join(' | ');
+                        setParseError(`Gagal Validasi Backend: ${errorMessages}`);
+                    } else {
+                        setParseError(err.response.data.message || 'Data yang dikirim tidak lolos validasi sistem.');
+                    }
+                } else {
+                    setParseError(err.response.data.message || 'Terjadi kesalahan internal server.');
+                }
+            } else {
+                setParseError('Terjadi kesalahan jaringan atau koneksi terputus.');
+            }
         } finally {
             setIsImporting(false);
         }
     };
 
-    // ── Template download via anchor ─────────────────────────────────────────
-
     const handleDownloadTemplate = () => {
         window.location.href = '/admin/users/import/template';
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
-
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <FileSpreadsheet className="w-5 h-5" />
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-6 overflow-hidden">
+                <DialogHeader className="space-y-1 shrink-0">
+                    <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                        <FileSpreadsheet className="w-5 h-5 text-primary" />
                         Import Data User
                     </DialogTitle>
                     <DialogDescription>
-                        Upload file Excel atau CSV, cocokkan kolom, lalu import data.
+                        Upload file Excel atau CSV, cocokkan kolom, lalu import data ke sistem.
                     </DialogDescription>
                 </DialogHeader>
 
-                <StepIndicator current={step} />
+                <div className="my-4 shrink-0">
+                    <StepIndicator current={step} />
+                </div>
 
-                {/* ── Step 1: Upload ─────────────────────────────────────── */}
-                {step === 'upload' && (
-                    <div className="space-y-4">
-                        {/* Drop zone */}
-                        <div
-                            onClick={() => inputRef.current?.click()}
-                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            onDragLeave={() => setIsDragging(false)}
-                            onDrop={onDrop}
-                            className={`border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center gap-3 cursor-pointer transition-colors ${
-                                isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30'
-                            }`}
-                        >
-                            {isParsing ? (
-                                <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                            ) : (
-                                <Upload className="w-10 h-10 text-muted-foreground" />
-                            )}
-                            <div className="text-center">
-                                <p className="font-semibold">
-                                    {isParsing ? 'Membaca file...' : 'Klik atau drag & drop file di sini'}
-                                </p>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    Format yang didukung: .xlsx, .xls, .csv
-                                </p>
-                            </div>
-                        </div>
-                        <input
-                            ref={inputRef}
-                            type="file"
-                            accept=".xlsx,.xls,.csv"
-                            className="hidden"
-                            onChange={onInputChange}
-                        />
-
-                        {parseError && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                {parseError}
-                            </div>
-                        )}
-
-                        {/* Download template */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
-                            <div>
-                                <p className="text-sm font-medium">Butuh template?</p>
-                                <p className="text-xs text-muted-foreground">Download template CSV sebagai panduan format file</p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-                                <Download className="w-4 h-4 mr-2" />
-                                Download Template
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── Step 2: Mapping ────────────────────────────────────── */}
-                {step === 'mapping' && (
-                    <div className="space-y-4">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    File: <span className="font-medium text-foreground">{file?.name}</span>
-                                    {' · '}{rawRows.length} baris
-                                </p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-                                <Download className="w-4 h-4 mr-2" />
-                                Template
-                            </Button>
-                        </div>
-
-                        <div className="rounded-lg border overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-1/3">Kolom Sistem</TableHead>
-                                        <TableHead className="w-2/3">Kolom di File</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {SYSTEM_FIELDS.map((field) => (
-                                        <TableRow key={field.key}>
-                                            <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium">{field.label}</span>
-                                                    {field.required && (
-                                                        <Badge variant="destructive" className="text-xs px-1 py-0">wajib</Badge>
-                                                    )}
-                                                </div>
-                                                {field.hint && (
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{field.hint}</p>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Select
-                                                    value={mapping[field.key]}
-                                                    onValueChange={(val) =>
-                                                        setMapping(prev => ({ ...prev, [field.key]: val }))
-                                                    }
-                                                >
-                                                    <SelectTrigger className={`w-full ${
-                                                        field.required && mapping[field.key] === NONE
-                                                            ? 'border-destructive ring-destructive'
-                                                            : ''
-                                                    }`}>
-                                                        <SelectValue placeholder="— Pilih kolom —" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value={NONE}>— Tidak digunakan —</SelectItem>
-                                                        {headers.map(h => (
-                                                            <SelectItem key={h} value={h}>
-                                                                {h}
-                                                                {mapping[field.key] === h && ' ✓'}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        {!mappingValid && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-sm border border-amber-200 dark:border-amber-800">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                Kolom <strong>NIK</strong> dan <strong>Nama</strong> wajib dimapping sebelum melanjutkan.
-                            </div>
-                        )}
-
-                        <div className="flex justify-between">
-                            <Button variant="outline" onClick={() => setStep('upload')}>
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Kembali
-                            </Button>
-                            <Button disabled={!mappingValid} onClick={() => setStep('preview')}>
-                                Lihat Preview
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── Step 3: Preview ────────────────────────────────────── */}
-                {step === 'preview' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-sm">
-                                <span className="text-muted-foreground">
-                                    Total <span className="font-semibold text-foreground">{rawRows.length}</span> baris
-                                </span>
-                                {skippedOffCount > 0 && (
-                                    <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400">
-                                        {skippedOffCount} dilewati (off)
-                                    </Badge>
-                                )}
-                                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                                    {importableRows.length} akan diimport
-                                </Badge>
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg border overflow-hidden overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-10">#</TableHead>
-                                        <TableHead>NIK</TableHead>
-                                        <TableHead>Nama</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Role</TableHead>
-                                        <TableHead>Region</TableHead>
-                                        {mapping.status !== NONE && <TableHead>Status</TableHead>}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {previewRows.map((row, i) => {
-                                        const isOff = row.status === 'off';
-                                        return (
-                                            <TableRow key={i} className={isOff ? 'opacity-40 bg-muted/40' : (!row.nik || !row.name ? 'bg-destructive/5' : '')}>
-                                                <TableCell className="text-muted-foreground text-xs">{i + 1}</TableCell>
-                                                <TableCell className={`font-mono text-sm ${isOff ? 'line-through' : ''}`}>
-                                                    {row.nik || <span className="text-destructive italic">kosong</span>}
-                                                </TableCell>
-                                                <TableCell className={isOff ? 'line-through' : ''}>
-                                                    {row.name || <span className="text-destructive italic">kosong</span>}
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {row.email || '-'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {row.role ? (
-                                                        <Badge variant="secondary">{row.role}</Badge>
-                                                    ) : (
-                                                        <Badge variant="outline">user</Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    {row.region || '-'}
-                                                </TableCell>
-                                                {mapping.status !== NONE && (
-                                                    <TableCell>
-                                                        {isOff
-                                                            ? <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400">off</Badge>
-                                                            : <Badge className="bg-green-500">active</Badge>
-                                                        }
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        {parseError && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                                <AlertCircle className="w-4 h-4 shrink-0" />
-                                {parseError}
-                            </div>
-                        )}
-
-                        <div className="flex justify-between">
-                            <Button variant="outline" onClick={() => setStep('mapping')}>
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Kembali
-                            </Button>
-                            <Button onClick={handleImport} disabled={isImporting}>
-                                {isImporting ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Mengimport...</>
+                <div className="flex-1 overflow-y-auto pr-1 -mr-1 py-1 space-y-4 min-h-0">
+                    {/* ── Step 1: Upload ─────────────────────────────────────── */}
+                    {step === 'upload' && (
+                        <div className="space-y-4">
+                            <div
+                                onClick={() => inputRef.current?.click()}
+                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                onDragLeave={() => setIsDragging(false)}
+                                onDrop={onDrop}
+                                className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all ${
+                                    isDragging ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/40'
+                                }`}
+                            >
+                                {isParsing ? (
+                                    <Loader2 className="w-10 h-10 animate-spin text-primary" />
                                 ) : (
-                                    <>Import {importableRows.length} Data<ArrowRight className="w-4 h-4 ml-2" /></>
+                                    <Upload className="w-10 h-10 text-muted-foreground" />
                                 )}
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                                <div className="text-center space-y-1">
+                                    <p className="font-semibold text-base">
+                                        {isParsing ? 'Membaca file...' : 'Klik atau drag & drop file di sini'}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Format yang didukung: .xlsx, .xls, .csv
+                                    </p>
+                                </div>
+                            </div>
+                            <input
+                                ref={inputRef}
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                className="hidden"
+                                onChange={onInputChange}
+                            />
 
-                {/* ── Step 4: Result ─────────────────────────────────────── */}
-                {step === 'result' && result && (
-                    <div className="space-y-4">
-                        {/* Summary cards */}
-                        <div className="grid grid-cols-3 gap-4">
-                            <div className="rounded-lg border p-4 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-                                <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    <span className="font-semibold">Berhasil</span>
+                            {parseError && (
+                                <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
+                                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                    <span>{parseError}</span>
                                 </div>
-                                <div className="text-3xl font-bold text-green-700 dark:text-green-400 mt-1">
-                                    {result.success}
+                            )}
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-muted/40 border border-muted/70">
+                                <div className="space-y-0.5">
+                                    <p className="text-sm font-semibold">Belum memiliki berkas contoh?</p>
+                                    <p className="text-xs text-muted-foreground">Download template CSV sebagai panduan struktur susunan kolom data</p>
                                 </div>
-                                <p className="text-xs text-green-600 dark:text-green-500">data berhasil diimport</p>
-                            </div>
-                            <div className={`rounded-lg border p-4 ${
-                                result.skipped > 0
-                                    ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
-                                    : 'bg-muted/30'
-                            }`}>
-                                <div className={`flex items-center gap-2 ${ result.skipped > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                                    <XCircle className="w-5 h-5" />
-                                    <span className="font-semibold">Dilewati</span>
-                                </div>
-                                <div className={`text-3xl font-bold mt-1 ${ result.skipped > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                                    {result.skipped}
-                                </div>
-                                <p className={`text-xs ${ result.skipped > 0 ? 'text-amber-500 dark:text-amber-500' : 'text-muted-foreground'}`}>
-                                    status off
-                                </p>
-                            </div>
-                            <div className={`rounded-lg border p-4 ${
-                                result.failed > 0
-                                    ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
-                                    : 'bg-muted/30'
-                            }`}>
-                                <div className={`flex items-center gap-2 ${result.failed > 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                    <XCircle className="w-5 h-5" />
-                                    <span className="font-semibold">Gagal</span>
-                                </div>
-                                <div className={`text-3xl font-bold mt-1 ${result.failed > 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>
-                                    {result.failed}
-                                </div>
-                                <p className={`text-xs ${result.failed > 0 ? 'text-red-600 dark:text-red-500' : 'text-muted-foreground'}`}>
-                                    data gagal diimport
-                                </p>
+                                <Button variant="outline" size="sm" className="shrink-0 w-full sm:w-auto" onClick={handleDownloadTemplate}>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download Template
+                                </Button>
                             </div>
                         </div>
+                    )}
 
-                        {/* Error details */}
-                        {result.errors.length > 0 && (
-                            <div className="rounded-lg border">
-                                <div className="flex items-center gap-2 p-3 border-b bg-muted/30">
-                                    <AlertCircle className="w-4 h-4 text-destructive" />
-                                    <span className="text-sm font-semibold">Detail Error ({result.errors.length} baris)</span>
+                    {/* ── Step 2: Mapping ────────────────────────────────────── */}
+                    {step === 'mapping' && (
+                        <div className="space-y-4">
+                            <div className="flex bg-muted/30 p-3 rounded-lg border border-muted/60">
+                                <p className="text-sm text-muted-foreground">
+                                    File terpilih: <span className="font-semibold text-foreground break-all">{file?.name}</span>
+                                    <span className="mx-1.5">·</span>
+                                    <strong className="text-foreground">{rawRows.length}</strong> baris ditemukan
+                                </p>
+                            </div>
+
+                            <div className="rounded-xl border shadow-sm overflow-hidden bg-background">
+                                <Table>
+                                    <TableHeader className="bg-muted/40">
+                                        <TableRow>
+                                            <TableHead className="w-1/2 font-semibold">Kolom Sistem</TableHead>
+                                            <TableHead className="w-1/2 font-semibold">Kolom di File Anda</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {SYSTEM_FIELDS.map((field) => (
+                                            <TableRow key={field.key} className="hover:bg-muted/20 transition-colors">
+                                                <TableCell className="align-middle py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-sm text-foreground">{field.label}</span>
+                                                        {field.required && (
+                                                            <Badge variant="destructive" className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">wajib</Badge>
+                                                        )}
+                                                    </div>
+                                                    {field.hint && (
+                                                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{field.hint}</p>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="align-middle py-3">
+                                                    <Select
+                                                        value={mapping[field.key]}
+                                                        onValueChange={(val) =>
+                                                            setMapping(prev => ({ ...prev, [field.key]: val }))
+                                                        }
+                                                    >
+                                                        <SelectTrigger className={`w-full h-9 text-sm transition-all ${
+                                                            field.required && mapping[field.key] === NONE ? 'border-destructive/60 bg-destructive/5 text-destructive' : ''
+                                                        }`}>
+                                                            <SelectValue placeholder="— Pilih kolom —" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value={NONE} className="text-muted-foreground italic">
+                                                                — Tidak digunakan —
+                                                            </SelectItem>
+                                                            {headers.map(h => (
+                                                                <SelectItem key={h} value={h}>{h}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {!mappingValid && (
+                                <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 text-amber-800 text-sm border border-amber-200 font-medium">
+                                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                                    <span>Kolom <strong>NIK</strong> dan <strong>Nama</strong> wajib dipasangkan sebelum melanjutkan.</span>
                                 </div>
-                                <div className="max-h-60 overflow-y-auto">
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Step 3: Preview ────────────────────────────────────── */}
+                    {step === 'preview' && (
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap items-center gap-2.5 text-sm">
+                                <span className="text-muted-foreground">
+                                    Total Berkas: <strong className="text-foreground">{rawRows.length}</strong> baris
+                                </span>
+                                <div className="flex items-center gap-2 ml-auto">
+                                    {skippedOffCount > 0 && (
+                                        <Badge variant="outline" className="border-amber-300 bg-amber-50/50 text-amber-700 px-2.5 py-0.5">
+                                            {skippedOffCount} dilewati (off)
+                                        </Badge>
+                                    )}
+                                    <Badge variant="secondary" className="bg-green-100 text-green-700 px-2.5 py-0.5 font-medium">
+                                        {importableRows.length} akan diimport
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border shadow-sm bg-background overflow-hidden">
+                                <div className="overflow-x-auto max-w-full">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="bg-muted/40 whitespace-nowrap">
                                             <TableRow>
-                                                <TableHead className="w-16">Baris</TableHead>
-                                                <TableHead>NIK</TableHead>
-                                                <TableHead>Keterangan</TableHead>
+                                                <TableHead className="w-12 text-center font-semibold">#</TableHead>
+                                                <TableHead className="font-semibold">NIK</TableHead>
+                                                <TableHead className="font-semibold">Nama</TableHead>
+                                                <TableHead className="font-semibold">Email</TableHead>
+                                                <TableHead className="font-semibold">Role</TableHead>
+                                                <TableHead className="font-semibold">Region</TableHead>
+                                                {mapping.status !== NONE && <TableHead className="font-semibold">Status</TableHead>}
                                             </TableRow>
                                         </TableHeader>
-                                        <TableBody>
-                                            {result.errors.map((err, i) => (
-                                                <TableRow key={i}>
-                                                    <TableCell className="text-sm text-muted-foreground">{err.row}</TableCell>
-                                                    <TableCell className="font-mono text-sm">{err.nik || '-'}</TableCell>
-                                                    <TableCell className="text-sm text-destructive">{err.message}</TableCell>
-                                                </TableRow>
-                                            ))}
+                                        <TableBody className="whitespace-nowrap">
+                                            {previewRows.map((row, i) => {
+                                                const isOff = row.status === 'off';
+                                                return (
+                                                    <TableRow key={i} className={`transition-colors ${isOff ? 'opacity-40 bg-muted/20' : (!row.nik || !row.name ? 'bg-destructive/5' : 'hover:bg-muted/20')}`}>
+                                                        <TableCell className="text-muted-foreground text-xs text-center font-medium">{i + 1}</TableCell>
+                                                        <TableCell className="font-mono text-xs font-semibold">{row.nik || 'kosong'}</TableCell>
+                                                        <TableCell className="text-sm font-medium">{row.name || 'kosong'}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{row.email || '-'}</TableCell>
+                                                        <TableCell><Badge variant="secondary" className="text-xs font-normal capitalize">{row.role || 'user'}</Badge></TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{row.region || '-'}</TableCell>
+                                                        {mapping.status !== NONE && (
+                                                            <TableCell>
+                                                                {isOff ? <Badge variant="outline">off</Badge> : <Badge className="bg-green-500 text-white">active</Badge>}
+                                                            </TableCell>
+                                                        )}
+                                                    </TableRow>
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </div>
                             </div>
-                        )}
 
-                        <div className="flex justify-between">
-                            <Button variant="outline" onClick={() => {
+                            {parseError && (
+                                <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
+                                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                    <span>{parseError}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ── Step 4: Result (TABEL LOG TERSTRUKTUR & RAPI) ────────── */}
+                    {step === 'result' && result && (
+                        <div className="space-y-5 animate-in fade-in-50 duration-200">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="rounded-xl border p-4 bg-green-50/50 border-green-200 shadow-sm">
+                                    <div className="flex items-center gap-2 text-green-700">
+                                        <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                                        <span className="text-sm font-semibold">Berhasil</span>
+                                    </div>
+                                    <div className="text-3xl font-extrabold text-green-700 mt-2">{result.success}</div>
+                                    <p className="text-xs text-green-600 mt-1">Data pengguna diimport</p>
+                                </div>
+
+                                <div className="rounded-xl border p-4 bg-muted/40 border-muted/80 shadow-sm">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <AlertCircle className="w-4 h-4 stroke-[2.5]" />
+                                        <span className="text-sm font-semibold">Dilewati</span>
+                                    </div>
+                                    <div className="text-3xl font-extrabold mt-2 text-muted-foreground">{result.skipped}</div>
+                                    <p className="text-xs mt-1 text-muted-foreground/70">Baris status off / diabaikan</p>
+                                </div>
+
+                                <div className={`rounded-xl border p-4 shadow-sm ${result.failed > 0 ? 'bg-red-50/50 border-red-200' : 'bg-muted/40 border-muted/80'}`}>
+                                    <div className={`flex items-center gap-2 ${result.failed > 0 ? 'text-red-700' : 'text-muted-foreground'}`}>
+                                        <XCircle className="w-4 h-4 stroke-[2.5]" />
+                                        <span className="text-sm font-semibold">Gagal</span>
+                                    </div>
+                                    <div className={`text-3xl font-extrabold mt-2 ${result.failed > 0 ? 'text-red-700' : 'text-muted-foreground'}`}>{result.failed}</div>
+                                    <p className="text-xs mt-1 text-muted-foreground/70">Baris gagal validasi</p>
+                                </div>
+                            </div>
+
+                            {/* Tabel Log Masalah / Error */}
+                            {result.errors && result.errors.length > 0 && (
+                                <div className="rounded-xl border shadow-sm bg-background overflow-hidden">
+                                    <div className="flex items-center gap-2 p-3 border-b bg-muted/40">
+                                        <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
+                                        <span className="text-sm font-semibold text-foreground">Detail Kendala Validasi ({result.errors.length} baris)</span>
+                                    </div>
+                                    <div className="max-h-64 overflow-y-auto">
+                                        <Table>
+                                            <TableHeader className="bg-muted/30 sticky top-0 backdrop-blur z-10">
+                                                <TableRow>
+                                                    <TableHead className="w-20 text-center font-semibold">Baris</TableHead>
+                                                    <TableHead className="w-44 font-semibold">NIK</TableHead>
+                                                    <TableHead className="font-semibold">Keterangan Kendala / Error</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {result.errors.map((err, i) => (
+                                                    <TableRow key={i} className="hover:bg-muted/10 transition-colors">
+                                                        <TableCell className="text-sm text-muted-foreground text-center font-medium py-2.5">{err.row}</TableCell>
+                                                        <TableCell className="font-mono text-xs font-semibold text-foreground py-2.5">{err.nik || '-'}</TableCell>
+                                                        <TableCell className="text-sm text-destructive font-medium py-2.5 leading-relaxed">{err.message}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* ── Actions Footer ────────────────────────────────────────── */}
+                <div className="flex items-center justify-between border-t pt-4 mt-2 shrink-0 bg-background">
+                    {step === 'upload' && (
+                        <div className="ml-auto">
+                            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" onClick={() => handleOpenChange(false)}>
+                                Batal
+                            </Button>
+                        </div>
+                    )}
+
+                    {step === 'mapping' && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => setStep('upload')}>
+                                <ArrowLeft className="w-4 h-4 mr-1.5" />
+                                Kembali
+                            </Button>
+                            <Button size="sm" disabled={!mappingValid} onClick={() => setStep('preview')}>
+                                Lihat Preview
+                                <ArrowRight className="w-4 h-4 ml-1.5" />
+                            </Button>
+                        </>
+                    )}
+
+                    {step === 'preview' && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => setStep('mapping')}>
+                                <ArrowLeft className="w-4 h-4 mr-1.5" />
+                                Sesuaikan Kolom
+                            </Button>
+                            <Button size="sm" onClick={handleImport} disabled={isImporting}>
+                                {isImporting ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses...</>
+                                ) : (
+                                    <>Import {importableRows.length} Data<ArrowRight className="w-4 h-4 ml-1.5" /></>
+                                )}
+                            </Button>
+                        </>
+                    )}
+
+                    {step === 'result' && result && (
+                        <>
+                            <Button variant="outline" size="sm" onClick={() => {
                                 setStep('upload');
                                 setFile(null);
                                 setHeaders([]);
                                 setRawRows([]);
-                                setMapping({ nik: NONE, name: NONE, email: NONE, role: NONE, region: NONE, status: NONE });
+                                setMapping({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
                                 setParseError(null);
                                 setResult(null);
                             }}>
-                                Import Lagi
+                                Upload File Baru
                             </Button>
-                            <Button onClick={() => handleOpenChange(false)}>
-                                <X className="w-4 h-4 mr-2" />
-                                Tutup
+                            <Button size="sm" onClick={() => handleOpenChange(false)}>
+                                <X className="w-4 h-4 mr-1.5" />
+                                Selesai & Tutup
                             </Button>
-                        </div>
-                    </div>
-                )}
+                        </>
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );

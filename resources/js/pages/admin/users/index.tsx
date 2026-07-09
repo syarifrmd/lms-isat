@@ -58,9 +58,16 @@ import DeleteUserDialog from '@/components/admin/users/DeleteUserDialog';
 import ImportUserModal from '@/components/admin/users/ImportUserModal';
 import SyncResignModal from '@/components/admin/users/SyncResignModal';
 
+interface ExtendedUser extends User {
+    brand?: string;
+    micro_cluster?: string;
+    branch?: string;
+    area?: string;
+}
+
 interface UsersPageProps extends SharedData {
     users: {
-        data: User[];
+        data: ExtendedUser[];
         current_page: number;
         last_page: number;
         per_page: number;
@@ -300,7 +307,7 @@ export default function UsersIndex() {
 
                 {/* Desktop Table */}
                 <div className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm md:block dark:border-gray-700 dark:bg-gray-800">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto relative">
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 dark:bg-gray-900/40 dark:hover:bg-gray-900/40">
@@ -308,16 +315,20 @@ export default function UsersIndex() {
                                     <TableHead>Nama</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
-                                    <TableHead>Region</TableHead>
                                     <TableHead>Divisi</TableHead>
+                                    <TableHead>Brand</TableHead>
+                                    <TableHead>Micro Cluster</TableHead>
+                                    <TableHead>Branch</TableHead>
+                                    <TableHead>Area</TableHead>
+                                    <TableHead>Region</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Aksi</TableHead>
+                                    <TableHead className="text-right sticky right-0 z-10 bg-gray-50 dark:bg-gray-900 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {users.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                                        <TableCell colSpan={12} className="py-10 text-center text-muted-foreground">
                                             Tidak ada data user
                                         </TableCell>
                                     </TableRow>
@@ -328,10 +339,14 @@ export default function UsersIndex() {
                                             <TableCell className="font-medium">{user.name}</TableCell>
                                             <TableCell>{user.email || '-'}</TableCell>
                                             <TableCell>{getRoleBadge(user.role)}</TableCell>
-                                            <TableCell>{user.region || '-'}</TableCell>
                                             <TableCell>{user.division || '-'}</TableCell>
+                                            <TableCell>{user.brand || '-'}</TableCell>
+                                            <TableCell>{user.micro_cluster || '-'}</TableCell>
+                                            <TableCell>{user.branch || '-'}</TableCell>
+                                            <TableCell>{user.area || '-'}</TableCell>
+                                            <TableCell>{user.region || '-'}</TableCell>
                                             <TableCell>{getStatusBadge(user.is_registered)}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="sm">
@@ -416,18 +431,34 @@ export default function UsersIndex() {
                                         <p className="font-mono text-sm">{user.id}</p>
                                     </div>
                                     <div>
+                                        <p className="text-muted-foreground">Divisi</p>
+                                        <p className="text-sm font-medium">{user.division || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Brand</p>
+                                        <p className="text-sm font-medium">{user.brand || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Micro Cluster</p>
+                                        <p className="text-sm font-medium">{user.micro_cluster || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Branch</p>
+                                        <p className="text-sm font-medium">{user.branch || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Area</p>
+                                        <p className="text-sm font-medium">{user.area || '-'}</p>
+                                    </div>
+                                    <div>
                                         <p className="text-muted-foreground">Region</p>
                                         <p className="text-sm font-medium">{user.region || '-'}</p>
                                     </div>
                                     <div>
-    <p className="text-muted-foreground">Divisi</p>
-    <p className="text-sm font-medium">{user.division || '-'}</p>
-</div>
-                                    <div>
                                         <p className="mb-1 text-muted-foreground">Role</p>
                                         {getRoleBadge(user.role)}
                                     </div>
-                                    <div>
+                                    <div className="col-span-2">
                                         <p className="mb-1 text-muted-foreground">Status</p>
                                         {getStatusBadge(user.is_registered)}
                                     </div>
@@ -545,21 +576,21 @@ export default function UsersIndex() {
                             </Select>
                         </div>
                         <div>
-    <Label className="mb-2 block text-sm">Divisi</Label>
-    <Select value={selectedDivision} onValueChange={setSelectedDivision}>
-        <SelectTrigger>
-            <SelectValue placeholder="Pilih Divisi" />
-        </SelectTrigger>
-        <SelectContent>
-            <SelectItem value="all">Semua Divisi</SelectItem>
-            {divisions?.map((division) => (
-                <SelectItem key={division} value={division}>
-                    {division}
-                </SelectItem>
-            ))}
-        </SelectContent>
-    </Select>
-</div>
+                            <Label className="mb-2 block text-sm">Divisi</Label>
+                            <Select value={selectedDivision} onValueChange={setSelectedDivision}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Divisi" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Divisi</SelectItem>
+                                    {divisions?.map((division) => (
+                                        <SelectItem key={division} value={division}>
+                                            {division}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     <DialogFooter className="gap-2 sm:justify-end">
                         <Button

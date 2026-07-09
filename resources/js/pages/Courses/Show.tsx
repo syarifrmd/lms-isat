@@ -1793,7 +1793,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                         style={{ width: `${currentProgress}%` }}
                                     />
                                 </div>
-                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{currentProgress < 100 ? 'Selesaikan semua modul untuk mendapat sertifikat' : ''}</p>
+                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{currentProgress < 100 ? 'Selesaikan semua modul untuk membuka course selanjutnya' : ''}</p>
                                 {currentProgress === 100 && (
                                     <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-semibold flex items-center gap-1.5">
                                         <CheckCircle className="w-4 h-4" /> Kursus Selesai!

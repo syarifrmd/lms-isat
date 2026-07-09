@@ -38,6 +38,10 @@ interface EditUserModalProps {
     user: User & { division?: string }; 
     regions: string[];
     divisions: string[];
+    brands?: string[];            
+    microClusters?: string[];      
+    branches?: string[];           
+    areas?: string[];
 }
 
 export default function EditUserModal({ open, onOpenChange, user, regions, divisions = [] }: EditUserModalProps) {
@@ -54,6 +58,10 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
         role: user.role,
         region: user.region || '',
         division: user.division || '', 
+        brand: user.brand || '',                 
+        micro_cluster: user.micro_cluster || '',  
+        branch: user.branch || '',                
+        area: user.area || '',
         password: '',
     });
 
@@ -69,9 +77,13 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                     name: user.name,
                     email: user.email || '',
                     role: user.role,
-                    region: user.region || '',
                     division: '', 
-                    password: '',
+                    brand: user.brand || '',                 
+                micro_cluster: user.micro_cluster || '',  
+                branch: user.branch || '',                
+                area: user.area || '',
+                password: '',
+                region: user.region || '',
                 });
             } else {
                 setIsCustomDivision(false);
@@ -80,9 +92,13 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                     name: user.name,
                     email: user.email || '',
                     role: user.role,
-                    region: user.region || '',
                     division: userDivision,
+                    brand: user.brand || '',                 
+                    micro_cluster: user.micro_cluster || '',  
+                    branch: user.branch || '',                
+                    area: user.area || '',
                     password: '',
+                    region: user.region || '',
                 });
             }
         }
@@ -224,6 +240,48 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                                     <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input id="edit-region" value={data.region} onChange={(e) => setData('region', e.target.value)} className="pl-9" />
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-brand" className="text-sm font-medium">Brand</Label>
+                                <Input
+                                    id="edit-brand"
+                                    value={data.brand}
+                                    onChange={(e) => setData('brand', e.target.value)}
+                                    placeholder="Brand"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-micro_cluster" className="text-sm font-medium">Micro Cluster</Label>
+                                <Input
+                                    id="edit-micro_cluster"
+                                    value={data.micro_cluster}
+                                    onChange={(e) => setData('micro_cluster', e.target.value)}
+                                    placeholder="Micro Cluster"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-branch" className="text-sm font-medium">Branch</Label>
+                                <Input
+                                    id="edit-branch"
+                                    value={data.branch}
+                                    onChange={(e) => setData('branch', e.target.value)}
+                                    placeholder="Branch"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-area" className="text-sm font-medium">Area</Label>
+                                <Input
+                                    id="edit-area"
+                                    value={data.area}
+                                    onChange={(e) => setData('area', e.target.value)}
+                                    placeholder="Area"
+                                />
                             </div>
                         </div>
 
