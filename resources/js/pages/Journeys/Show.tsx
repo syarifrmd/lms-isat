@@ -54,6 +54,7 @@ interface ShowJourneyProps {
         user: {
             id: number;
             role: string;
+            division?: string;
         }
     };
 }
