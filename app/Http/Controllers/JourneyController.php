@@ -22,7 +22,16 @@ class JourneyController extends Controller
                 \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.position) as position"),
                 \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.is_mandatory) as is_mandatory")
             )
-            ->groupBy('journeys.id');
+            ->groupBy(
+                'journeys.id',
+                'journeys.title',
+                'journeys.description',
+                'journeys.cover_url',
+                'journeys.status',
+                'journeys.created_by',
+                'journeys.created_at',
+                'journeys.updated_at'
+            );
                 
         if ($user && $user->role === 'admin') {
             if ($divisionFilter && $divisionFilter !== 'all') {

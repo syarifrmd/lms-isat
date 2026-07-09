@@ -41,6 +41,9 @@ interface Course {
     quizzes?: Quiz[];
     created_by: string;
     target_division?: string;
+    is_mandatory?: boolean;
+    is_timer_active?: number | boolean;
+    duration_minutes?: number;
     creator?: CourseCreator;
 }
 
