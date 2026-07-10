@@ -294,7 +294,7 @@ class UserManagementController extends Controller
                     'micro_cluster' => !empty($row['micro_cluster']) ? trim($row['micro_cluster']) : null,
                     'branch'        => !empty($row['branch']) ? trim($row['branch']) : null,
                     'area'          => !empty($row['area']) ? trim($row['area']) : null,
-                    'is_registered'=> false,
+                    'is_registered'=> true,
                     'region'       => !empty($row['region']) ? trim($row['region']) : null,
                 ]);
                 $success++;

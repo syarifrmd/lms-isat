@@ -24,4 +24,14 @@ export default defineConfig({
     esbuild: {
         jsx: 'automatic',
     },
+    
+    server: {
+        watch: {
+            ignored: [
+                '**/vendor/**',
+                '**/storage/**',
+                '**/.git/**',
+            ],
+        },
+    },
 });
