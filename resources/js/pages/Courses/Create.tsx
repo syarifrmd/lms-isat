@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 interface CreateCourseProps {
     categories: string[];
     divisions: string[]; 
+    journeys: { id: number; title: string }[];
     mandatoryCourses: { id: number; title: string; position?: number; target_division?: string | string[] | null }[];
     auth: {
         user: {
@@ -22,12 +23,13 @@ interface CreateCourseProps {
     };
 }
 
-export default function CreateCourse({ categories, divisions, mandatoryCourses, auth }: CreateCourseProps) {
+export default function CreateCourse({ categories, divisions, mandatoryCourses, journeys, auth }: CreateCourseProps) {
     const isTrainer = auth.user.role?.toUpperCase() === 'TRAINER';
 
   const { data, setData, post, processing, errors } = useForm({
     title: '',
     description: '',
+    journey_id: '',
     category: '',
     status: 'draft',
     start_date: '',
@@ -427,6 +429,24 @@ useEffect(() => {
                                     className="resize-none"
                                 />
                                 <InputError message={errors.description} />
+                            </div>
+
+                            {/* Journey Selection */}
+                            <div className="space-y-1.5">
+                                <Label htmlFor="journey_id" className="text-sm font-medium">
+                                    Pilih Journey (Wajib) <span className="text-red-500">*</span>
+                                </Label>
+                                <Select value={data.journey_id ? data.journey_id.toString() : ''} onValueChange={(value) => setData('journey_id', value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Pilih Journey..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {journeys && journeys.map(journey => (
+                                            <SelectItem key={journey.id} value={journey.id.toString()}>{journey.title}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.journey_id} />
                             </div>
 
                             {/* Waktu Kursus */}

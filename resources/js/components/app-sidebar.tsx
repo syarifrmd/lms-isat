@@ -32,7 +32,8 @@ import {
     Settings,
     Trophy,
     Users,
-    Palette,  
+    Palette,
+    Map,
 } from 'lucide-react';
 
 export function AppSidebar() {
@@ -43,7 +44,12 @@ export function AppSidebar() {
     const user = auth.user;
 
     // Helper to check active route
-    const isActive = (path: string) => url.startsWith(path);
+    const isActive = (path: string) => {
+        if (path === '/journeys') {
+            return url.startsWith('/journeys') || url.startsWith('/courses');
+        }
+        return url.startsWith(path);
+    };
 
     const getNavItems = (): NavItem[] => {
         switch (role) {
@@ -51,22 +57,22 @@ export function AppSidebar() {
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'User Management', href: '/admin/users', icon: Users },
-                    { title: 'Courses', href: '/courses', icon: BookOpen },
+                    { title: 'Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                      { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
+                    { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
                     { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'My Courses', href: '/courses', icon: BookOpen },
+                    { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Students', href: '/students', icon: Users },
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'My Learning', href: '/courses', icon: BookOpen },
+                    { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
@@ -88,10 +94,10 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" tooltip="Indosat LMS" asChild className="hover:bg-transparent active:bg-transparent cursor-default">
                             <Link href={dashboard().url}>
-                                <img 
-                                    src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png" 
-                                    alt="Indosat Logo" 
-                                    className="h-6 w-6 shrink-0 object-contain" 
+                                <img
+                                    src="https://prod-talentics-storage.s3.ap-southeast-1.amazonaws.com/organizations/110284/logos/1648697982_4de97d5a7c04a252d442a320bf625037a16fe803.png"
+                                    alt="Indosat Logo"
+                                    className="h-6 w-6 shrink-0 object-contain"
                                 />
                                 <div className="flex flex-col leading-tight min-w-0">
                                     <span className="font-bold text-sidebar-foreground truncate">Indosat LMS</span>

@@ -29,6 +29,7 @@ class CourseController extends Controller
         $courseType = $request->input('course_type', 'mandatory');
         $progressStatus = $request->input('progress_status');
         $divisionFilter = $request->input('division'); 
+        $journeyId = $request->input('journey_id');
 
     
         config()->set('database.connections.mysql.strict', false);
@@ -91,6 +92,10 @@ class CourseController extends Controller
             $query->where('courses.category', $category);
         }
 
+        if ($journeyId) {
+            $query->where('courses.journey_id', $journeyId);
+        }
+
         if ($progressStatus === 'ongoing') {
             $query->whereHas('enrollments', function ($q) {
                 $q->where('user_id', Auth::id())
@@ -146,6 +151,7 @@ class CourseController extends Controller
                 'course_type' => $courseType,
                 'progress_status' => $progressStatus,
                 'division' => $divisionFilter, 
+                'journey_id' => $journeyId,
             ],
             'categories' => $categories,
             'divisions' => $divisions 
@@ -166,9 +172,12 @@ class CourseController extends Controller
             ->where('courses.is_mandatory', true)
             ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
         
+        $journeys = \App\Models\Journey::select('id', 'title')->get();
+
         return Inertia::render('Courses/Create', [
             'categories' => $categories,
             'mandatoryCourses' => $mandatoryCourses, 
+            'journeys' => $journeys,
             'auth' => [
                 'user' => [
                     'role'     => $user->role,
@@ -192,6 +201,7 @@ class CourseController extends Controller
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
             'position' => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
+            'journey_id' => 'required|exists:journeys,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
@@ -209,6 +219,7 @@ class CourseController extends Controller
             'description' => $validated['description'],
             'category' => $validated['category'],
             'created_by' => $user->id, 
+            'journey_id' => $request->input('journey_id'),
             'status' => $request->input('status', 'draft'), 
             'is_mandatory' => $isMandatory,
             'is_timer_active' => $isTimerActive,
@@ -452,10 +463,13 @@ class CourseController extends Controller
             ->where('courses.id', '!=', $course->id)
             ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
 
+        $journeys = \App\Models\Journey::select('id', 'title')->get();
+
         return Inertia::render('Courses/Edit', [
             'course' => $course,
             'categories' => $categories,
             'mandatoryCourses' => $mandatoryCourses, 
+            'journeys' => $journeys,
         ]);
     }
 
@@ -487,6 +501,7 @@ class CourseController extends Controller
             'target_division'  => 'nullable|array',
             'position'         => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
+            'journey_id'       => 'required|exists:journeys,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
@@ -501,6 +516,7 @@ class CourseController extends Controller
             'status'                 => $request->status,
             'start_date'             => $request->start_date,
             'end_date'               => $request->end_date,
+            'journey_id'             => $request->journey_id,
             'is_mandatory'           => $isMandatory, 
             'is_timer_active'        => $isTimerActive,
             'duration_minutes'       => $isTimerActive ? (int)$request->duration_minutes : 0,

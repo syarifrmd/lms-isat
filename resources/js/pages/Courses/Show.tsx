@@ -41,6 +41,9 @@ interface Course {
     quizzes?: Quiz[];
     created_by: string;
     target_division?: string;
+    is_mandatory?: boolean;
+    is_timer_active?: number | boolean;
+    duration_minutes?: number;
     creator?: CourseCreator;
 }
 
@@ -196,12 +199,14 @@ const loadYouTubeApi = () => {
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-xs mb-2">
-                    <Button size="sm" asChild className="gap-1.5 flex-1 shadow-sm h-9">
-                        <a href={url} target="_blank" rel="noopener noreferrer">
-                            <Download className="w-3.5 h-3.5" />
-                            Buka / Unduh File
-                        </a>
-                    </Button>
+                    {!isStudentView && (
+                        <Button size="sm" asChild className="gap-1.5 flex-1 shadow-sm h-9">
+                            <a href={url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-3.5 h-3.5" />
+                                Buka / Unduh File
+                            </a>
+                        </Button>
+                    )}
 
                     {isStudentView && !isCompleted && onSimulateComplete && (
                         <Button 
@@ -816,7 +821,7 @@ const OfficeViewer = memo(
 );
 
 
-    const renderDocPreview = (docUrl: string, moduleId: number, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void) => {
+    const renderDocPreview = (docUrl: string, moduleId: number, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, isTrainer: boolean) => {
         const fullUrl = getPreviewUri(docUrl);
         const extension = getFileExtension(docUrl);
         const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension);
@@ -879,7 +884,7 @@ const OfficeViewer = memo(
                     <LocalOfficePlaceholder 
                         url={fullUrl} 
                         fileName={getFileName(docUrl)} 
-                        isStudentView={false}
+                        isStudentView={!isTrainer}
                     />
                 );
             }
@@ -896,11 +901,13 @@ const OfficeViewer = memo(
         return (
             <div className="flex min-h-72 flex-col items-center justify-center gap-3 px-4 py-8 text-center">
                 <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Preview tidak tersedia untuk tipe file ini.</p>
-                <Button variant="outline" size="sm" asChild>
-                    <a href={docUrl} target="_blank" rel="noopener noreferrer">
-                        Buka Dokumen
-                    </a>
-                </Button>
+                {isTrainer && (
+                    <Button variant="outline" size="sm" asChild>
+                        <a href={docUrl} target="_blank" rel="noopener noreferrer">
+                            Buka Dokumen
+                        </a>
+                    </Button>
+                )}
             </div>
         );
     };
@@ -1153,15 +1160,15 @@ const evaluateDocument = () => {
                                         </p>
                                     </div>
                                 </div>
-                                {/* <Button variant="outline" size="sm" asChild className="shrink-0">
+                                <Button variant="outline" size="sm" asChild className="shrink-0">
                                     <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
                                         Lihat / Unduh <LinkIcon className="ml-2 w-3 h-3" />
                                     </a>
-                                </Button> */}
+                                </Button>
                             </div>
 
                             <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                                {renderDocPreview(module.doc_url, module.id, previewModuleId, setPreviewModuleId)}
+                                {renderDocPreview(module.doc_url, module.id, previewModuleId, setPreviewModuleId, isTrainer)}
                             </div>
                         </div>
                     )}

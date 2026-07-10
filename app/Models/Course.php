@@ -24,6 +24,7 @@ class Course extends Model
         'duration_minutes',
         'position',
         'prerequisite_course_id',
+        'journey_id',
     ];
 
     protected $casts = [
@@ -71,11 +72,16 @@ class Course extends Model
     return $this->belongsTo(Course::class, 'prerequisite_course_id');
 }
 
-public function divisions()
-{
-    return $this->hasMany(\Illuminate\Support\Facades\DB::table('course_division')->get() ? \App\Models\CourseDivision::class : null); 
-    return $this->belongsToMany(User::class, 'course_division', 'course_id', 'target_division')
-                ->withPivot('position', 'prerequisite_course_id')
-                ->withTimestamps();
-}
+    public function divisions()
+    {
+        return $this->hasMany(\Illuminate\Support\Facades\DB::table('course_division')->get() ? \App\Models\CourseDivision::class : null); 
+        return $this->belongsToMany(User::class, 'course_division', 'course_id', 'target_division')
+                    ->withPivot('position', 'prerequisite_course_id')
+                    ->withTimestamps();
+    }
+
+    public function journey()
+    {
+        return $this->belongsTo(Journey::class);
+    }
 }

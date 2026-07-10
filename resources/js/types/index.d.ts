@@ -45,6 +45,7 @@ export interface User {
     full_name?: string;
     level?: number;
     points?: number;
+    division?: string;
     is_registered: boolean;
     google_id?: string;
     [key: string]: unknown;
