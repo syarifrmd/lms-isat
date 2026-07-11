@@ -44,7 +44,10 @@ class ModuleProgressService
         $videoRequirementMet = empty($module->video_url) || $isVideoWatched;
         $documentRequirementMet = empty($module->doc_url) || $isDocumentRead;
 
-        $baseCompleted = $textRequirementMet && $videoRequirementMet && $documentRequirementMet && $quizRequirementMet;
+        // Dokumen sengaja tidak mentrigger/menentukan status selesai modul (dan karenanya tidak
+        // menentukan terbukanya modul berikutnya). Urutan pengerjaan tetap dijaga di sisi lain:
+        // video -> kuis -> dokumen baru terbuka.
+        $baseCompleted = $textRequirementMet && $videoRequirementMet && $quizRequirementMet;
 
         // If module has checklist items, ALL checklists must be completed.
         // Or if it only has base requirements, they must be satisfied.
@@ -97,12 +100,8 @@ class ModuleProgressService
                 }
             }
 
-            if (!empty($module->doc_url) && !$checklistItems->contains(fn ($item) => in_array($item->type, ['document', 'doc'], true))) {
-                $totalChecklists++;
-                if ($progresses->contains(fn ($progress) => (bool) $progress->is_document_read)) {
-                    $completedChecklists++;
-                }
-            }
+            // Dokumen sengaja tidak dihitung dalam progress_percentage.
+            // Progress hanya dihitung sampai kuis (teks, video, checklist, kuis).
 
             if ($module->quizzes->isNotEmpty()) {
                 $totalChecklists += $module->quizzes->count();

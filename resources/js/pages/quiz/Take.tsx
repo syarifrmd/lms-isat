@@ -537,9 +537,9 @@ useEffect(() => {
                                 }
                             </div>
                             <div className="flex gap-2">
-                                <Button type="button" variant="outline" size="sm" asChild>
+                                {/* <Button type="button" variant="outline" size="sm" asChild>
                                     <Link href={`/courses/${course.id}`}>Batal</Link>
-                                </Button>
+                                </Button> */}
                                 <Button
                                     type="submit"
                                     size="sm"

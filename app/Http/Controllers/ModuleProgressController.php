@@ -35,6 +35,8 @@ class ModuleProgressController extends Controller
                 ->delete();
         }
     }
+
+    return $quiz;
 }
 
     /**
@@ -77,13 +79,14 @@ class ModuleProgressController extends Controller
         $progress->text_elapsed_seconds = $request->input('elapsed_seconds');
         $progress->text_scroll_percentage = $request->input('scroll_percentage');
 
+        $unlockedQuiz = null;
         if ($this->shouldCompleteText($module, $request)) {
             $progress->is_text_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
 
             // TRIGGER UNLOCK KUIS (BACA TEKS)
-            $this->checkAndUnlockQuiz($user->id, $moduleId);
+            $unlockedQuiz = $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -98,6 +101,7 @@ class ModuleProgressController extends Controller
                 'is_text_read' => (bool) $progress->is_text_read,
                 'is_video_watched' => (bool) $progress->is_video_watched,
                 'is_document_read' => (bool) $progress->is_document_read,
+                'unlocked_quiz_id' => $unlockedQuiz?->id,
             ]);
         }
 
@@ -128,13 +132,14 @@ class ModuleProgressController extends Controller
         $progress->video_max_position_seconds = $request->input('max_position_seconds');
         $progress->video_duration_seconds = $request->input('duration_seconds') ?? (($module->duration_minutes ?? 0) * 60);
 
+        $unlockedQuiz = null;
         if ($this->shouldCompleteVideo($module, $request)) {
             $progress->is_video_watched = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
 
             // TRIGGER UNLOCK KUIS (NONTON VIDEO)
-            $this->checkAndUnlockQuiz($user->id, $moduleId);
+            $unlockedQuiz = $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -149,6 +154,7 @@ class ModuleProgressController extends Controller
                 'is_text_read' => (bool) $progress->is_text_read,
                 'is_video_watched' => (bool) $progress->is_video_watched,
                 'is_document_read' => (bool) $progress->is_document_read,
+                'unlocked_quiz_id' => $unlockedQuiz?->id,
             ]);
         }
 
@@ -196,8 +202,6 @@ class ModuleProgressController extends Controller
             $progress->is_document_read = true;
             $progress->is_completed = true;
             $progress->completed_at = $progress->completed_at ?? now();
-
-            $this->checkAndUnlockQuiz($user->id, $moduleId);
         }
 
         $progress->save();
@@ -226,25 +230,9 @@ class ModuleProgressController extends Controller
         $user = Auth::user();
         $module = Module::findOrFail($moduleId);
 
-        $quiz = Quiz::where('module_id', $moduleId)->first();
-
-        if ($quiz) {
-            // RESET KESEMPATAN KUIS (disamakan dengan mekanisme reset saat percobaan mencapai 3x)
-            UserQuizAttempt::where('user_id', $user->id)
-                ->where('quiz_id', $quiz->id)
-                ->delete();
-
-            // Catat sebagai attempt gagal waktu
-            UserQuizAttempt::create([
-                'user_id' => $user->id,
-                'quiz_id' => $quiz->id,
-                'course_id' => $quiz->course_id,
-                'score' => 0,
-                'is_passed' => false,
-                'is_time_up' => true,
-                'submitted_at' => now(),
-            ]);
-        }
+        // Catatan: waktu modul habis TIDAK menyentuh percobaan kuis sama sekali (tidak menghapus,
+        // tidak membuat attempt baru). Timer modul ini mengunci video/teks/dokumen — bukan kuis —
+        // jadi habisnya waktu modul semestinya tidak memakai/mereset jatah percobaan kuis user.
 
         // RESET PROGRES MODUL (video/teks/dokumen) karena waktu modul telah habis,
         // disamakan dengan mekanisme reset kesempatan kuis di atas.

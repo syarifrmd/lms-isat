@@ -235,12 +235,12 @@ export default function QuizResult({ attempt, quiz, course }: ResultProps) {
 
                 {/* ── Actions ── */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button asChild variant="outline" className="gap-2">
+                    {/* <Button asChild variant="outline" className="gap-2">
                         <Link href={`/courses/${course.id}`}>
                             <ChevronLeft className="h-4 w-4" />
                             Kembali ke Kursus
                         </Link>
-                    </Button>
+                    </Button> */}
                     {!passed && (
                         <Button asChild className="gap-2">
                             <Link href={`/quiz/${quiz.id}`}>

@@ -360,11 +360,13 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
         isCompletedInitial,
         durationMinutes,
         onProgressUpdate,
+        onPlay,
     }: {
         videoId: string;
         isCompletedInitial: boolean;
         durationMinutes?: number;
         onProgressUpdate: (currentTime: number, maxTime: number, duration: number) => void;
+        onPlay?: () => void;
     }) {
         const [isPlaying, setIsPlaying] = useState(false);
         const [currentTime, setCurrentTime] = useState(0);
@@ -434,6 +436,7 @@ const PremiumVideoPlayer = memo(    function PremiumVideoPlayer({
                             if (state === ytWindow.YT.PlayerState.PLAYING) {
                                 setIsPlaying(true);
                                 startTimer();
+                                onPlay?.();
                             } else {
                                 setIsPlaying(false);
                                 stopTimer();
@@ -913,7 +916,7 @@ const OfficeViewer = memo(
     };
 
 
-    const ModuleProgressTracker = memo(function ModuleProgressTracker({ module, isTrainer, previewModuleId, setPreviewModuleId, setCurrentProgress, setLocalModules, quizSection }: { module: Module, isTrainer: boolean, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, setCurrentProgress: (p: number) => void, setLocalModules: React.Dispatch<React.SetStateAction<Module[]>>, quizSection?: React.ReactNode }) {
+    const ModuleProgressTracker = memo(function ModuleProgressTracker({ module, isTrainer, previewModuleId, setPreviewModuleId, setCurrentProgress, setLocalModules, quizSection, onVideoPlay, videoResetGeneration }: { module: Module, isTrainer: boolean, previewModuleId: number | null, setPreviewModuleId: (id: number | null) => void, setCurrentProgress: (p: number) => void, setLocalModules: React.Dispatch<React.SetStateAction<Module[]>>, quizSection?: React.ReactNode, onVideoPlay?: (moduleId: number) => void, videoResetGeneration?: number }) {
         const isUser = !isTrainer;
         // Dokumen modul terkunci selama kuis modul ini belum lulus (khusus user biasa)
         const hasModuleQuiz = (module.quizzes?.length ?? 0) > 0;
@@ -943,7 +946,7 @@ const OfficeViewer = memo(
         });
         const docLastPageRef = useRef<number>(module.doc_current_page || 1);
 
-        const postProgress = (path: string, payload: Record<string, number>, onCompleted?: (data: any) => void) => {
+        const postProgress = (path: string, payload: Record<string, number>, onCompleted?: (data: any) => boolean | void) => {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             
             fetch(path, {
@@ -956,49 +959,74 @@ const OfficeViewer = memo(
                 },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
+            .then(async (res) => {
+                let data: any = null;
+                try {
+                    data = await res.json();
+                } catch (parseErr) {
+                    // Response bukan JSON (mis. halaman error/redirect login) -> jangan diam-diam gagal.
+                    throw new Error(`Server tidak mengembalikan JSON (status ${res.status}). Kemungkinan sesi berakhir atau tidak terdaftar di course ini — coba refresh halaman.`);
+                }
+                if (!res.ok || !data?.success) {
+                    throw new Error(data?.message || `Gagal menyimpan progres (status ${res.status}).`);
+                }
+                return data;
+            })
             .then(data => {
-                if (data.success) {
-                    if (data.progress_percentage !== undefined) {
-                        setCurrentProgress(data.progress_percentage);
-                    }
+                if (data.progress_percentage !== undefined) {
+                    setCurrentProgress(data.progress_percentage);
+                }
+                
+                setLocalModules(prev => {
+                    const updated = prev.map(m => m.id === module.id ? {
+                        ...m,
+                        is_completed: data.is_completed ?? m.is_completed,
+                        is_text_read: data.is_text_read ?? m.is_text_read,
+                        is_video_watched: data.is_video_watched ?? m.is_video_watched,
+                        is_document_read: data.is_document_read ?? m.is_document_read,
+                    } : m);
                     
-                    setLocalModules(prev => {
-                        const updated = prev.map(m => m.id === module.id ? {
-                            ...m,
-                            is_completed: data.is_completed ?? m.is_completed,
-                            is_text_read: data.is_text_read ?? m.is_text_read,
-                            is_video_watched: data.is_video_watched ?? m.is_video_watched,
-                            is_document_read: data.is_document_read ?? m.is_document_read,
-                        } : m);
-                        
-                        if (isTrainer) return updated;
-                        
-                        let previousCompleted = true;
-                        return updated.map(m => {
-                            const isLocked = !previousCompleted;
-                            previousCompleted = !!m.is_completed;
-                            return { ...m, is_locked: isLocked };
-                        });
+                    if (isTrainer) return updated;
+                    
+                    let previousCompleted = true;
+                    return updated.map(m => {
+                        const isLocked = !previousCompleted;
+                        previousCompleted = !!m.is_completed;
+                        return { ...m, is_locked: isLocked };
                     });
+                });
 
-                    if (onCompleted) {
-                        onCompleted(data);
-                    }
-                    
-                    // Automatically refresh inertia props so that global layout elements (like navbar progress) update
+                let skipAutoReload = false;
+                if (onCompleted) {
+                    skipAutoReload = onCompleted(data) === true;
+                }
+                
+                // Automatically refresh inertia props so that global layout elements (like navbar progress) update.
+                // Dilewati jika onCompleted sudah menavigasi ke halaman lain (mis. redirect ke quiz),
+                // supaya tidak balapan dengan navigasi tersebut dan merusak data yang diterima halaman berikutnya.
+                if (!skipAutoReload) {
                     // @ts-ignore
                     router.reload({ preserveScroll: true });
                 }
             })
-            .catch(e => console.error('Tracking Error:', e));
+            .catch(e => {
+                console.error('Tracking Error:', e);
+                // Diagnostik sementara: supaya kegagalan progres (video/teks/dokumen) tidak lagi diam-diam
+                // hilang tanpa jejak — sebelumnya ini yang membuat "video selesai tapi progress tidak nambah"
+                // sulit dilacak.
+                alert(`Progres gagal tersimpan: ${e.message}`);
+            });
         };
 
         useEffect(() => {
-            videoCompletionSentRef.current = !!module.is_video_watched;
-            textCompletionSentRef.current = !!module.is_text_read;
+            // Kalau quiz-nya sedang terkunci karena percobaan sudah habis (>=3x) dan belum lulus,
+            // izinkan sinyal "video/teks selesai" dikirim ulang saat user mengulang video/materinya,
+            // supaya checkAndUnlockQuiz() di backend bisa jalan lagi dan quiz benar-benar terbuka.
+            const quizLockedByAttempts = (module.quizzes ?? []).some((q) => !q.is_passed && (q.attempts_count || 0) >= 3);
+            videoCompletionSentRef.current = !!module.is_video_watched && !quizLockedByAttempts;
+            textCompletionSentRef.current = !!module.is_text_read && !quizLockedByAttempts;
             docCompletionSentRef.current = !!module.is_document_read;
-        }, [module.id, module.is_video_watched, module.is_text_read, module.is_document_read]);
+        }, [module.id, module.is_video_watched, module.is_text_read, module.is_document_read, module.quizzes]);
 
         useEffect(() => {
             if (!isUser || !module.content_text || !textContainerRef.current) {
@@ -1188,9 +1216,11 @@ const evaluateDocument = () => {
                 {module.video_url && (
                     <div className="mb-4">
                         <PremiumVideoPlayer
+                            key={`video-${module.id}-${videoResetGeneration || 0}-${module.is_video_watched ? 1 : 0}`}
                             videoId={module.video_url}
                             isCompletedInitial={!!module.is_video_watched}
                             durationMinutes={module.duration_minutes}
+                            onPlay={() => onVideoPlay?.(module.id)}
                             onProgressUpdate={(currentTime, maxTime, duration) => {
                                 const threshold = Math.max(duration - 2, 0);
                                 if (!videoCompletionSentRef.current && currentTime >= threshold && maxTime >= threshold) {
@@ -1199,6 +1229,24 @@ const evaluateDocument = () => {
                                         current_time_seconds: currentTime,
                                         max_position_seconds: maxTime,
                                         duration_seconds: duration,
+                                    }, (data) => {
+                                        // Video selesai -> langsung arahkan ke kuis modul (jika ada dan belum lulus/terkunci)
+                                        // tanpa perlu klik "Start Quiz". UI kuis terkunci & kuis selesai tetap seperti semula.
+                                        if (isUser) {
+                                            // Utamakan quiz id segar dari server (data.unlocked_quiz_id), karena ini sudah
+                                            // memperhitungkan reset percobaan (checkAndUnlockQuiz) yang baru saja terjadi di
+                                            // request ini. Data module.quizzes di state klien bisa saja masih basi (attempts_count
+                                            // lama) kalau quiz baru saja direset oleh nonton ulang video.
+                                            const targetQuizId = data?.unlocked_quiz_id
+                                                ?? (module.quizzes ?? []).find((q) => !q.is_passed && (q.attempts_count || 0) < 3)?.id;
+                                            const targetQuiz = (module.quizzes ?? []).find((q) => q.id === targetQuizId);
+                                            // Jangan arahkan ulang kalau quiz-nya sudah diketahui lulus (jaga UI "selesai" tetap apa adanya).
+                                            if (targetQuizId && !targetQuiz?.is_passed) {
+                                                router.visit(`/quiz/${targetQuizId}`);
+                                                return true;
+                                            }
+                                        }
+                                        return false;
                                     });
                                 }
                             }}
@@ -1352,14 +1400,31 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
     const deadlineKey = `module_timer_deadline_${moduleId}`;
     const remainingKey = `module_timer_remaining_seconds_${moduleId}`;
     const expiredCountKey = `module_timer_expired_count_${moduleId}`;
+    // Menyimpan durasi (menit) yang dipakai saat deadline dibuat, supaya kalau durasi modul
+    // diubah setelah timer lama sempat tersimpan di localStorage, timer lama itu tidak terus
+    // dipakai (tidak nyambung lagi dengan durasi yang sekarang di-set).
+    const durationKey = `module_timer_duration_${moduleId}`;
 
     const [isExpired, setIsExpired] = useState(false);
+    // Dulu dibaca langsung dari localStorage saat render (tanpa state), jadi tampilannya bisa
+    // "telat" sampai ada trigger render lain -- kelihatan seperti butuh reload manual padahal
+    // datanya sendiri sudah benar. Sekarang jadi state React eksplisit supaya begitu nilainya
+    // berubah, tampilan PASTI langsung ikut render ulang.
+    const [expiredCount, setExpiredCount] = useState(() => parseInt(localStorage.getItem(expiredCountKey) || '0', 10));
+    // Penjaga tambahan (di luar state) supaya blok "waktu habis" di bawah tidak pernah
+    // dieksekusi dua kali untuk satu momen habis waktu yang sama, meskipun effect ini
+    // sempat jalan ulang beberapa kali sebelum state isExpired benar-benar ter-update
+    // (mis. karena parent re-render). Tanpa ini, satu kali waktu habis bisa memicu
+    // handleModuleTimeUp() & penambahan hitungan "gagal waktu" lebih dari sekali.
+    const expiryHandledRef = useRef(false);
 
     // 1. Inisialisasi / resume timer
     const [secondsLeft, setSecondsLeft] = useState(() => {
         const savedDeadline = localStorage.getItem(deadlineKey);
+        const savedDuration = localStorage.getItem(durationKey);
+        const durationMatches = savedDuration !== null && Number(savedDuration) === Math.max(durationMinutes, 0);
 
-        if (savedDeadline) {
+        if (savedDeadline && durationMatches) {
             const remaining = Math.ceil((parseInt(savedDeadline, 10) - Date.now()) / 1000);
             if (remaining > 0) {
                 localStorage.setItem(remainingKey, remaining.toString());
@@ -1371,11 +1436,12 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
             }
         }
 
-        // Buat timer baru
+        // Buat timer baru (termasuk kalau durasi modul baru saja diubah oleh admin/trainer)
         const totalSeconds = Math.max(durationMinutes, 0) * 60;
         const deadline = Date.now() + totalSeconds * 1000;
         localStorage.setItem(deadlineKey, deadline.toString());
         localStorage.setItem(remainingKey, totalSeconds.toString());
+        localStorage.setItem(durationKey, Math.max(durationMinutes, 0).toString());
         return totalSeconds;
     });
 
@@ -1383,9 +1449,18 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
     useEffect(() => {
         if (isExpired) return;
         if (secondsLeft <= 0) {
+            if (expiryHandledRef.current) {
+                // Sudah ditangani untuk siklus expiry ini (effect ini jalan ulang karena dependency
+                // lain berubah, mis. onTimeUp), jangan proses ulang.
+                return;
+            }
+            expiryHandledRef.current = true;
+
             // Waktu habis! Tandai expired, catat jumlah gagal waktu
             const prevCount = parseInt(localStorage.getItem(expiredCountKey) || '0', 10);
-            localStorage.setItem(expiredCountKey, (prevCount + 1).toString());
+            const newExpiredCount = prevCount + 1;
+            localStorage.setItem(expiredCountKey, newExpiredCount.toString());
+            setExpiredCount(newExpiredCount);
             
             // Segera reset deadline di localStorage agar jika router.post memicu page reload,
             // timer tidak dianggap expired lagi (mencegah infinite loop)
@@ -1393,23 +1468,34 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
             const newDeadline = Date.now() + totalSeconds * 1000;
             localStorage.setItem(deadlineKey, newDeadline.toString());
             localStorage.setItem(remainingKey, totalSeconds.toString());
+            localStorage.setItem(durationKey, Math.max(durationMinutes, 0).toString());
             
             setIsExpired(true);
             onTimeUp();
-            
-            // Tampilkan popup sesuai permintaan user
-            alert("waktu telah habis, segera refresh laman untuk melihat waktu terbaru");
+
+            // Restart otomatis tanpa perlu reload manual maupun konfirmasi apa pun dari user:
+            // lanjutkan hitung mundur baru memakai deadline yang sudah disiapkan di atas.
+            // Notifikasi cukup lewat banner merah di bawah (non-blocking), tidak perlu popup lagi.
+            window.setTimeout(() => {
+                setIsExpired(false);
+                setSecondsLeft(totalSeconds);
+                expiryHandledRef.current = false;
+            }, 5000);
         }
 
         const timerId = setInterval(() => {
-            setSecondsLeft((prev) => {
-                if (prev <= 1) {
+            setSecondsLeft(() => {
+                // Selalu hitung ulang dari deadline asli (bukan sekadar -1 dari nilai lama),
+                // supaya kalau komponen ini sempat "dipulihkan" dalam kondisi basi (mis. Inertia
+                // mengembalikan tampilan lama saat navigasi balik dari halaman quiz tanpa benar-benar
+                // remount), angkanya otomatis benar lagi dalam 1 detik tanpa perlu reload manual.
+                const dl = parseInt(localStorage.getItem(deadlineKey) || '0', 10);
+                const remaining = dl ? Math.max(Math.ceil((dl - Date.now()) / 1000), 0) : 0;
+                if (remaining <= 0) {
                     clearInterval(timerId);
-                    return 0;
                 }
-                const nextTime = prev - 1;
-                localStorage.setItem(remainingKey, nextTime.toString());
-                return nextTime;
+                localStorage.setItem(remainingKey, remaining.toString());
+                return remaining;
             });
         }, 1000);
 
@@ -1423,15 +1509,13 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) 
         return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
-    const expiredCount = parseInt(localStorage.getItem(expiredCountKey) || '0', 10);
-
     // Tampilan saat waktu habis (5 detik sebelum restart otomatis)
     if (isExpired) {
         return (
             <div className="flex flex-col gap-2 mb-4 animate-pulse">
                 <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-bold shadow-sm">
                     <AlertCircle className="h-5 w-5 text-red-500" />
-                    <span>waktu telah habis, segera refresh laman untuk melihat waktu terbaru</span>
+                    <span>Waktu telah habis, progres modul ini direset otomatis...</span>
                 </div>
                 {expiredCount > 0 && (
                     <p className="text-[11px] text-red-500 font-medium pl-1">
@@ -1473,14 +1557,39 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     const trainerName = course?.creator?.name || 'Instructor';
     const trainerId = course?.creator?.id || 'N/A';
 
-    // ── Timer per Modul (sumber durasi: course.duration_minutes) ───────────────
-    // Dipanggil saat timer modul menyentuh 00:00 (timer akan otomatis restart sendiri).
+    // Dibump setiap kali waktu modul habis, supaya player video (yang statenya tersimpan
+    // secara internal di komponen, bukan mengikuti prop) benar-benar di-reset total (remount),
+    // bukan cuma direset di database sementara videonya sendiri tetap lanjut main di browser.
+    const [videoResetGeneration, setVideoResetGeneration] = useState<Record<number, number>>({});
+
+    // Cegah handleModuleTimeUp memproses lebih dari sekali untuk kejadian "waktu habis" yang sama,
+    // sebagai lapisan pengaman tambahan di luar guard yang sudah ada di dalam ModuleTimer sendiri.
+    const lastTimeUpAtRef = useRef<Record<number, number>>({});
     const handleModuleTimeUp = useCallback((moduleId: number) => {
+        const now = Date.now();
+        const lastAt = lastTimeUpAtRef.current[moduleId] || 0;
+        if (now - lastAt < 3000) {
+            return;
+        }
+        lastTimeUpAtRef.current[moduleId] = now;
+
+        // Paksa video player untuk modul ini remount dari awal (posisi & batas seek ikut reset).
+        setVideoResetGeneration((prev) => ({ ...prev, [moduleId]: (prev[moduleId] || 0) + 1 }));
+
         // Catat kegagalan waktu ke backend agar terekam di daftar "Gagal Waktu" students
         router.post(`/modules/${moduleId}/time-up`, {}, {
             preserveScroll: true,
             preserveState: true,
         });
+    }, []);
+
+    // Timer modul baru dianggap "dipicu" setelah user benar-benar mengklik video (jika modul
+    // punya video) atau mengklik "Start Quiz" (jika modul tidak punya video), bukan otomatis
+    // saat modul dibuka. Disimpan sebagai state biasa (bukan localStorage) agar selalu akurat
+    // dan langsung memicu render ulang.
+    const [triggeredModuleTimers, setTriggeredModuleTimers] = useState<Record<number, boolean>>({});
+    const markModuleTimerStarted = useCallback((moduleId: number) => {
+        setTriggeredModuleTimers((prev) => (prev[moduleId] ? prev : { ...prev, [moduleId]: true }));
     }, []);
 
     const trainerInitials = trainerName
@@ -1500,6 +1609,16 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     useEffect(() => {
         setLocalModules(course.modules);
     }, [course.modules]);
+
+    useEffect(() => {
+        // Course berganti (mis. dari halaman course lain via navigasi Inertia tanpa full reload) ->
+        // reset state UI/tracking yang sebelumnya bisa "nyangkut" dari course sebelumnya, supaya modul
+        // yang lagi terbuka, progres yang ditampilkan, dan status trigger timer selalu sesuai course ini.
+        setActiveModuleItem('');
+        setPreviewModuleId(null);
+        setCurrentProgress(userProgress);
+        setTriggeredModuleTimers({});
+    }, [course.id]);
 
     useEffect(() => {
         setCurrentProgress(userProgress);
@@ -1655,11 +1774,20 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                     const { auth } = usePage<any>().props;
                                                     const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role);
                                                     const isModuleActive = activeModuleItem === `item-${module.id}`;
-                                                    const quizzesAllPassed = (module.quizzes?.length ?? 0) === 0
+                                                    const hasModuleQuizForTimer = (module.quizzes?.length ?? 0) > 0;
+                                                    const quizzesAllPassed = !hasModuleQuizForTimer
                                                         || module.quizzes!.every((q) => q.is_passed);
-                                                    // Kondisi 3: materi + semua kuis modul sudah lulus -> timer berhenti & hilang.
-                                                    // Kondisi 4: modul yang sudah pernah selesai -> timer tidak muncul sejak awal.
-                                                    const moduleAlreadyDone = !!module.is_completed && quizzesAllPassed;
+                                                    // Kondisi 3: modul memiliki kuis dan kuis tersebut sudah lulus -> timer berhenti & hilang
+                                                    // (tidak perlu menunggu dokumen selesai dibaca).
+                                                    // Kondisi 4: modul tanpa kuis yang sudah pernah selesai -> timer tidak muncul sejak awal.
+                                                    const moduleAlreadyDone = hasModuleQuizForTimer ? quizzesAllPassed : !!module.is_completed;
+
+                                                    // Timer tidak lagi berjalan otomatis begitu modul dibuka. Ia hanya berjalan
+                                                    // setelah user memicu langsung: klik video (jika modul punya video), atau
+                                                    // klik "Start Quiz" (jika modul tidak punya video).
+                                                    const requiresManualTimerTrigger = !!module.video_url || hasModuleQuizForTimer;
+                                                    const timerManuallyTriggered = !requiresManualTimerTrigger
+                                                        || !!triggeredModuleTimers[module.id];
 
                                                     const shouldShowModuleTimer =
                                                         isUserBiasa
@@ -1667,7 +1795,8 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                         && Number(course.is_timer_active) === 1
                                                         && isModuleActive
                                                         && !module.is_locked
-                                                        && !moduleAlreadyDone;
+                                                        && !moduleAlreadyDone
+                                                        && timerManuallyTriggered;
 
                                                     if (!shouldShowModuleTimer) return null;
 
@@ -1681,7 +1810,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                     );
                                                 })()}
 
-                                                <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} quizSection={(() => {
+                                                <ModuleProgressTracker module={module} isTrainer={isTrainer} previewModuleId={previewModuleId} setPreviewModuleId={setPreviewModuleId} setCurrentProgress={setCurrentProgress} setLocalModules={setLocalModules} onVideoPlay={markModuleTimerStarted} videoResetGeneration={videoResetGeneration[module.id] || 0} quizSection={(() => {
                                                     if (!((isTrainer && canManage) || (module.quizzes?.length ?? 0) > 0)) return null;
 
                                                     // Kuis modul terkunci sampai video modul ini selesai ditonton (khusus user biasa)
@@ -1761,7 +1890,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     </Button>
                                                                         );
                                                                         return (
-                                                                            <Button size="sm" className="h-7 px-2 text-[11px]" onClick={() => setConfirmQuiz(quiz)}>
+                                                                            <Button size="sm" className="h-7 px-2 text-[11px]" onClick={() => { markModuleTimerStarted(module.id); setConfirmQuiz(quiz); }}>
                                                                                 Start Quiz
                                                                             </Button>
                                                                         );
