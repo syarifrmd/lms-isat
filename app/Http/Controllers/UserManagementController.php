@@ -296,6 +296,7 @@ class UserManagementController extends Controller
                     'area'          => !empty($row['area']) ? trim($row['area']) : null,
                     'is_registered'=> true,
                     'region'       => !empty($row['region']) ? trim($row['region']) : null,
+                    'email_verified_at' => now(),
                 ]);
                 $success++;
             } catch (\Exception $e) {
