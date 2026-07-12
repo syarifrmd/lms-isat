@@ -32,6 +32,7 @@ interface Journey {
     };
     target_division?: string;
     is_mandatory?: boolean | number;
+    is_locked?: boolean | number;
 }
 
 export default function JourneysIndex({ 
@@ -184,15 +185,27 @@ export default function JourneysIndex({
                                     return null;
                                 }
 
+                                const isLocked = !canCreateCourse && !!journey.is_locked;
+
                                 return (
                                     <div
                                         key={`${journey.id}-${index}`}
                                         className="relative rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
                                     >
+                                        {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
+                                        {isLocked && (
+                                            <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
+                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
+                                                    <Lock className="h-6 w-6" />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Cover */}
                                         <div 
-                                            className={`relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 cursor-pointer`}
+                                            className={`relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0 ${!isLocked ? 'cursor-pointer' : ''}`}
                                             onClick={() => {
+                                                if (isLocked) return;
                                                 router.get(`/courses?journey_id=${journey.id}`);
                                             }}
                                         >
@@ -236,7 +249,7 @@ export default function JourneysIndex({
 
                                                 {/* PINDAHAN BARU: Badge Mandatory / Non-Mandatory di sebelah status */}
                                                 {journey.is_mandatory !== undefined && journey.is_mandatory !== null && (
-                                                    <span className={`inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${journey.is_mandatory ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60' : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900/60'}`}>
+                                                    <span className={`inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${journey.is_mandatory ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60' : 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'}`}>
                                                         {journey.is_mandatory ? 'Mandatory' : 'Non-Mandatory'}
                                                     </span>
                                                 )}
@@ -250,8 +263,9 @@ export default function JourneysIndex({
                                             </div>
 
                                             <p 
-                                                className={`text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug hover:text-sky-600 dark:hover:text-sky-400 cursor-pointer transition-colors`}
+                                                className={`text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-2 leading-snug ${!isLocked ? 'hover:text-sky-600 dark:hover:text-sky-400 cursor-pointer transition-colors' : ''}`}
                                                 onClick={() => {
+                                                    if (isLocked) return;
                                                     router.get(`/courses?journey_id=${journey.id}`);
                                                 }}
                                             >
@@ -297,8 +311,9 @@ export default function JourneysIndex({
                                                         </>
                                                     ) : (
                                                         <button
-                                                            onClick={() => router.get(`/courses?journey_id=${journey.id}`)}
-                                                            className="inline-flex items-center px-2.5 py-1 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-colors shadow-sm"
+                                                            onClick={() => { if (!isLocked) router.get(`/courses?journey_id=${journey.id}`); }}
+                                                            disabled={isLocked}
+                                                            className={`inline-flex items-center px-2.5 py-1 rounded-xl text-white text-xs font-semibold transition-colors shadow-sm ${isLocked ? 'bg-sky-600' : 'bg-sky-600 hover:bg-sky-700'}`}
                                                         >
                                                             Lihat Course
                                                         </button>

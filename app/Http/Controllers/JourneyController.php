@@ -20,7 +20,8 @@ class JourneyController extends Controller
                 'journeys.*', 
                 \Illuminate\Support\Facades\DB::raw("GROUP_CONCAT(DISTINCT journey_divisions.target_division SEPARATOR ', ') as target_division"), 
                 \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.position) as position"),
-                \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.is_mandatory) as is_mandatory")
+                \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.is_mandatory) as is_mandatory"),
+                \Illuminate\Support\Facades\DB::raw("MAX(journey_divisions.is_locked) as is_locked")
             )
             ->groupBy(
                 'journeys.id',
@@ -107,6 +108,7 @@ class JourneyController extends Controller
             'description' => 'required|string',
             'target_division' => $user->role === 'admin' ? 'required|array' : 'nullable|array', 
             'is_mandatory' => 'nullable|array', // Now an array mapping division to boolean
+            'is_locked' => 'nullable|array', 
             'position' => 'nullable|array',
         ]);
 
@@ -129,6 +131,9 @@ class JourneyController extends Controller
             $mandatoryMap = $request->input('is_mandatory', []);
             $isMandatory = isset($mandatoryMap[$division]) ? filter_var($mandatoryMap[$division], FILTER_VALIDATE_BOOLEAN) : false;
 
+            $lockedMap = $request->input('is_locked', []);
+            $isLocked = isset($lockedMap[$division]) ? filter_var($lockedMap[$division], FILTER_VALIDATE_BOOLEAN) : false;
+
             $positionsMap = $request->input('position', []);
             $position = isset($positionsMap[$division]) ? (int)$positionsMap[$division] : 1;
 
@@ -150,6 +155,7 @@ class JourneyController extends Controller
                 'journey_id' => $journey->id,
                 'target_division' => $division,
                 'is_mandatory' => $isMandatory,
+                'is_locked' => $isLocked,
                 'position' => $position,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -195,14 +201,17 @@ class JourneyController extends Controller
         $targetDivisions = $pivotRecords->pluck('target_division')->toArray();
         $positionsMap = [];
         $mandatoryMap = [];
+        $lockedMap = [];
         foreach ($pivotRecords as $rec) {
             $positionsMap[$rec->target_division] = $rec->position;
             $mandatoryMap[$rec->target_division] = (bool)$rec->is_mandatory;
+            $lockedMap[$rec->target_division] = (bool)($rec->is_locked ?? false);
         }
 
         $journey->target_division = $targetDivisions;
         $journey->position = $positionsMap;
         $journey->is_mandatory = $mandatoryMap;
+        $journey->is_locked = $lockedMap;
 
         return \Inertia\Inertia::render('Journeys/Edit', [
             'journey' => $journey,
@@ -224,6 +233,7 @@ class JourneyController extends Controller
             'cover_image'      => 'nullable|image|max:2048',
             'target_division'  => 'nullable|array',
             'is_mandatory'     => 'nullable|array',
+            'is_locked'        => 'nullable|array',
             'position'         => 'nullable|array',
         ]);
 
@@ -252,6 +262,9 @@ class JourneyController extends Controller
             $mandatoryMap = $request->input('is_mandatory', []);
             $isMandatory = isset($mandatoryMap[$division]) ? filter_var($mandatoryMap[$division], FILTER_VALIDATE_BOOLEAN) : false;
 
+            $lockedMap = $request->input('is_locked', []);
+            $isLocked = isset($lockedMap[$division]) ? filter_var($lockedMap[$division], FILTER_VALIDATE_BOOLEAN) : false;
+
             $positionsMap = $request->input('position', []);
             $position = isset($positionsMap[$division]) ? (int)$positionsMap[$division] : 1;
 
@@ -275,6 +288,7 @@ class JourneyController extends Controller
                 'journey_id' => $journey->id,
                 'target_division' => $division,
                 'is_mandatory' => $isMandatory,
+                'is_locked' => $isLocked,
                 'position' => $position,
                 'created_at' => now(),
                 'updated_at' => now()

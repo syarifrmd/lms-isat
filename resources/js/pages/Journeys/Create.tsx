@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { BookOpen, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { BookOpen, ArrowLeft, ShieldAlert, Lock, Unlock } from 'lucide-react';
 
 interface CreateJourneyProps {
     auth: {
@@ -30,6 +30,7 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
         target_division: isTrainer ? (auth.user.division ? [auth.user.division] : []) : [] as string[], 
         position: {} as Record<string, number | string>,                    
         is_mandatory: {} as Record<string, boolean>,
+        is_locked: {} as Record<string, boolean>,
     });
 
     const handleDivisionChange = (value: string) => {
@@ -40,7 +41,8 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
                     ...prev,
                     target_division: isAllSelected ? [] : (divisions ? [...divisions] : []),
                     position: {},
-                    is_mandatory: {}
+                    is_mandatory: {},
+                    is_locked: {}
                 };
             });
         } else {
@@ -53,16 +55,19 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
                 
                 const nextPosition = { ...prev.position };
                 const nextMandatory = { ...prev.is_mandatory };
+                const nextLocked = { ...prev.is_locked };
                 if (isSelected) {
                     if (nextPosition[value] !== undefined) delete nextPosition[value];
                     if (nextMandatory[value] !== undefined) delete nextMandatory[value];
+                    if (nextLocked[value] !== undefined) delete nextLocked[value];
                 }
                 
                 return {
                     ...prev,
                     target_division: nextDivisions,
                     position: nextPosition,
-                    is_mandatory: nextMandatory
+                    is_mandatory: nextMandatory,
+                    is_locked: nextLocked
                 };
             });
         }
@@ -220,12 +225,12 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
                                     
                                     {data.target_division.map((divName) => (
                                         <div key={divName} className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white dark:bg-gray-900 p-4 rounded-xl border border-gray-150 shadow-xs">
-                                            <div className="sm:w-1/3">
+                                            <div className="sm:flex-1 sm:min-w-[110px]">
                                                 <span className="text-xs font-bold text-gray-400 uppercase block">Divisi</span>
                                                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{divName}</span>
                                             </div>
                                             
-                                            <div className="sm:w-1/3 space-y-1">
+                                            <div className="sm:flex-1 sm:min-w-[140px] space-y-1">
                                                 <Label className="text-xs text-gray-500">Sifat Journey</Label>
                                                 <Select 
                                                     value={data.is_mandatory[divName] ? 'true' : 'false'} 
@@ -241,7 +246,7 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
                                                 </Select>
                                             </div>
 
-                                            <div className="sm:w-1/3 space-y-1">
+                                            <div className="sm:flex-1 sm:min-w-[110px] space-y-1">
                                                 <Label className="text-xs text-gray-500">Urutan Posisi</Label>
                                                 <Input
                                                     type="number"
@@ -258,6 +263,33 @@ export default function CreateJourney({ auth, divisions }: CreateJourneyProps) {
                                                     }}
                                                 />
                                             </div>
+
+                                            {!isTrainer && (
+                                                <div className="sm:flex-1 sm:min-w-[110px] space-y-1">
+                                                    <Label className="text-xs text-gray-500">Status Kunci</Label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setData('is_locked', { ...data.is_locked, [divName]: !data.is_locked[divName] })}
+                                                        className={`h-9 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                                                            data.is_locked[divName]
+                                                                ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-400'
+                                                                : 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-400'
+                                                        }`}
+                                                    >
+                                                        {data.is_locked[divName] ? (
+                                                            <>
+                                                                <Lock className="h-3.5 w-3.5" />
+                                                                Terkunci
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Unlock className="h-3.5 w-3.5" />
+                                                                Terbuka
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     {errors.position && <InputError message={errors.position} />}
