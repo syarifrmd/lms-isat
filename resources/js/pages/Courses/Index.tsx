@@ -164,9 +164,9 @@ export default function CoursesIndex({
     };
 
     const restrictedDivisions = ['dse', 'cse', 'rse'];
-const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
-const userDivision = auth?.user?.division?.toLowerCase() || '';
-const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
+    const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
+    const userDivision = auth?.user?.division?.toLowerCase() || '';
+    const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
 
     return (
         <AppLayout breadcrumbs={[{ title: 'Courses', href: '/courses' }]}>
@@ -204,19 +204,19 @@ const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
                                 className="pl-9"
                             />
                         </div>
-                       {showDropdown && (
-                <Select value={category} onValueChange={handleCategoryChange}>
-                    <SelectTrigger className="w-full sm:w-48">
-                        <SelectValue placeholder="Semua Kategori" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Kategori</SelectItem>
-                        {categories && categories.map(cat => (
-                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                )}
+                        {showDropdown && (
+                            <Select value={category} onValueChange={handleCategoryChange}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue placeholder="Semua Kategori" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Kategori</SelectItem>
+                                    {categories && categories.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
 
                         {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
                         <Select value={courseType} onValueChange={handleCourseTypeChange}>
@@ -288,13 +288,13 @@ const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
                                         className="relative rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col overflow-hidden"
                                     >
                                         {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
-                                       {isLocked && (
-    <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
-        <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
-            <Lock className="h-6 w-6" />
-        </div>
-    </div>
-)}
+                                        {isLocked && (
+                                            <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
+                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
+                                                    <Lock className="h-6 w-6" />
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Stempel "Selesai" tampil besar menutupi seluruh card jika kursus sudah diselesaikan user. pointer-events-none supaya card tetap bisa diklik untuk masuk kursus */}
                                         {!canCreateCourse && course.is_completed && stampUrl && (
@@ -331,16 +331,7 @@ const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
                                                 </div>
                                             )}
 
-                                            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                                                <span className="inline-block bg-sky-100/90 dark:bg-sky-900/80 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
-                                                    {course.category || 'General'}
-                                                </span>
-                                                {course.target_division && (
-                                                    <span className="inline-block bg-indigo-100/90 dark:bg-indigo-900/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm border border-indigo-200 dark:border-indigo-800">
-                                                        {course.target_division}
-                                                    </span>
-                                                )}
-                                            </div>
+                                
                                         </div>
 
                                         {/* Body */}
@@ -349,21 +340,33 @@ const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
                                                 {course.is_mandatory ? (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60">
                                                         <AlertCircle className="h-3 w-3" />
-                                                        Mandatory
+                                                        {/* Mandatory */}
                                                     </span>
                                                 ) : (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
                                                         <Bookmark className="h-3 w-3" />
-                                                        Non-Mandatory
+                                                        {/* Non-Mandatory */}
                                                     </span>
                                                 )}
 
-                                                {/* SINKRONISASI LABEL WAKTU - KHUSUS USER BIASA DAN MANDATORY*/}
+                                                {/* Pindahan Label Kategori */}
+                                                <span className="inline-block bg-sky-100/90 dark:bg-sky-900/80 text-sky-600 dark:text-sky-300 text-xs font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm">
+                                                    {course.category || 'General'}
+                                                </span>
+
+                                                {/* Label Target Divisi */}
+                                                {course.target_division && (
+                                                    <span className="inline-block bg-indigo-100/90 dark:bg-indigo-900/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm border border-indigo-200 dark:border-indigo-800">
+                                                        {course.target_division}
+                                                    </span>
+                                                )}
+
+                                                {/* LABEL WAKTU  MANDATORY DAN NON-MANDATORY */}
                                                 {(() => {
                                                     const isUserBiasa = auth?.user && !['admin', 'trainer'].includes(auth.user.role?.toLowerCase());
 
-                                                    // Timer HANYA muncul jika: yang melihat adalah User biasa DAN course ini Mandatory
-                                                    if (isUserBiasa && course.is_mandatory && Number(course.is_timer_active) === 1 && course.duration_minutes) {
+                                                    // Kondisi diubah: Menghapus pengecekan `course.is_mandatory` agar bisa jalan di keduanya
+                                                    if (isUserBiasa && Number(course.is_timer_active) === 1 && course.duration_minutes) {
                                                         return (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-900/60">
                                                                 <ClockIcon className="h-3 w-3" />
@@ -509,20 +512,19 @@ const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
             <AlertDialog open={!!courseToDelete} onOpenChange={(open) => !open && setCourseToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogTitle>Apakah anda yakin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the course and all associated data.
+                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus kursus secara permanen beserta semua data modul dan progres di dalamnya.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                            Delete
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+                            Hapus
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-
         </AppLayout>
     );
 }
