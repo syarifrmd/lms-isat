@@ -134,8 +134,6 @@ export default function JourneysIndex({
                             />
                         </div>
 
-
-
                         {/* FILTER DROPDOWN DIVISI  */}
                         {auth?.user?.role === 'admin' && (
                             <Select value={division} onValueChange={handleDivisionChange}>
@@ -209,20 +207,7 @@ export default function JourneysIndex({
                                                     <span className="text-3xl font-bold">{journey.title.charAt(0)}</span>
                                                 </div>
                                             )}
-                                            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                                                {/* Badge Mandatory / Non-Mandatory */}
-                                                {journey.is_mandatory !== undefined && journey.is_mandatory !== null && (
-                                                    <span className={`inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm border ${journey.is_mandatory ? 'bg-red-100/90 dark:bg-red-900/80 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800' : 'bg-green-100/90 dark:bg-green-900/80 text-green-600 dark:text-green-300 border-green-200 dark:border-green-800'}`}>
-                                                        {journey.is_mandatory ? 'Mandatory' : 'Non-Mandatory'}
-                                                    </span>
-                                                )}
-                                                
-                                                {journey.target_division && (
-                                                    <span className="inline-block bg-indigo-100/90 dark:bg-indigo-900/80 text-indigo-600 dark:text-indigo-300 text-[10px] font-semibold px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm border border-indigo-200 dark:border-indigo-800">
-                                                        {journey.target_division}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            {/* Label overlay dipindahkan ke body agar berdampingan dengan Published */}
                                         </div>
 
                                         {/* Body */}
@@ -247,6 +232,20 @@ export default function JourneysIndex({
                                                             </span>
                                                         )}
                                                     </>
+                                                )}
+
+                                                {/* PINDAHAN BARU: Badge Mandatory / Non-Mandatory di sebelah status */}
+                                                {journey.is_mandatory !== undefined && journey.is_mandatory !== null && (
+                                                    <span className={`inline-flex items-center text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${journey.is_mandatory ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60' : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-900/60'}`}>
+                                                        {journey.is_mandatory ? 'Mandatory' : 'Non-Mandatory'}
+                                                    </span>
+                                                )}
+                                                
+                                                {/* PINDAHAN BARU: Badge Target Division di sebelah status */}
+                                                {journey.target_division && (
+                                                    <span className="inline-flex items-center bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-900/60">
+                                                        {journey.target_division}
+                                                    </span>
                                                 )}
                                             </div>
 
