@@ -156,7 +156,7 @@ const initialPositions = (() => {
         start_date: course.start_date || '',
         end_date: course.end_date || '',
         is_mandatory: course.is_mandatory === true || course.is_mandatory === 1 || String(course.is_mandatory) === '1',
-        is_timer_active: ((course.is_mandatory === true || course.is_mandatory === 1 || String(course.is_mandatory) === '1') && (course.is_timer_active === true || course.is_timer_active === 1 || String(course.is_timer_active) === '1')),
+        is_timer_active: (course.is_timer_active === true || course.is_timer_active === 1 || String(course.is_timer_active) === '1'),
         duration_minutes: course.duration_minutes || 5,
         cover_image: null as File | null,
         target_division: initialDivisions as string[],
@@ -170,11 +170,9 @@ const initialPositions = (() => {
     // Sinkronisasi reset otomatis yang aman (Tanpa auto-suggest angka posisi yang merusak inputan)
     useEffect(() => {
         if (!data.is_mandatory) {
-            if (data.is_timer_active !== false || data.duration_minutes !== 5 || Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
+            if (Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
                 setData(prev => ({
                     ...prev,
-                    is_timer_active: false,
-                    duration_minutes: 5,
                     position: {},
                     prerequisite_course_id: ''
                 }));
@@ -474,8 +472,8 @@ const initialPositions = (() => {
                                         </div>
                                     </div>
 
-                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) */}
-                                    {data.is_mandatory && (
+                                    {/* Batasan Waktu Pengerjaan Kuis (Timer) - Berlaku untuk Mandatory maupun Non-Mandatory */}
+                                    {(
                                         <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-white/5 dark:bg-neutral-800/30 space-y-4">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-start gap-3">

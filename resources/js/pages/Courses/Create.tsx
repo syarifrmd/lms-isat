@@ -47,13 +47,11 @@ const [isCustomCategory, setIsCustomCategory] = useState(false);
 
 
 useEffect(() => {
-    // Logic Reset Timer & Position jika non-mandatory
+    // Logic Reset Position & Prerequisite jika non-mandatory (Timer tetap berlaku untuk semua sifat kursus)
     if (!data.is_mandatory) {
-        if (data.is_timer_active !== false || data.duration_minutes !== 5 || Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
+        if (Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
             setData(prev => ({
                 ...prev,
-                is_timer_active: false,
-                duration_minutes: 5,
                 position: {}, 
                 prerequisite_course_id: ''
             }));
@@ -238,8 +236,8 @@ useEffect(() => {
                                 </div>
                             </div>
 
-                            {/* PENGATURAN TIMER DINAMIS */}
-                            {data.is_mandatory && (
+                            {/* PENGATURAN TIMER DINAMIS (Berlaku untuk Mandatory maupun Non-Mandatory) */}
+                            {(
                                 <div className="p-4 rounded-xl border border-sky-100 bg-sky-50/40 dark:border-sky-900/40 dark:bg-sky-950/20 flex flex-col gap-4">
                                     <div className="flex items-center justify-between">
                                         <div className="space-y-0.5">
