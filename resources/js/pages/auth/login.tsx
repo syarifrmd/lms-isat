@@ -4,7 +4,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import { Form, Head, Link } from '@inertiajs/react';
@@ -43,6 +42,7 @@ const translations = {
             forgot: 'Lupa kata sandi?',
         },
         remember: 'Ingat saya',
+        showPassword: 'Tampilkan sandi',
         loginButton: 'Masuk',
         illustration: {
             title: 'Selamat Datang di Indosat LMS',
@@ -69,6 +69,7 @@ const translations = {
             forgot: 'Forgot password?',
         },
         remember: 'Remember me',
+        showPassword: 'Show password',
         loginButton: 'Login',
         illustration: {
             title: 'Welcome to Indosat LMS',
@@ -93,6 +94,7 @@ export default function Login({
     canRegister,
 }: LoginProps) {
     const [lang, setLang] = useState<Language>('id');
+    const [showPassword, setShowPassword] = useState(false);
     const t = translations[lang];
 
     const toggleLang = () => {
@@ -147,15 +149,18 @@ export default function Login({
                                 {t.signIn}
                             </div>
                         </div>
+                        {/* Tombol Daftar dinonaktifkan (fitur register dimatikan) — tetap
+                            terlihat tapi tidak bisa diklik/ditap, termasuk di layar sentuh. */}
                         {canRegister && (
-                            <Link
-                                href={register.url()}
-                                className="flex-1 py-2 transition-colors"
+                            <div
+                                tabIndex={-1}
+                                aria-disabled="true"
+                                className="flex-1 py-2 transition-colors pointer-events-none select-none cursor-not-allowed opacity-40"
                             >
-                                <div className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                                <div className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
                                     {t.signUp}
                                 </div>
-                            </Link>
+                            </div>
                         )}
                     </div>
 
@@ -163,15 +168,18 @@ export default function Login({
                         {t.welcome}
                     </h2>
 
-                    {/* Google Button */}
+                    {/* Login dengan Google dinonaktifkan sementara — tombol tetap terlihat
+                        tapi tidak bisa diklik/ditap, termasuk di layar sentuh. */}
                     <div className="mb-3">
-                        <a
-                            href="/login/google"
-                            className="w-full h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-sm"
+                        <div
+                            role="button"
+                            aria-disabled="true"
+                            tabIndex={-1}
+                            className="pointer-events-none select-none cursor-not-allowed opacity-40 w-full h-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center gap-2 text-sm font-semibold rounded-lg shadow-sm"
                         >
                             <GoogleIcon className="w-4 h-4" />
                             <span>{t.googleLogin}</span>
-                        </a>
+                        </div>
                         <div className="relative mt-3 mb-1">
                             <div className="absolute inset-0 flex items-center">
                                 <span className="w-full border-t border-gray-200 dark:border-gray-700" />
@@ -232,7 +240,7 @@ export default function Login({
                                             </div>
                                             <Input
                                                 id="password"
-                                                type="password"
+                                                type={showPassword ? 'text' : 'password'}
                                                 name="password"
                                                 required
                                                 tabIndex={2}
@@ -244,14 +252,25 @@ export default function Login({
                                         <InputError message={errors.password} className="text-xs mt-0.5" />
                                     </div>
 
-                                    <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id="remember"
-                                            name="remember"
-                                            tabIndex={3}
-                                            className="border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-600 rounded"
-                                        />
-                                        <Label htmlFor="remember" className="text-xs text-gray-600 dark:text-gray-400 font-medium">{t.remember}</Label>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="remember"
+                                                name="remember"
+                                                tabIndex={3}
+                                                className="border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-600 rounded"
+                                            />
+                                            <Label htmlFor="remember" className="text-xs text-gray-600 dark:text-gray-400 font-medium">{t.remember}</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id="showPassword"
+                                                checked={showPassword}
+                                                onCheckedChange={(checked) => setShowPassword(checked === true)}
+                                                className="border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-600 rounded"
+                                            />
+                                            <Label htmlFor="showPassword" className="text-xs text-gray-600 dark:text-gray-400 font-medium">{t.showPassword}</Label>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -270,13 +289,16 @@ export default function Login({
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                                         {t.footer.text}
                                     </p>
+                                    {/* Tautan ke halaman daftar dinonaktifkan (fitur register dimatikan) —
+                                        tetap terlihat tapi tidak bisa diklik/ditap. */}
                                     {canRegister && (
-                                        <Link
-                                            href={register.url()}
-                                            className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                                        <span
+                                            tabIndex={-1}
+                                            aria-disabled="true"
+                                            className="inline-block text-xs font-semibold text-gray-400 dark:text-gray-600 pointer-events-none select-none cursor-not-allowed opacity-60"
                                         >
                                             {t.footer.link}
-                                        </Link>
+                                        </span>
                                     )}
                                 </div>
                             </>
@@ -307,5 +329,3 @@ export default function Login({
         </div>
     );
 }
-
-

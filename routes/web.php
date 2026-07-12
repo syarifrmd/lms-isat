@@ -27,6 +27,10 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+Route::match(['get', 'post'], '/register', function () {
+    return redirect()->route('login');
+})->name('register.disabled');
+
 
 // --- GOOGLE LOGIN & REGISTER FLOW (BARU) ---
 Route::controller(SocialLoginController::class)->group(function () {
@@ -119,6 +123,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Course Ratings
     Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
     Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
+
+    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
+    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 });
 
 
@@ -133,10 +140,6 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::delete('/courses/{course}/modules/{module}', [ModuleController::class, 'destroy'])->name('modules.destroy');
     Route::get('/modules/youtube-channel-videos', [ModuleController::class, 'channelVideos'])->name('modules.youtube-videos');
     Route::post('/modules/upload-document', [ModuleController::class, 'uploadDocument'])->name('modules.upload-document');
-
-    // Student Management within Course
-    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
-    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 
     // Assessments Management
     Route::prefix('/assessments')->name('assessments.')->group(function () {

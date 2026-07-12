@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Award, TrendingUp, Users, ChevronRight, BookOpen, Trophy, Zap, Target, Languages } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { Head, router } from '@inertiajs/react';
-import { register } from '@/routes';
+import { login } from '@/routes';
 
 // Definisi type bahasa
 type Language = 'id' | 'en';
@@ -539,7 +539,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 // Main Welcome component that wraps the LandingPage
 export default function Welcome() {
   const handleGetStarted = () => {
-    router.visit(register.url());
+    router.visit(login.url());
   };
 
   return (
