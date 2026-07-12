@@ -218,7 +218,7 @@ export default function QuizResult({ attempt, quiz, course }: ResultProps) {
                                             {/* Explanation */}
                                             {question.explanation && (
                                                 <Alert className="mt-4 border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 text-blue-900 dark:text-blue-200">
-                                                    <AlertCircle className="h-4 w-4 text-blue-500!" />
+                                                    <AlertCircle className="h-4 w-4 text-blue-500" />
                                                     <AlertTitle className="text-blue-700 dark:text-blue-300">Pembahasan</AlertTitle>
                                                     <AlertDescription className="text-blue-800 dark:text-blue-200">
                                                         {question.explanation}
@@ -235,12 +235,14 @@ export default function QuizResult({ attempt, quiz, course }: ResultProps) {
 
                 {/* ── Actions ── */}
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    {/* <Button asChild variant="outline" className="gap-2">
-                        <Link href={`/courses/${course.id}`}>
-                            <ChevronLeft className="h-4 w-4" />
-                            Kembali ke Kursus
-                        </Link>
-                    </Button> */}
+                    {passed && (
+                        <Button asChild variant="outline" className="gap-2">
+                            <Link href={`/courses/${course.id}`}>
+                                <ChevronLeft className="h-4 w-4" />
+                                Kembali ke Kursus
+                            </Link>
+                        </Button>
+                    )}
                     {!passed && (
                         <Button asChild className="gap-2">
                             <Link href={`/quiz/${quiz.id}`}>
