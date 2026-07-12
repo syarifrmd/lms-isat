@@ -1276,13 +1276,11 @@ const evaluateDocument = () => {
                                     <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
-                                    <p className="text-xs text-gray-400 truncate">
-                                        {module.doc_url.startsWith('/storage/')
-                                            ? getFileName(module.doc_url)
-                                            : module.doc_url.replace(/^https?:\/\//, '').split('/')[0]}
-                                    </p>
-                                </div>
+    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+    <p className="text-xs text-gray-400 truncate">
+        {module.title ? `${module.title}.pdf` : 'Dokumen Modul.pdf'}
+    </p>
+</div>
                             </div>
                             {/* <Button variant="outline" size="sm" asChild className="shrink-0">
                                 <a href={module.doc_url} target="_blank" rel="noopener noreferrer">
