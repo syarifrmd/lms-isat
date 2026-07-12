@@ -85,7 +85,7 @@ export default function Certificates({ courses }: CertificatesProps) {
                         </p>
                         {!query && (
                             <p className="text-xs text-gray-400 dark:text-gray-500">
-                                Selesaikan kursus dan kuis untuk membuka sertifikat Anda.
+                                Selesaikan kursus dan kuis untuk membuka.
                             </p>
                         )}
                         {!query && (

@@ -67,13 +67,14 @@ export function AppSidebar() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Students', href: '/students', icon: Users },
+                    { title: 'Summary', href: '/students', icon: Users },
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
+                    { title: 'My Progress', href: '/students', icon: Users },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:

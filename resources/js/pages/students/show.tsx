@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, ChevronDown, ChevronRight, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, ChevronDown, ChevronRight, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy, AlertTriangle, Building2, MapPinned } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 
@@ -36,6 +36,8 @@ interface Enrollment {
     email: string;
     region?: string;
     division?: string;
+    branch?: string;
+    micro_cluster?: string;
     employee_id?: string;
     status?: string;
     progress_percentage: number;
@@ -54,19 +56,26 @@ interface Course {
     status?: string;
 }
 
+interface MicroClusterGroup {
+    name: string;
+    students: Enrollment[];
+}
 
+interface BranchGroup {
+    name: string;
+    micro_clusters: MicroClusterGroup[];
+    student_count: number;
+}
 
-interface PaginatedData<T> {
-    data: T[];
-    links: any[];
-    current_page: number;
-    last_page: number;
-    total: number;
+interface DivisionGroup {
+    name: string;
+    branches: BranchGroup[];
+    student_count: number;
 }
 
 interface Props {
     course: Course;
-    enrollments: PaginatedData<Enrollment>;
+    groups: DivisionGroup[];
     total_enrollments: number;
     total_completed: number;
 }
@@ -84,10 +93,13 @@ function StatusCheckIcon({ done, label }: { done: boolean; label: string }) {
     );
 }
 
-export default function StudentsShow({ course, enrollments, total_enrollments, total_completed }: Props) {
+export default function StudentsShow({ course, groups, total_enrollments, total_completed }: Props) {
     const [search, setSearch] = useState('');
     const [profileUser, setProfileUser] = useState<Enrollment | null>(null);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [openDivisions, setOpenDivisions] = useState<Set<string>>(new Set());
+    const [openBranches, setOpenBranches] = useState<Set<string>>(new Set());
+    const [openMicroClusters, setOpenMicroClusters] = useState<Set<string>>(new Set());
 
     const toggleRow = (userId: string) => {
         setExpandedRows(prev => {
@@ -101,29 +113,77 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
         });
     };
 
+    const toggleDivision = (name: string) => {
+        setOpenDivisions((prev) => {
+            const next = new Set(prev);
+            next.has(name) ? next.delete(name) : next.add(name);
+            return next;
+        });
+    };
+
+    const toggleBranch = (key: string) => {
+        setOpenBranches((prev) => {
+            const next = new Set(prev);
+            next.has(key) ? next.delete(key) : next.add(key);
+            return next;
+        });
+    };
+
+    const toggleMicroCluster = (key: string) => {
+        setOpenMicroClusters((prev) => {
+            const next = new Set(prev);
+            next.has(key) ? next.delete(key) : next.add(key);
+            return next;
+        });
+    };
+
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Pemantauan Students', href: '/students' },
+        { title: 'Summary', href: '/students' },
         { title: course.title, href: `/students/${course.id}` },
     ];
 
-    const filtered = (enrollments.data || []).filter(
-        (e) =>
-            e.name.toLowerCase().includes(search.toLowerCase()) ||
-            e.email.toLowerCase().includes(search.toLowerCase()) ||
-            (e.employee_id ?? '').toLowerCase().includes(search.toLowerCase()) ||
-            (e.division ?? '').toLowerCase().includes(search.toLowerCase()),
-    );
+    const matchesSearch = (e: Enrollment) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+            e.name.toLowerCase().includes(q) ||
+            e.email.toLowerCase().includes(q) ||
+            (e.employee_id ?? '').toLowerCase().includes(q) ||
+            (e.division ?? '').toLowerCase().includes(q) ||
+            (e.branch ?? '').toLowerCase().includes(q) ||
+            (e.micro_cluster ?? '').toLowerCase().includes(q)
+        );
+    };
+
+    // Saring groups berdasarkan pencarian, tapi tetap pertahankan struktur Division > Branch > Micro Cluster.
+    // Kalau sedang mencari, otomatis buka semua level supaya hasilnya langsung kelihatan.
+    const isSearching = search.trim().length > 0;
+    const filteredGroups: DivisionGroup[] = groups
+        .map((div) => {
+            const branches = div.branches
+                .map((branch) => {
+                    const microClusters = branch.micro_clusters
+                        .map((mc) => ({ ...mc, students: mc.students.filter(matchesSearch) }))
+                        .filter((mc) => mc.students.length > 0);
+                    return { ...branch, micro_clusters: microClusters, student_count: microClusters.reduce((s, mc) => s + mc.students.length, 0) };
+                })
+                .filter((branch) => branch.micro_clusters.length > 0);
+            return { ...div, branches, student_count: branches.reduce((s, b) => s + b.student_count, 0) };
+        })
+        .filter((div) => div.branches.length > 0);
+
+    const totalVisible = filteredGroups.reduce((sum, d) => sum + d.student_count, 0);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={`Students - ${course.title}`} />
+            <Head title={`Report - ${course.title}`} />
 
             {/* Profile Modal */}
             <Dialog open={!!profileUser} onOpenChange={() => setProfileUser(null)}>
                 <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle className="text-base">Profil Student</DialogTitle>
+                        <DialogTitle className="text-base">Profil Peserta</DialogTitle>
                     </DialogHeader>
                     {profileUser && (
                         <div className="flex flex-col gap-4">
@@ -329,7 +389,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     {/* Search bar */}
                     <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
-                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Daftar Students</h2>
+                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Daftar Peserta</h2>
                         <div className="relative w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                             <input
@@ -363,15 +423,83 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                                {filtered.length > 0 ? (
-                                    filtered.map((enrollment, index) => {
+                                {filteredGroups.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={14} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                            {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada peserta yang terdaftar.'}
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredGroups.map((division) => {
+                                        const divOpen = isSearching || openDivisions.has(division.name);
+                                        return (
+                                            <>
+                                                {/* DIVISION HEADER ROW */}
+                                                <tr
+                                                    key={`div-${division.name}`}
+                                                    onClick={() => toggleDivision(division.name)}
+                                                    className="cursor-pointer bg-sky-50/60 dark:bg-sky-950/20 hover:bg-sky-100/60 dark:hover:bg-sky-900/30 transition-colors"
+                                                >
+                                                    <td colSpan={14} className="px-5 py-2.5">
+                                                        <div className="flex items-center gap-2">
+                                                            {divOpen ? <ChevronDown className="h-4 w-4 text-sky-500 shrink-0" /> : <ChevronRight className="h-4 w-4 text-sky-500 shrink-0" />}
+                                                            <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{division.name}</span>
+                                                            <span className="text-xs text-gray-400">({division.branches.length} branch &bull; {division.student_count} peserta)</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+
+                                                {/* BRANCH HEADER ROWS */}
+                                                {divOpen && division.branches.map((branch) => {
+                                                    const branchKey = `${division.name}|${branch.name}`;
+                                                    const branchOpen = isSearching || openBranches.has(branchKey);
+                                                    return (
+                                                        <>
+                                                            <tr
+                                                                key={`branch-${branchKey}`}
+                                                                onClick={() => toggleBranch(branchKey)}
+                                                                className="cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                                                            >
+                                                                <td colSpan={14} className="px-5 py-2 pl-11">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {branchOpen ? <ChevronDown className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
+                                                                        <Building2 className="h-3.5 w-3.5 text-gray-300 shrink-0" />
+                                                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{branch.name}</span>
+                                                                        <span className="text-xs text-gray-400">({branch.micro_clusters.length} micro cluster &bull; {branch.student_count} peserta)</span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+
+                                                            {/* MICRO CLUSTER HEADER ROWS */}
+                                                            {branchOpen && branch.micro_clusters.map((mc) => {
+                                                                const mcKey = `${branchKey}|${mc.name}`;
+                                                                const mcOpen = isSearching || openMicroClusters.has(mcKey);
+                                                                return (
+                                                                    <>
+                                                                        <tr
+                                                                            key={`mc-${mcKey}`}
+                                                                            onClick={() => toggleMicroCluster(mcKey)}
+                                                                            className="cursor-pointer bg-gray-50/60 dark:bg-gray-900/30 hover:bg-gray-100/70 dark:hover:bg-gray-800/50 transition-colors"
+                                                                        >
+                                                                            <td colSpan={14} className="px-5 py-2 pl-20">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {mcOpen ? <ChevronDown className="h-3 w-3 text-sky-400 shrink-0" /> : <ChevronRight className="h-3 w-3 text-sky-400 shrink-0" />}
+                                                                                    <MapPinned className="h-3 w-3 text-gray-300 shrink-0" />
+                                                                                    <span className="text-sm text-gray-600 dark:text-gray-300">{mc.name}</span>
+                                                                                    <span className="text-xs text-gray-400">({mc.students.length} peserta)</span>
+                                                                                </div>
+                                                                            </td>
+                                                                        </tr>
+
+                                                                        {/* STUDENT ROWS (tabel asli, tidak berubah) */}
+                                                                        {mcOpen && mc.students.map((enrollment, index) => {
                                         const isExpanded = expandedRows.has(enrollment.user_id);
                                         const hasModulesData = enrollment.modules_progress && enrollment.modules_progress.length > 0;
 
                                         return (
                                             <>
                                                 <tr key={enrollment.user_id} className={`hover:bg-gray-50/60 dark:hover:bg-gray-700/40 transition-colors ${isExpanded ? 'bg-sky-50/40 dark:bg-sky-950/20' : ''}`}>
-                                                    <td className="px-5 py-3 text-gray-300 dark:text-gray-600">{index + 1}</td>
+                                                    <td className="px-5 py-3 text-gray-300 dark:text-gray-600 pl-24">{index + 1}</td>
                                                     <td className="px-2 py-3">
                                                         {hasModulesData && (
                                                             <button
@@ -435,7 +563,7 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                                 {/* ── Expandable Progress Detail Row ── */}
                                                 {isExpanded && hasModulesData && (
                                                     <tr key={`${enrollment.user_id}-detail`}>
-                                                        <td colSpan={13} className="p-0">
+                                                        <td colSpan={14} className="p-0">
                                                             <div className="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
                                                                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
                                                                     Detail Progress — {enrollment.name}
@@ -553,45 +681,20 @@ export default function StudentsShow({ course, enrollments, total_enrollments, t
                                                 )}
                                             </>
                                         );
+                                    })}
+                                                                    </>
+                                                                );
+                                                            })}
+                                                        </>
+                                                    );
+                                                })}
+                                            </>
+                                        );
                                     })
-                                ) : (
-                                    <tr>
-                                        <td colSpan={13} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
-                                            {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada student yang terdaftar.'}
-                                        </td>
-                                    </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
-
-                    {/* Pagination */}
-                    {enrollments.last_page > 1 && (
-                        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                                Menampilkan {enrollments.data.length > 0 ? (enrollments.current_page - 1) * 10 + 1 : 0} hingga {Math.min(enrollments.current_page * 10, enrollments.total)} dari {enrollments.total} data
-                            </span>
-                            <div className="flex items-center gap-1">
-                                {enrollments.links.map((link, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => {
-                                            if (link.url) router.visit(link.url, { preserveState: true, preserveScroll: true });
-                                        }}
-                                        disabled={!link.url}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                                            link.active
-                                                ? 'bg-sky-500 text-white border border-sky-500'
-                                                : link.url
-                                                    ? 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700'
-                                                    : 'bg-gray-50 text-gray-400 border border-gray-200 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700/50'
-                                        }`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
             </div>

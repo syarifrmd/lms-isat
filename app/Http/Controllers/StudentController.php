@@ -22,104 +22,37 @@ class StudentController extends Controller
     {
         $user = Auth::user();
 
-        // Disable strict mode for grouping
-        config()->set('database.connections.mysql.strict', false);
-        \Illuminate\Support\Facades\DB::reconnect();
-        
-        $search = $request->input('search');
-        $category = $request->input('category');
-        $divisionFilter = $request->input('division');
-        $courseType = $request->input('course_type');
-
-        $query = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
-            ->select('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
-            ->groupBy('courses.id', 'courses.title', 'courses.description', 'courses.category', 'courses.is_mandatory', 'courses.status', 'courses.created_at', 'courses.created_by')
-            ->withCount(['enrollments' => function ($q) use ($user) {
-                if ($user->role === 'trainer') {
-                    $q->whereHas('user', function ($uq) use ($user) {
-                        $uq->where('division', $user->division);
-                    });
-                }
-            }])
-            ->orderBy('courses.created_at', 'desc');
-
-        if ($courseType) {
-            $query->where('courses.is_mandatory', $courseType === 'mandatory' ? 1 : 0);
-        }
-            
-        if ($user->role === 'trainer') {
-            $query->where(function ($q) use ($user) {
-                $q->where('course_division.target_division', $user->division)
-                  ->orWhereNull('course_division.target_division');
-            })
-            ->where(function ($q) use ($user) {
-                $q->where('courses.status', 'published')
-                  ->orWhere('courses.created_by', $user->id);
-            });
-        } elseif ($user->role !== 'admin') {
-            $query->where('courses.status', 'published')
-                  ->where('course_division.target_division', $user->division);
-        }
-
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('courses.title', 'like', '%' . $search . '%')
-                  ->orWhere('courses.category', 'like', '%' . $search . '%');
-            });
-        }
-
-        if ($category) {
-            $query->where('courses.category', $category);
-        }
-        
-        if ($divisionFilter && $divisionFilter !== 'all') {
-            $query->where('course_division.target_division', $divisionFilter);
-        }
-
-        $courses = $query->paginate(9)->withQueryString();
-        
-        $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
-        $divisions = \Illuminate\Support\Facades\DB::table('course_division')->distinct()
-            ->whereNotNull('target_division')
-            ->where('target_division', '!=', '')
-            ->pluck('target_division');
+        $divisionSummary = $this->buildDivisionSummary($user);
 
         return Inertia::render('students/index', [
-            'courses' => $courses,
-            'filters' => [
-                'search' => $search,
-                'category' => $category,
-                'division' => $divisionFilter,
-                'course_type' => $courseType,
-            ],
-            'categories' => $categories,
-            'divisions' => $divisions,
+            'summary' => $divisionSummary['summary'],
+            'summaryCourses' => $divisionSummary['courses'],
         ]);
     }
 
-    /**
-     * Daftar student yang terdaftar di course tertentu.
-     */
+   
     public function show($courseId)
     {
         $course = Course::findOrFail($courseId);
         $user = Auth::user();
-        
+
+        $visibleDivisions = $this->visibleDivisionsFor($user->division ?? '');
+
         if ($user->role !== 'admin') {
             $hasAccess = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
                 ->where('courses.id', $courseId)
-                ->where(function ($q) use ($user) {
+                ->where(function ($q) use ($user, $visibleDivisions) {
                     $q->where('courses.created_by', $user->id)
-                      ->orWhere(function ($q2) use ($user) {
+                      ->orWhere(function ($q2) use ($user, $visibleDivisions) {
                           if ($user->role === 'trainer') {
                               $q2->where('courses.status', 'published')
-                                 ->where(function ($q3) use ($user) {
-                                     $q3->where('course_division.target_division', $user->division)
+                                 ->where(function ($q3) use ($visibleDivisions) {
+                                     $q3->whereIn('course_division.target_division', $visibleDivisions)
                                         ->orWhereNull('course_division.target_division');
                                  });
                           } else {
                               $q2->where('courses.status', 'published')
-                                 ->where('course_division.target_division', $user->division);
+                                 ->whereIn('course_division.target_division', $visibleDivisions);
                           }
                       });
                 })
@@ -140,15 +73,12 @@ class StudentController extends Controller
             ->with(['user'])
             ->orderBy('enrollment_at', 'desc');
 
-        if ($user->role === 'trainer') {
-            $enrollmentsQuery->whereHas('user', function ($q) use ($user) {
-                $q->where('division', $user->division);
-            });
-        }
 
-        $enrollments = $enrollmentsQuery->paginate(10);
+        $this->scopeEnrollmentsToVisibleUsers($enrollmentsQuery, $user);
 
-        $enrollments->getCollection()->transform(function ($enrollment) use ($modules) {
+        $enrollments = $enrollmentsQuery->get();
+
+        $students = $enrollments->map(function ($enrollment) use ($modules) {
             // Aggregate failure counts for this user across all quizzes in this course
             $allAttempts = UserQuizAttempt::withTrashed()
                 ->where('user_id', $enrollment->user_id)
@@ -214,6 +144,8 @@ class StudentController extends Controller
                 'email'               => $enrollment->user?->email ?? '-',
                 'region'              => $enrollment->user?->region ?? '-',
                 'division'            => $enrollment->user?->division ?? '-',
+                'branch'              => $enrollment->user?->branch ?? '-',
+                'micro_cluster'       => $enrollment->user?->micro_cluster ?? '-',
                 'employee_id'         => $enrollment->user?->id ?? '-',
                 'status'              => $enrollment->status,
                 'progress_percentage' => (float) ($enrollment->progress_percentage ?? 0),
@@ -225,15 +157,293 @@ class StudentController extends Controller
             ];
         });
 
-        // Calculate total stats
-        $totalEnrollments = Enrollment::where('course_id', $courseId)->count();
-        $totalCompleted = Enrollment::where('course_id', $courseId)->whereNotNull('completed_at')->count();
+        
+        $divisionsTree = [];
+
+        foreach ($visibleDivisions as $divName) {
+            $divisionsTree[$divName] = [];
+        }
+
+        foreach ($students as $s) {
+            $div = $s['division'] ?: 'Tanpa Divisi';
+            $divisionsTree[$div][] = $s;
+        }
+
+        $groups = [];
+        foreach ($divisionsTree as $divName => $divStudents) {
+            $branchesTree = [];
+            foreach ($divStudents as $s) {
+                $branch = $s['branch'] ?: 'Tanpa Branch';
+                $branchesTree[$branch][] = $s;
+            }
+
+            $branches = [];
+            foreach ($branchesTree as $branchName => $branchStudents) {
+                $mcTree = [];
+                foreach ($branchStudents as $s) {
+                    $mc = $s['micro_cluster'] ?: 'Tanpa Micro Cluster';
+                    $mcTree[$mc][] = $s;
+                }
+
+                $microClusters = [];
+                foreach ($mcTree as $mcName => $mcStudents) {
+                    $microClusters[] = [
+                        'name'     => $mcName,
+                        'students' => array_values($mcStudents),
+                    ];
+                }
+
+                $branches[] = [
+                    'name'           => $branchName,
+                    'micro_clusters' => $microClusters,
+                    'student_count'  => count($branchStudents),
+                ];
+            }
+
+            $groups[] = [
+                'name'          => $divName,
+                'branches'      => $branches,
+                'student_count' => count($divStudents),
+            ];
+        }
+
+       
+        $totalEnrollments = $students->count();
+        $totalCompleted = $students->filter(fn($s) => !is_null($s['completed_at']))->count();
 
         return Inertia::render('students/show', [
             'course'      => $course->only('id', 'title', 'description', 'category', 'status'),
-            'enrollments' => $enrollments,
+            'groups'      => $groups,
             'total_enrollments' => $totalEnrollments,
             'total_completed' => $totalCompleted,
         ]);
+    }
+
+    private function buildDivisionSummary($user): array
+    {
+       
+        $visibleDivisions = $this->visibleDivisionsFor($user->division ?? '');
+
+    
+        $courseQuery = Course::leftJoin('course_division', 'courses.id', '=', 'course_division.course_id')
+            ->select('courses.id', 'courses.title', 'courses.is_mandatory')
+            ->distinct();
+
+        if ($user->role === 'trainer') {
+            $courseQuery->where(function ($q) use ($visibleDivisions) {
+                $q->whereIn('course_division.target_division', $visibleDivisions)
+                  ->orWhereNull('course_division.target_division');
+            })->where(function ($q) use ($user) {
+                $q->where('courses.status', 'published')
+                  ->orWhere('courses.created_by', $user->id);
+            });
+        } elseif ($user->role !== 'admin') {
+            $courseQuery->where('courses.status', 'published')
+                ->whereIn('course_division.target_division', $visibleDivisions);
+        }
+
+        $courses = $courseQuery
+            ->orderByDesc('courses.is_mandatory')
+            ->orderBy('courses.title')
+            ->get();
+        $courseIds = $courses->pluck('id');
+
+        
+        $enrollmentsQuery = Enrollment::whereIn('course_id', $courseIds)
+            ->with(['user:id,name,division,branch,micro_cluster', 'course:id,title']);
+
+        
+        $this->scopeEnrollmentsToVisibleUsers($enrollmentsQuery, $user);
+
+        $enrollments = $enrollmentsQuery->get();
+
+        
+        $tree = [];
+
+       
+        foreach ($visibleDivisions as $divName) {
+            $tree[$divName] = ['branches' => []];
+        }
+
+        foreach ($enrollments as $enrollment) {
+            $u = $enrollment->user;
+            if (!$u) {
+                continue;
+            }
+
+            $division     = $u->division ?: 'Tanpa Divisi';
+            $branch       = $u->branch ?: 'Tanpa Branch';
+            $microCluster = $u->micro_cluster ?: 'Tanpa Micro Cluster';
+            $courseId     = $enrollment->course_id;
+            $courseTitle  = $enrollment->course->title ?? '-';
+            $isCompleted  = !is_null($enrollment->completed_at);
+
+            if (!isset($tree[$division])) {
+                $tree[$division] = ['branches' => []];
+            }
+            if (!isset($tree[$division]['branches'][$branch])) {
+                $tree[$division]['branches'][$branch] = ['micro_clusters' => []];
+            }
+            if (!isset($tree[$division]['branches'][$branch]['micro_clusters'][$microCluster])) {
+                $tree[$division]['branches'][$branch]['micro_clusters'][$microCluster] = ['courses' => []];
+            }
+
+            $bucket = &$tree[$division]['branches'][$branch]['micro_clusters'][$microCluster]['courses'];
+            if (!isset($bucket[$courseId])) {
+                $bucket[$courseId] = ['title' => $courseTitle, 'enrolled' => 0, 'completed' => 0];
+            }
+            $bucket[$courseId]['enrolled']++;
+            if ($isCompleted) {
+                $bucket[$courseId]['completed']++;
+            }
+            unset($bucket);
+        }
+
+       
+        foreach ($tree as $divKey => &$divData) {
+            foreach ($divData['branches'] as $branchKey => &$branchData) {
+                $branchCourses = [];
+                foreach ($branchData['micro_clusters'] as $mcData) {
+                    foreach ($mcData['courses'] as $cid => $cData) {
+                        if (!isset($branchCourses[$cid])) {
+                            $branchCourses[$cid] = ['title' => $cData['title'], 'enrolled' => 0, 'completed' => 0];
+                        }
+                        $branchCourses[$cid]['enrolled']  += $cData['enrolled'];
+                        $branchCourses[$cid]['completed'] += $cData['completed'];
+                    }
+                }
+                $branchData['courses'] = $branchCourses;
+            }
+            unset($branchData);
+
+            $divCourses = [];
+            foreach ($divData['branches'] as $branchData) {
+                foreach ($branchData['courses'] as $cid => $cData) {
+                    if (!isset($divCourses[$cid])) {
+                        $divCourses[$cid] = ['title' => $cData['title'], 'enrolled' => 0, 'completed' => 0];
+                    }
+                    $divCourses[$cid]['enrolled']  += $cData['enrolled'];
+                    $divCourses[$cid]['completed'] += $cData['completed'];
+                }
+            }
+            $divData['courses'] = $divCourses;
+        }
+        unset($divData);
+
+       
+        $formatGroup = function (array $coursesMap) use ($courses) {
+            $totalSelesai = 0;
+            $finishTotal  = 0;
+            $perCourse    = [];
+
+            foreach ($courses as $course) {
+                $data = $coursesMap[$course->id] ?? ['enrolled' => 0, 'completed' => 0];
+                $totalSelesai += $data['completed'];
+                $finishTotal  += $data['enrolled'];
+
+                $perCourse[] = [
+                    'course_id'    => $course->id,
+                    'course_title' => $course->title,
+                    'is_mandatory' => (bool) $course->is_mandatory,
+                    'enrolled'     => $data['enrolled'],
+                    'finish'       => $data['completed'],
+                    'presentase'   => $data['enrolled'] > 0
+                        ? round($data['completed'] / $data['enrolled'] * 100, 1)
+                        : 0,
+                ];
+            }
+
+            return [
+                'total_selesai'    => $totalSelesai,
+                'finish_total'     => $finishTotal,
+                'presentase_total' => $finishTotal > 0 ? round($totalSelesai / $finishTotal * 100, 1) : 0,
+                'per_course'       => $perCourse,
+            ];
+        };
+
+        $result = [];
+        foreach ($tree as $divKey => $divData) {
+            $divisionRow = $formatGroup($divData['courses']);
+            $divisionRow['name'] = $divKey;
+
+            $branches = [];
+            foreach ($divData['branches'] as $branchKey => $branchData) {
+                $branchRow = $formatGroup($branchData['courses']);
+                $branchRow['name'] = $branchKey;
+
+                $microClusters = [];
+                foreach ($branchData['micro_clusters'] as $mcKey => $mcData) {
+                    $mcRow = $formatGroup($mcData['courses']);
+                    $mcRow['name'] = $mcKey;
+                    $microClusters[] = $mcRow;
+                }
+
+                $branchRow['micro_clusters'] = $microClusters;
+                $branches[] = $branchRow;
+            }
+
+            $divisionRow['branches'] = $branches;
+            $result[] = $divisionRow;
+        }
+
+        
+        $divisionOrder = array_merge(...$this->divisionHierarchy());
+        usort($result, function ($a, $b) use ($divisionOrder) {
+            $ai = array_search(strtoupper($a['name']), $divisionOrder);
+            $bi = array_search(strtoupper($b['name']), $divisionOrder);
+            $ai = $ai === false ? 999 : $ai;
+            $bi = $bi === false ? 999 : $bi;
+            return $ai === $bi ? strcmp($a['name'], $b['name']) : $ai <=> $bi;
+        });
+
+        return [
+            'summary' => $result,
+            'courses' => $courses->map(fn($c) => [
+                'id' => $c->id,
+                'title' => $c->title,
+                'is_mandatory' => (bool) $c->is_mandatory,
+            ])->values(),
+        ];
+    }
+
+    
+    private function divisionHierarchy(): array
+    {
+        return [
+            ['HOC'],
+            ['HOR'],
+            ['HOS'],
+            ['BSM'],
+            ['CSE', 'RSE'],
+            ['DSE'],
+        ];
+    }
+
+    private function visibleDivisionsFor(?string $division): array
+    {
+        $division = strtoupper(trim((string) $division));
+        $hierarchy = $this->divisionHierarchy();
+
+        foreach ($hierarchy as $index => $levelDivisions) {
+            if (in_array($division, $levelDivisions, true)) {
+                return array_merge(...array_slice($hierarchy, $index));
+            }
+        }
+
+        return $division !== '' ? [$division] : [];
+    }
+
+
+    private function scopeEnrollmentsToVisibleUsers($query, $user): void
+    {
+        if ($user->role === 'admin') {
+            return;
+        }
+
+        $visibleDivisions = $this->visibleDivisionsFor($user->division ?? '');
+
+        $query->whereHas('user', function ($q) use ($visibleDivisions) {
+            $q->whereIn('division', $visibleDivisions);
+        });
     }
 }
