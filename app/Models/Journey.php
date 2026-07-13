@@ -21,7 +21,7 @@ class Journey extends Model
 
     public function courses()
     {
-        return $this->hasMany(Course::class);
+        return $this->belongsToMany(Course::class, 'course_journey');
     }
 
     public function divisions()

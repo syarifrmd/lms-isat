@@ -24,7 +24,6 @@ class Course extends Model
         'duration_minutes',
         'position',
         'prerequisite_course_id',
-        'journey_id',
     ];
 
     protected $casts = [
@@ -80,8 +79,8 @@ class Course extends Model
                     ->withTimestamps();
     }
 
-    public function journey()
+    public function journeys()
     {
-        return $this->belongsTo(Journey::class);
+        return $this->belongsToMany(Journey::class, 'course_journey');
     }
 }

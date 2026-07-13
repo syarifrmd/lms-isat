@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
@@ -67,6 +68,7 @@ interface Course {
     target_division: string | string[] | null; // Mendukung string atau array dari backend
     position: number | Record<string, number | string> | null; // Mendukung tipe lama/baru
     prerequisite_course_id: string | number | null;
+    journeys?: { id: number; title: string }[];
     modules: Module[];
 }
 
@@ -150,7 +152,7 @@ const initialPositions = (() => {
         _method: 'PUT',
         title: course.title || '',
         description: course.description || '',
-        journey_id: course.journey_id || '',
+        journey_ids: course.journeys ? course.journeys.map(j => j.id) : [] as number[],
         category: course.category || '',
         status: course.status || 'draft',
         start_date: course.start_date || '',
@@ -709,20 +711,27 @@ const initialPositions = (() => {
 
                                     {/* Journey Selection */}
                                     <div className="space-y-1.5">
-                                        <Label htmlFor="journey_id" className="text-sm font-medium">
-                                            Pilih Journey (Wajib) <span className="text-red-500">*</span>
+                                        <Label className="text-sm font-medium">
+                                            Pilih Journey <span className="text-red-500">*</span>
                                         </Label>
-                                        <Select value={data.journey_id ? data.journey_id.toString() : ''} onValueChange={(value) => setData('journey_id', value)}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih Journey..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {journeys && journeys.map(journey => (
-                                                    <SelectItem key={journey.id} value={journey.id.toString()}>{journey.title}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError message={errors.journey_id} />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-slate-50 dark:bg-slate-900/30">
+                                            {journeys && journeys.map(journey => (
+                                                <label key={journey.id} className="flex items-center space-x-2 cursor-pointer">
+                                                    <Checkbox
+                                                        checked={data.journey_ids.includes(journey.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                setData('journey_ids', [...data.journey_ids, journey.id]);
+                                                            } else {
+                                                                setData('journey_ids', data.journey_ids.filter(id => id !== journey.id));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{journey.title}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <InputError message={errors.journey_ids} />
                                     </div>
 
                                     {/* Category & Status */}

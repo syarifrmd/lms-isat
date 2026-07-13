@@ -93,7 +93,9 @@ class CourseController extends Controller
         }
 
         if ($journeyId) {
-            $query->where('courses.journey_id', $journeyId);
+            $query->whereHas('journeys', function($q) use ($journeyId) {
+                $q->where('journeys.id', $journeyId);
+            });
         }
 
         if ($progressStatus === 'ongoing') {
@@ -201,7 +203,8 @@ class CourseController extends Controller
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
             'position' => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
-            'journey_id' => 'required|exists:journeys,id',
+            'journey_ids' => 'required|array',
+            'journey_ids.*' => 'exists:journeys,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
@@ -219,7 +222,6 @@ class CourseController extends Controller
             'description' => $validated['description'],
             'category' => $validated['category'],
             'created_by' => $user->id, 
-            'journey_id' => $request->input('journey_id'),
             'status' => $request->input('status', 'draft'), 
             'is_mandatory' => $isMandatory,
             'is_timer_active' => $isTimerActive,
@@ -228,6 +230,8 @@ class CourseController extends Controller
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
         ]);
+
+        $course->journeys()->sync($request->input('journey_ids', []));
 
         foreach ($targetDivisions as $division) {
             $positionsMap = $request->input('position', []);
@@ -454,7 +458,7 @@ class CourseController extends Controller
 
         $course->load(['modules' => function ($q) {
             $q->orderBy('order_sequence', 'asc'); 
-        }]);
+        }, 'journeys']);
 
         $categories = Course::distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category');
         
@@ -501,7 +505,8 @@ class CourseController extends Controller
             'target_division'  => 'nullable|array',
             'position'         => 'nullable|array',
             'prerequisite_course_id' => 'nullable|exists:courses,id',
-            'journey_id'       => 'required|exists:journeys,id',
+            'journey_ids'       => 'required|array',
+            'journey_ids.*'     => 'exists:journeys,id',
         ]);
 
         $isMandatory = $request->boolean('is_mandatory');
@@ -516,7 +521,6 @@ class CourseController extends Controller
             'status'                 => $request->status,
             'start_date'             => $request->start_date,
             'end_date'               => $request->end_date,
-            'journey_id'             => $request->journey_id,
             'is_mandatory'           => $isMandatory, 
             'is_timer_active'        => $isTimerActive,
             'duration_minutes'       => $isTimerActive ? (int)$request->duration_minutes : 0,
@@ -532,6 +536,8 @@ class CourseController extends Controller
         }
 
         $course->update($updateData);
+
+        $course->journeys()->sync($request->input('journey_ids', []));
 
         DB::table('course_division')->where('course_id', $course->id)->delete();
 
