@@ -1742,11 +1742,9 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                                 <span className="flex items-center gap-1"><PlayCircle className="w-3 h-3" /> Video</span>
                                                             )}
                                                             {module.doc_url && (
-                                                                <a href={module.doc_url} target="_blank" rel="noopener noreferrer"
-                                                                    className="flex items-center gap-1 hover:text-sky-500 transition-colors"
-                                                                    onClick={e => e.stopPropagation()}>
+                                                                <span className="flex items-center gap-1">
                                                                     <FileIcon className="w-3 h-3" /> Document
-                                                                </a>
+                                                                </span>
                                                             )}
                                                             {module.content_text && (
                                                                 <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> Text</span>
