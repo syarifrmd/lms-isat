@@ -5,8 +5,8 @@ import { motion } from 'framer-motion';
 import {
     Award,
     BookOpen,
-    GraduationCap,
     LayoutDashboard,
+    Settings,
     Trophy,
     Users,
     Palette,
@@ -22,30 +22,40 @@ export function MobileBottomNav() {
     const { props, url } = usePage<SharedData>();
     const role = props.auth.user.role?.toLowerCase();
 
-    const isActive = (href: string) => url.startsWith(href);
+    // Same active-route logic as the desktop sidebar (AppSidebar), so an
+    // item highlights the same way on mobile as it does on desktop.
+    const isActive = (path: string) => {
+        if (path === '/journeys') {
+            return url.startsWith('/journeys') || url.startsWith('/courses');
+        }
+        return url.startsWith(path);
+    };
 
+    // Kept identical (title, href, icon, order) to AppSidebar's getNavItems
+    // per role. Edit both together when adding/removing menu items.
     const getNavItems = (): NavItem[] => {
         switch (role) {
             case 'admin':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'Users', href: '/admin/users', icon: Users },
-                    { title: 'Courses', href: '/courses', icon: BookOpen },
+                    { title: 'User Management', href: '/admin/users', icon: Users },
+                    { title: 'Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Sertifikat', href: '/admin/certificate-templates', icon: Palette },
+                    { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
+                    { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'Courses', href: '/courses', icon: BookOpen },
+                    { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Students', href: '/students', icon: Users },
+                    { title: 'Summary', href: '/students', icon: Users },
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
-                    { title: 'Learning', href: '/courses', icon: BookOpen },
-                    { title: 'Certificates', href: '/certificates', icon: GraduationCap },
+                    { title: 'My Learning', href: '/journeys', icon: BookOpen },
+                    { title: 'My Progress', href: '/students', icon: Users },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:
@@ -91,7 +101,7 @@ export function MobileBottomNav() {
                                     }`}
                                 />
                                 <span
-                                    className={`text-[10px] leading-tight font-medium transition-colors ${
+                                    className={`text-[10px] leading-tight font-medium text-center transition-colors ${
                                         active ? 'text-white' : 'text-neutral-500 dark:text-white/50'
                                     }`}
                                 >

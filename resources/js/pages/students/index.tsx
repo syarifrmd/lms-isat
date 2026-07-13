@@ -68,6 +68,15 @@ function PercentPill({ value }: { value: number }) {
 export default function StudentsIndex({ summary, summaryCourses }: Props) {
     const [openDivisions, setOpenDivisions] = useState<Set<string>>(new Set());
     const [openBranches, setOpenBranches] = useState<Set<string>>(new Set());
+    const [openCourseDetail, setOpenCourseDetail] = useState<Set<string>>(new Set());
+
+    const toggleCourseDetail = (key: string) => {
+        setOpenCourseDetail((prev) => {
+            const next = new Set(prev);
+            next.has(key) ? next.delete(key) : next.add(key);
+            return next;
+        });
+    };
 
     const toggleDivision = (name: string) => {
         setOpenDivisions((prev) => {
@@ -136,8 +145,8 @@ export default function StudentsIndex({ summary, summaryCourses }: Props) {
                     <span className="flex items-center gap-1"><MapPinned className="h-3 w-3" /> Micro Cluster</span>
                 </div>
 
-                {/* Table */}
-                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                {/* Table (desktop / tablet) */}
+                <div className="hidden md:block rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="min-w-full text-sm border-collapse">
                             <thead>
@@ -315,6 +324,135 @@ export default function StudentsIndex({ summary, summaryCourses }: Props) {
                             </tbody>
                         </table>
                     </div>
+                </div>
+
+                {/* Card list (mobile) */}
+                <div className="md:hidden flex flex-col gap-3">
+                    {summary.length === 0 ? (
+                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-10 text-center text-sm text-gray-400 dark:text-gray-500 shadow-sm">
+                            Belum ada data enrollment untuk direkap.
+                        </div>
+                    ) : (
+                        summary.map((division) => {
+                            const divOpen = openDivisions.has(division.name);
+                            return (
+                                <div
+                                    key={`m-div-${division.name}`}
+                                    className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-gray-800 shadow-sm overflow-hidden"
+                                >
+                                    {/* Division header */}
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleDivision(division.name)}
+                                        className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-sky-50/60 dark:bg-sky-950/20 active:bg-sky-100/60 dark:active:bg-sky-900/30 transition-colors text-left"
+                                    >
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            {divOpen ? <ChevronDown className="h-4 w-4 text-sky-500 shrink-0" /> : <ChevronRight className="h-4 w-4 text-sky-500 shrink-0" />}
+                                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{division.name}</span>
+                                        </div>
+                                        <PercentPill value={division.presentase_total} />
+                                    </button>
+                                    <div className="px-4 py-2 flex items-center justify-between text-[11px] text-gray-400 border-b border-gray-50 dark:border-gray-700">
+                                        <span>{division.branches.length} branch</span>
+                                        <span>{division.total_selesai} / {division.finish_total} selesai</span>
+                                    </div>
+
+                                    {/* Branches */}
+                                    {divOpen && (
+                                        <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
+                                            {division.branches.map((branch) => {
+                                                const branchKey = `${division.name}|${branch.name}`;
+                                                const branchOpen = openBranches.has(branchKey);
+                                                return (
+                                                    <div key={`m-branch-${branchKey}`}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleBranch(branchKey)}
+                                                            className="w-full flex items-center justify-between gap-2 pl-8 pr-4 py-2.5 active:bg-gray-50 dark:active:bg-gray-700/40 text-left"
+                                                        >
+                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                {branchOpen ? <ChevronDown className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
+                                                                <Building2 className="h-3.5 w-3.5 text-gray-300 shrink-0" />
+                                                                <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{branch.name}</span>
+                                                            </div>
+                                                            <PercentPill value={branch.presentase_total} />
+                                                        </button>
+                                                        <div className="pl-8 pr-4 pb-2 flex items-center justify-between text-[10px] text-gray-400">
+                                                            <span>{branch.micro_clusters.length} micro cluster</span>
+                                                            <span>{branch.total_selesai} / {branch.finish_total} selesai</span>
+                                                        </div>
+
+                                                        {/* Micro clusters */}
+                                                        {branchOpen && (
+                                                            <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
+                                                                {branch.micro_clusters.map((mc) => {
+                                                                    const mcKey = `${branchKey}|${mc.name}`;
+                                                                    const mcCourseKey = `mc:${mcKey}`;
+                                                                    const mcCourseOpen = openCourseDetail.has(mcCourseKey);
+                                                                    return (
+                                                                        <div key={`m-mc-${mcKey}`} className="bg-gray-50/60 dark:bg-gray-900/30">
+                                                                            <div className="flex items-center justify-between gap-2 pl-14 pr-4 py-2">
+                                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                                    <MapPinned className="h-3 w-3 text-gray-300 shrink-0" />
+                                                                                    <span className="text-xs text-gray-600 dark:text-gray-300 truncate">{mc.name}</span>
+                                                                                </div>
+                                                                                <PercentPill value={mc.presentase_total} />
+                                                                            </div>
+                                                                            <div className="pl-14 pr-4 pb-1 flex items-center justify-between text-[10px] text-gray-400">
+                                                                                <span>{mc.total_selesai} / {mc.finish_total} selesai</span>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => toggleCourseDetail(mcCourseKey)}
+                                                                                className="w-full flex items-center justify-between gap-1 pl-14 pr-4 py-2 text-[11px] font-medium text-sky-600 dark:text-sky-400 active:bg-sky-50 dark:active:bg-sky-900/20"
+                                                                            >
+                                                                                <span>Detail course</span>
+                                                                                {mcCourseOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                                            </button>
+                                                                            {mcCourseOpen && (
+                                                                                <div className="pl-14 pr-4 pb-2.5 flex flex-col gap-1">
+                                                                                    {mc.per_course.map((pc) => (
+                                                                                        <Link
+                                                                                            key={pc.course_id}
+                                                                                            href={`/students/${pc.course_id}`}
+                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                            className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 active:bg-sky-50 dark:active:bg-sky-900/20 transition-colors"
+                                                                                            title={`Lihat report ${pc.course_title}`}
+                                                                                        >
+                                                                                            <div className="min-w-0 flex flex-col gap-1">
+                                                                                                <span className="truncate text-[11px] text-sky-600 dark:text-sky-400">{pc.course_title}</span>
+                                                                                                {pc.is_mandatory ? (
+                                                                                                    <span className="inline-flex items-center gap-0.5 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60">
+                                                                                                        <AlertCircle className="h-2.5 w-2.5" /> Mandatory
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="inline-flex items-center gap-0.5 w-fit px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                                                                                        <Bookmark className="h-2.5 w-2.5" /> Non-Mandatory
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <span className="shrink-0 flex items-center gap-1 text-[10px] text-gray-400">
+                                                                                                {pc.finish} &bull; {pc.presentase}%
+                                                                                                <ChevronRight className="h-3 w-3 text-gray-300" />
+                                                                                            </span>
+                                                                                        </Link>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
                 {/* <p className="text-[11px] text-gray-400 dark:text-gray-500 px-1">
                     Total Presentase = Total Selesai &divide; Total User &times; 100%. Data disaring otomatis sesuai hak akses akun Anda (division / branch / micro cluster).

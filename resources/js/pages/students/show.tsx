@@ -354,7 +354,7 @@ export default function StudentsShow({ course, groups, total_enrollments, total_
                         </div>
                     </div>
                     {/* Stats */}
-                    <div className="flex gap-3 shrink-0">
+                    <div className="grid grid-cols-2 gap-3 w-full sm:flex sm:w-auto sm:shrink-0">
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm">
                             <div className="h-9 w-9 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center">
                                 <Users className="h-4 w-4" />
@@ -373,7 +373,7 @@ export default function StudentsShow({ course, groups, total_enrollments, total_
                                 <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_completed}</p>
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm">
+                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm col-span-2 sm:col-span-1">
                             <div className="h-9 w-9 rounded-full bg-amber-50 dark:bg-amber-900/40 text-amber-500 flex items-center justify-center">
                                 <Clock className="h-4 w-4" />
                             </div>
@@ -388,9 +388,9 @@ export default function StudentsShow({ course, groups, total_enrollments, total_
                 {/* Table Card */}
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     {/* Search bar */}
-                    <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
+                    <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Daftar Peserta</h2>
-                        <div className="relative w-64">
+                        <div className="relative w-full sm:w-64">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                             <input
                                 type="text"
@@ -402,7 +402,7 @@ export default function StudentsShow({ course, groups, total_enrollments, total_
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead>
                                 <tr className="border-b border-gray-100 dark:border-gray-700 text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -694,6 +694,265 @@ export default function StudentsShow({ course, groups, total_enrollments, total_
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Card list (mobile) */}
+                    <div className="md:hidden flex flex-col gap-3 p-3">
+                        {filteredGroups.length === 0 ? (
+                            <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-10 text-center text-sm text-gray-400 dark:text-gray-500">
+                                {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada peserta yang terdaftar.'}
+                            </div>
+                        ) : (
+                            filteredGroups.map((division) => {
+                                const divOpen = isSearching || openDivisions.has(division.name);
+                                return (
+                                    <div
+                                        key={`m-div-${division.name}`}
+                                        className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-gray-800 shadow-sm overflow-hidden"
+                                    >
+                                        {/* Division header */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleDivision(division.name)}
+                                            className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-sky-50/60 dark:bg-sky-950/20 active:bg-sky-100/60 dark:active:bg-sky-900/30 transition-colors text-left"
+                                        >
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                {divOpen ? <ChevronDown className="h-4 w-4 text-sky-500 shrink-0" /> : <ChevronRight className="h-4 w-4 text-sky-500 shrink-0" />}
+                                                <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{division.name}</span>
+                                            </div>
+                                            <span className="shrink-0 text-[11px] text-gray-400">{division.student_count} peserta</span>
+                                        </button>
+                                        <div className="px-4 py-1.5 text-[11px] text-gray-400 border-b border-gray-50 dark:border-gray-700">
+                                            {division.branches.length} branch
+                                        </div>
+
+                                        {/* Branches */}
+                                        {divOpen && (
+                                            <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
+                                                {division.branches.map((branch) => {
+                                                    const branchKey = `${division.name}|${branch.name}`;
+                                                    const branchOpen = isSearching || openBranches.has(branchKey);
+                                                    return (
+                                                        <div key={`m-branch-${branchKey}`}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleBranch(branchKey)}
+                                                                className="w-full flex items-center justify-between gap-2 pl-8 pr-4 py-2.5 active:bg-gray-50 dark:active:bg-gray-700/40 text-left"
+                                                            >
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    {branchOpen ? <ChevronDown className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
+                                                                    <Building2 className="h-3.5 w-3.5 text-gray-300 shrink-0" />
+                                                                    <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{branch.name}</span>
+                                                                </div>
+                                                                <span className="shrink-0 text-[11px] text-gray-400">{branch.student_count} peserta</span>
+                                                            </button>
+                                                            <div className="pl-8 pr-4 pb-1.5 text-[10px] text-gray-400">
+                                                                {branch.micro_clusters.length} micro cluster
+                                                            </div>
+
+                                                            {/* Micro clusters */}
+                                                            {branchOpen && (
+                                                                <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
+                                                                    {branch.micro_clusters.map((mc) => {
+                                                                        const mcKey = `${branchKey}|${mc.name}`;
+                                                                        const mcOpen = isSearching || openMicroClusters.has(mcKey);
+                                                                        return (
+                                                                            <div key={`m-mc-${mcKey}`} className="bg-gray-50/60 dark:bg-gray-900/30">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => toggleMicroCluster(mcKey)}
+                                                                                    className="w-full flex items-center justify-between gap-2 pl-14 pr-4 py-2 active:bg-gray-100/70 dark:active:bg-gray-800/50 text-left"
+                                                                                >
+                                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                                        {mcOpen ? <ChevronDown className="h-3 w-3 text-sky-400 shrink-0" /> : <ChevronRight className="h-3 w-3 text-sky-400 shrink-0" />}
+                                                                                        <MapPinned className="h-3 w-3 text-gray-300 shrink-0" />
+                                                                                        <span className="text-xs text-gray-600 dark:text-gray-300 truncate">{mc.name}</span>
+                                                                                    </div>
+                                                                                    <span className="shrink-0 text-[10px] text-gray-400">{mc.students.length} peserta</span>
+                                                                                </button>
+
+                                                                                {/* Students */}
+                                                                                {mcOpen && (
+                                                                                    <div className="flex flex-col divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-800">
+                                                                                        {mc.students.map((enrollment, index) => {
+                                                                                            const isExpanded = expandedRows.has(enrollment.user_id);
+                                                                                            const hasModulesData = enrollment.modules_progress && enrollment.modules_progress.length > 0;
+                                                                                            return (
+                                                                                                <div key={`m-stu-${enrollment.user_id}`} className="pl-14 pr-4 py-2.5">
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => hasModulesData && toggleRow(enrollment.user_id)}
+                                                                                                        className="w-full flex items-center justify-between gap-2 text-left"
+                                                                                                    >
+                                                                                                        <div className="flex items-center gap-2 min-w-0">
+                                                                                                            <span className="text-[10px] text-gray-300 dark:text-gray-600 shrink-0 w-4">{index + 1}</span>
+                                                                                                            <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{enrollment.name}</span>
+                                                                                                        </div>
+                                                                                                        {hasModulesData && (
+                                                                                                            isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                                                                                        )}
+                                                                                                    </button>
+
+                                                                                                    <div className="mt-1.5 pl-6 flex items-center gap-2">
+                                                                                                        <div className="h-1.5 flex-1 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                                                                                            <div className="h-1.5 rounded-full bg-sky-500 transition-all" style={{ width: `${enrollment.progress_percentage ?? 0}%` }} />
+                                                                                                        </div>
+                                                                                                        <span className="text-[10px] text-gray-400 shrink-0">{enrollment.progress_percentage ?? 0}%</span>
+                                                                                                        {enrollment.completed_at ? (
+                                                                                                            <span className="shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Selesai</span>
+                                                                                                        ) : (
+                                                                                                            <span className="shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Proses</span>
+                                                                                                        )}
+                                                                                                    </div>
+
+                                                                                                    {(enrollment.score_failed_count > 0 || enrollment.time_failed_count > 0) && (
+                                                                                                        <div className="mt-1.5 pl-6 flex flex-wrap items-center gap-3">
+                                                                                                            {enrollment.score_failed_count > 0 && (
+                                                                                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 dark:text-red-400">
+                                                                                                                    <XCircle className="h-3 w-3" />{enrollment.score_failed_count}x gagal nilai
+                                                                                                                </span>
+                                                                                                            )}
+                                                                                                            {enrollment.time_failed_count > 0 && (
+                                                                                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                                                                                                    <Clock className="h-3 w-3" />{enrollment.time_failed_count}x gagal waktu
+                                                                                                                </span>
+                                                                                                            )}
+                                                                                                        </div>
+                                                                                                    )}
+
+                                                                                                    <div className="mt-2 pl-6 flex items-center justify-between gap-2">
+                                                                                                        <span className="truncate text-[10px] text-gray-400">{enrollment.email}</span>
+                                                                                                        <button
+                                                                                                            type="button"
+                                                                                                            onClick={() => setProfileUser(enrollment)}
+                                                                                                            className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 active:bg-sky-50 active:border-sky-200 active:text-sky-600 dark:active:bg-sky-900/30 transition"
+                                                                                                        >
+                                                                                                            Lihat Profil
+                                                                                                        </button>
+                                                                                                    </div>
+
+                                                                                                    {/* Expandable module/quiz progress detail */}
+                                                                                                    {isExpanded && hasModulesData && (
+                                                                                                        <div className="mt-3 pl-6 flex flex-col gap-2">
+                                                                                                            {enrollment.modules_progress!.map((mod) => {
+                                                                                                                const completedItems = [
+                                                                                                                    mod.has_video && mod.is_video_watched,
+                                                                                                                    mod.has_text && mod.is_text_read,
+                                                                                                                    mod.has_document && mod.is_document_read,
+                                                                                                                ].filter(Boolean).length;
+                                                                                                                const totalItems = [mod.has_video, mod.has_text, mod.has_document].filter(Boolean).length;
+
+                                                                                                                return (
+                                                                                                                    <div
+                                                                                                                        key={mod.module_id}
+                                                                                                                        className={`rounded-xl border p-3 ${
+                                                                                                                            mod.is_completed
+                                                                                                                                ? 'border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-950/20'
+                                                                                                                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                                                                                                                        }`}
+                                                                                                                    >
+                                                                                                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                                                                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                                                                                <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                                                                                                                                    mod.is_completed
+                                                                                                                                        ? 'bg-emerald-500 text-white'
+                                                                                                                                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                                                                                                                }`}>
+                                                                                                                                    {mod.is_completed ? '✓' : mod.order_sequence}
+                                                                                                                                </div>
+                                                                                                                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{mod.module_title}</p>
+                                                                                                                            </div>
+                                                                                                                            {totalItems > 0 && (
+                                                                                                                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                                                                                                                    completedItems >= totalItems
+                                                                                                                                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
+                                                                                                                                        : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                                                                                                                                }`}>
+                                                                                                                                    {completedItems}/{totalItems}
+                                                                                                                                </span>
+                                                                                                                            )}
+                                                                                                                        </div>
+
+                                                                                                                        {totalItems > 0 && (
+                                                                                                                            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+                                                                                                                                {mod.has_video && <StatusCheckIcon done={mod.is_video_watched} label="Video" />}
+                                                                                                                                {mod.has_text && <StatusCheckIcon done={mod.is_text_read} label="Text" />}
+                                                                                                                                {mod.has_document && <StatusCheckIcon done={mod.is_document_read} label="Dokumen" />}
+                                                                                                                            </div>
+                                                                                                                        )}
+
+                                                                                                                        {mod.quizzes.length > 0 && (
+                                                                                                                            <div className="mt-1.5 space-y-1.5">
+                                                                                                                                {mod.quizzes.map((quiz) => (
+                                                                                                                                    <div
+                                                                                                                                        key={quiz.quiz_id}
+                                                                                                                                        className={`rounded-lg border p-2 ${
+                                                                                                                                            quiz.is_passed
+                                                                                                                                                ? 'border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/60 dark:bg-emerald-950/20'
+                                                                                                                                                : quiz.attempts_count > 0
+                                                                                                                                                  ? 'border-red-200 dark:border-red-800/40 bg-red-50/40 dark:bg-red-950/20'
+                                                                                                                                                  : 'border-gray-150 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
+                                                                                                                                        }`}
+                                                                                                                                    >
+                                                                                                                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                                                                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                                                                                <Award className={`h-3 w-3 shrink-0 ${quiz.is_passed ? 'text-emerald-500' : 'text-gray-400'}`} />
+                                                                                                                                                <span className="text-[11px] font-medium text-gray-700 dark:text-gray-200 truncate">{quiz.quiz_title}</span>
+                                                                                                                                            </div>
+                                                                                                                                            {quiz.is_passed ? (
+                                                                                                                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400 shrink-0">
+                                                                                                                                                    LULUS
+                                                                                                                                                </span>
+                                                                                                                                            ) : quiz.attempts_count > 0 ? (
+                                                                                                                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400 shrink-0">
+                                                                                                                                                    BELUM LULUS
+                                                                                                                                                </span>
+                                                                                                                                            ) : (
+                                                                                                                                                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 shrink-0">
+                                                                                                                                                    BELUM DIKERJAKAN
+                                                                                                                                                </span>
+                                                                                                                                            )}
+                                                                                                                                        </div>
+                                                                                                                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 dark:text-gray-400">
+                                                                                                                                            {quiz.highest_score !== null && (
+                                                                                                                                                <span className="flex items-center gap-1">
+                                                                                                                                                    <Trophy className={`h-2.5 w-2.5 ${quiz.is_passed ? 'text-amber-500' : 'text-gray-400'}`} />
+                                                                                                                                                    Nilai: <strong className={quiz.is_passed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'}>{quiz.highest_score}</strong>
+                                                                                                                                                    {quiz.passing_score > 0 && <span className="text-gray-400">/ {quiz.passing_score}</span>}
+                                                                                                                                                </span>
+                                                                                                                                            )}
+                                                                                                                                            {quiz.attempts_count > 0 && (
+                                                                                                                                                <span>{quiz.attempts_count}x percobaan</span>
+                                                                                                                                            )}
+                                                                                                                                        </div>
+                                                                                                                                    </div>
+                                                                                                                                ))}
+                                                                                                                            </div>
+                                                                                                                        )}
+                                                                                                                    </div>
+                                                                                                                );
+                                                                                                            })}
+                                                                                                        </div>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
