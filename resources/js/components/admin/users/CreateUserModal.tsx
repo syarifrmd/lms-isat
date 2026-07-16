@@ -53,6 +53,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
     const { data, setData, post, transform, processing, errors, reset } = useForm({
         id: '',
         name: '',
+        username: '',
         email: '',
         password: '',
         role: 'user',
@@ -62,6 +63,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
         branch: '',        
         area: '',
         region: '',
+        circle: '',
     });
 
     useEffect(() => {
@@ -139,7 +141,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
     return (
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
-                <DialogContent className="sm:max-w-[600px] bg-background text-foreground border-border">
+                <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto bg-background text-foreground border-border">
                     <DialogHeader className="space-y-3 pb-4 border-b border-border">
                         <DialogTitle className="text-xl flex items-center gap-2">
                             <div className="p-2 bg-primary/10 rounded-full">
@@ -149,7 +151,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground text-sm">
                             Isi form berikut untuk menambahkan pengguna baru ke dalam sistem. 
-                            Pastikan semua data wajib diisi dengan benar.
+                            Semua field bersifat opsional kecuali disebutkan lain.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -158,7 +160,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
                                 <Label htmlFor="id" className="text-sm font-medium">
-                                    NIK <span className="text-destructive">*</span>
+                                    NIK
                                 </Label>
                                 <div className="relative">
                                     <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -166,9 +168,8 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                         id="id"
                                         value={data.id}
                                         onChange={(e) => setData('id', e.target.value)}
-                                        placeholder="Nomor Induk Karyawan"
+                                        placeholder="Kosongkan untuk auto-generate"
                                         className={cn("pl-9", errors.id && "border-destructive focus-visible:ring-destructive/20")}
-                                        required
                                     />
                                 </div>
                                 {errors.id ? (
@@ -176,13 +177,13 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                         {errors.id}
                                     </p>
                                 ) : (
-                                    <p className="text-[10px] text-muted-foreground">NIK harus unik dan sesuai identitas.</p>
+                                    <p className="text-[10px] text-muted-foreground">Opsional. Kosongkan jika ingin ID dibuat otomatis oleh sistem.</p>
                                 )}
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="role" className="text-sm font-medium">
-                                    Role <span className="text-destructive">*</span>
+                                    Role
                                 </Label>
                                 <Select 
                                     value={data.role} 
@@ -220,7 +221,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
                                 <Label htmlFor="name" className="text-sm font-medium">
-                                    Nama Lengkap <span className="text-destructive">*</span>
+                                    Nama Lengkap
                                 </Label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -230,7 +231,6 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                         onChange={(e) => setData('name', e.target.value)}
                                         placeholder="Nama lengkap user"
                                         className={cn("pl-9", errors.name && "border-destructive focus-visible:ring-destructive/20")}
-                                        required
                                     />
                                 </div>
                                 {errors.name && (
@@ -238,6 +238,28 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                 )}
                             </div>
 
+                            <div className="space-y-2">
+                                <Label htmlFor="username" className="text-sm font-medium">
+                                    Username
+                                </Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="username"
+                                        value={data.username}
+                                        onChange={(e) => setData('username', e.target.value)}
+                                        placeholder="Username untuk login"
+                                        className={cn("pl-9", errors.username && "border-destructive focus-visible:ring-destructive/20")}
+                                    />
+                                </div>
+                                {errors.username && (
+                                    <p className="text-xs text-destructive">{errors.username}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Baris 2b: Email */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-sm font-medium">
                                     Email
@@ -272,7 +294,7 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                         type="password"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
-                                        placeholder="Min. 8 karakter"
+                                        placeholder="Min. 5 karakter"
                                         className={cn("pl-9", errors.password && "border-destructive focus-visible:ring-destructive/20")}
                                     />
                                 </div>
@@ -298,6 +320,28 @@ export default function CreateUserModal({ open, onOpenChange, regions, divisions
                                 <p className="text-[10px] text-muted-foreground">Opsional, isi sesuai lokasi kerja.</p>
                                 {errors.region && (
                                     <p className="text-xs text-destructive">{errors.region}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Baris 3b: Circle */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="circle" className="text-sm font-medium">
+                                    Circle
+                                </Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="circle"
+                                        value={data.circle}
+                                        onChange={(e) => setData('circle', e.target.value)}
+                                        placeholder="Masukkan Circle"
+                                        className={cn("pl-9", errors.circle && "border-destructive focus-visible:ring-destructive/20")}
+                                    />
+                                </div>
+                                {errors.circle && (
+                                    <p className="text-xs text-destructive">{errors.circle}</p>
                                 )}
                             </div>
                         </div>

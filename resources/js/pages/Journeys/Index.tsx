@@ -52,6 +52,7 @@ export default function JourneysIndex({
 }) {
     const { auth } = usePage<SharedData>().props;
     const canCreateCourse = auth.user.role?.toLowerCase() === 'trainer' || auth.user.role?.toLowerCase() === 'admin';
+    const isAdmin = auth.user.role?.toLowerCase() === 'admin';
     const [journeyToDelete, setJourneyToDelete] = useState<number | null>(null);
 
     const [search, setSearch] = useState(filters?.search || '');
@@ -125,15 +126,18 @@ export default function JourneysIndex({
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto flex-wrap">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Cari journey..."
-                                value={search}
-                                onChange={handleSearchChange}
-                                className="pl-9"
-                            />
-                        </div>
+                        {/* Search hanya tampil untuk admin, disembunyikan untuk user biasa */}
+                        {isAdmin && (
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder="Cari journey..."
+                                    value={search}
+                                    onChange={handleSearchChange}
+                                    className="pl-9"
+                                />
+                            </div>
+                        )}
 
                         {/* FILTER DROPDOWN DIVISI  */}
                         {auth?.user?.role === 'admin' && (

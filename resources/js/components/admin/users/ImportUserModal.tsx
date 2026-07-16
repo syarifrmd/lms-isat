@@ -43,7 +43,7 @@ import {
 type Step = 'upload' | 'mapping' | 'preview' | 'result';
 
 interface SystemField {
-    key: 'nik' | 'name' | 'email' |'password' | 'role' | 'brand' | 'micro_cluster' | 'branch' | 'area' | 'region' | 'status' | 'division';
+    key: 'nik' | 'name' | 'username' | 'email' |'password' | 'role' | 'brand' | 'micro_cluster' | 'branch' | 'area' | 'region' | 'circle' | 'status' | 'division';
     label: string;
     required: boolean;
     hint?: string;
@@ -52,6 +52,7 @@ interface SystemField {
 interface Mapping {
     nik: string;
     name: string;
+    username: string;
     email: string;
     password: string;
     role: string;
@@ -61,6 +62,7 @@ interface Mapping {
     branch: string;        
     area: string;
     region: string;
+    circle: string;
     status: string;
 }
 
@@ -86,23 +88,26 @@ interface Props {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SYSTEM_FIELDS: SystemField[] = [
-    { key: 'nik',    label: 'NIK',    required: true,  hint: 'ID unik pegawai' },
-    { key: 'name',   label: 'Nama',   required: true },
+    { key: 'nik',    label: 'NIK',    required: false, hint: 'ID unik pegawai. Kosongkan agar dibuat otomatis.' },
+    { key: 'name',   label: 'Nama',   required: false },
+    { key: 'username', label: 'Username', required: false, hint: 'Jika kosong, akan memakai NIK' },
     { key: 'email',  label: 'Email',  required: false },
     { key: 'password', label: 'Password', required: false, hint: 'Jika kosong, sistem tidak mengisi password default' },
-    { key: 'role',   label: 'Role',   required: false, hint: 'admin / trainer / user (default: user)' },
+    { key: 'role',   label: 'Role',   required: false, hint: 'admin / trainer / user' },
     { key: 'division', label: 'Division', required: false },
     { key: 'brand',         label: 'Brand',         required: false },
     { key: 'micro_cluster', label: 'Micro Cluster', required: false },
     { key: 'branch',        label: 'Branch',        required: false },
     { key: 'area',          label: 'Area',          required: false },
     { key: 'region', label: 'Region', required: false },
+    { key: 'circle', label: 'Circle', required: false },
     { key: 'status', label: 'Status', required: false, hint: 'active = import, off = lewati (tidak diimport)' },
 ];
 
 const SYNONYMS: Record<string, string[]> = {
     nik:    ['nik', 'id', 'nip', 'no', 'nomor', 'employee_id', 'employeeid', 'kode'],
     name:   ['name', 'nama', 'fullname', 'full_name', 'namalengkap', 'nama_lengkap'],
+    username: ['username', 'user_name', 'login', 'akun'],
     email:  ['email', 'e-mail', 'surel', 'mail'],
     password: ['password', 'pass', 'kata_sandi', 'katasandi', 'sandi'],
     role:   ['role', 'peran', 'jabatan', 'tipe', 'type'],
@@ -112,6 +117,7 @@ const SYNONYMS: Record<string, string[]> = {
     branch:        ['branch', 'cabang'],
     area:          ['area', 'zona', 'zone'],
     region: ['region', 'wilayah', 'kota', 'daerah', 'lokasi'],
+    circle: ['circle', 'lingkaran'],
     status: ['status', 'kondisi', 'state', 'keterangan'],
 };
 
@@ -120,7 +126,7 @@ const NONE = '__none__';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function autoMatch(headers: string[]): Mapping {
-    const mapping: Mapping = { nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE };
+    const mapping: Mapping = { nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE };
     const lowerHeaders = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, '_'));
 
     (Object.keys(SYNONYMS) as Array<keyof typeof SYNONYMS>).forEach(field => {
@@ -167,15 +173,17 @@ function applyMapping(rows: Record<string, string>[], mapping: Mapping) {
     return rows.map(row => ({
         nik:    mapping.nik    !== NONE ? String(row[mapping.nik]    ?? '').trim() : '',
         name:   mapping.name   !== NONE ? String(row[mapping.name]   ?? '').trim() : '',
+        username: mapping.username !== NONE ? String(row[mapping.username] ?? '').trim() : '',
         email:  mapping.email  !== NONE ? String(row[mapping.email]  ?? '').trim() : '',
         password: mapping.password !== NONE ? String(row[mapping.password] ?? '').trim() : '',
-        role:   mapping.role   !== NONE ? String(row[mapping.role]   ?? '').trim().toLowerCase() : 'user',
+        role:   mapping.role   !== NONE ? String(row[mapping.role]   ?? '').trim().toLowerCase() : '',
         division: mapping.division !== NONE ? String(row[mapping.division] ?? '').trim() : '',
         brand:         mapping.brand         !== NONE ? String(row[mapping.brand]         ?? '').trim() : '',
         micro_cluster: mapping.micro_cluster !== NONE ? String(row[mapping.micro_cluster] ?? '').trim() : '',
         branch:        mapping.branch        !== NONE ? String(row[mapping.branch]        ?? '').trim() : '',
         area:          mapping.area          !== NONE ? String(row[mapping.area]          ?? '').trim() : '',
         region: mapping.region !== NONE ? String(row[mapping.region] ?? '').trim() : '',
+        circle: mapping.circle !== NONE ? String(row[mapping.circle] ?? '').trim() : '',
         status: mapping.status !== NONE ? String(row[mapping.status] ?? '').trim().toLowerCase() : '',
     }));
 }
@@ -219,7 +227,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const [file, setFile]           = useState<File | null>(null);
     const [headers, setHeaders]     = useState<string[]>([]);
     const [rawRows, setRawRows]     = useState<Record<string, string>[]>([]);
-    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
+    const [mapping, setMapping]     = useState<Mapping>({ nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE });
     const [isDragging, setIsDragging] = useState(false);
     const [parseError, setParseError] = useState<string | null>(null);
     const [isParsing, setIsParsing]   = useState(false);
@@ -233,7 +241,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
             setFile(null);
             setHeaders([]);
             setRawRows([]);
-            setMapping({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
+            setMapping({ nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE });
             setParseError(null);
             setResult(null);
         }
@@ -281,7 +289,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
         e.target.value = '';
     };
 
-    const mappingValid = mapping.nik !== NONE && mapping.name !== NONE;
+    const mappingValid = true;
     const mappedRows = applyMapping(rawRows, mapping);
     const importableRows = mappedRows.filter(r => r.status !== 'off');
     const skippedOffCount = mappedRows.filter(r => r.status === 'off').length;
@@ -465,13 +473,6 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                     </TableBody>
                                 </Table>
                             </div>
-
-                            {!mappingValid && (
-                                <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 text-amber-800 text-sm border border-amber-200 font-medium">
-                                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
-                                    <span>Kolom <strong>NIK</strong> dan <strong>Nama</strong> wajib dipasangkan sebelum melanjutkan.</span>
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -502,9 +503,11 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                                 <TableHead className="w-12 text-center font-semibold">#</TableHead>
                                                 <TableHead className="font-semibold">NIK</TableHead>
                                                 <TableHead className="font-semibold">Nama</TableHead>
+                                                <TableHead className="font-semibold">Username</TableHead>
                                                 <TableHead className="font-semibold">Email</TableHead>
                                                 <TableHead className="font-semibold">Role</TableHead>
                                                 <TableHead className="font-semibold">Region</TableHead>
+                                                <TableHead className="font-semibold">Circle</TableHead>
                                                 {mapping.status !== NONE && <TableHead className="font-semibold">Status</TableHead>}
                                             </TableRow>
                                         </TableHeader>
@@ -512,13 +515,15 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                             {previewRows.map((row, i) => {
                                                 const isOff = row.status === 'off';
                                                 return (
-                                                    <TableRow key={i} className={`transition-colors ${isOff ? 'opacity-40 bg-muted/20' : (!row.nik || !row.name ? 'bg-destructive/5' : 'hover:bg-muted/20')}`}>
+                                                    <TableRow key={i} className={`transition-colors ${isOff ? 'opacity-40 bg-muted/20' : 'hover:bg-muted/20'}`}>
                                                         <TableCell className="text-muted-foreground text-xs text-center font-medium">{i + 1}</TableCell>
-                                                        <TableCell className="font-mono text-xs font-semibold">{row.nik || 'kosong'}</TableCell>
-                                                        <TableCell className="text-sm font-medium">{row.name || 'kosong'}</TableCell>
+                                                        <TableCell className="font-mono text-xs font-semibold">{row.nik || 'auto'}</TableCell>
+                                                        <TableCell className="text-sm font-medium">{row.name || '-'}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{row.username || '-'}</TableCell>
                                                         <TableCell className="text-sm text-muted-foreground">{row.email || '-'}</TableCell>
-                                                        <TableCell><Badge variant="secondary" className="text-xs font-normal capitalize">{row.role || 'user'}</Badge></TableCell>
+                                                        <TableCell><Badge variant="secondary" className="text-xs font-normal capitalize">{row.role || '-'}</Badge></TableCell>
                                                         <TableCell className="text-sm text-muted-foreground">{row.region || '-'}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">{row.circle || '-'}</TableCell>
                                                         {mapping.status !== NONE && (
                                                             <TableCell>
                                                                 {isOff ? <Badge variant="outline">off</Badge> : <Badge className="bg-green-500 text-white">active</Badge>}
@@ -653,7 +658,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                 setFile(null);
                                 setHeaders([]);
                                 setRawRows([]);
-                                setMapping({ nik: NONE, name: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, status: NONE });
+                                setMapping({ nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE });
                                 setParseError(null);
                                 setResult(null);
                             }}>

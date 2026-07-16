@@ -49,7 +49,8 @@ export default function CoursesIndex({
     courses, 
     filters, 
     categories,
-    divisions 
+    divisions,
+    totalModules,
 }: { 
     courses: {
         data: Course[];
@@ -61,6 +62,7 @@ export default function CoursesIndex({
     filters: { search?: string; category?: string; progress_status?: string; course_type?: string; division?: string; journey_id?: string | number }; 
     categories: string[];
     divisions: string[]; 
+    totalModules?: number;
 }) {
     const { auth } = usePage<SharedData>().props;
     const canCreateCourse = auth.user.role?.toLowerCase() === 'trainer' || auth.user.role?.toLowerCase() === 'admin';
@@ -85,16 +87,13 @@ export default function CoursesIndex({
     
     const [search, setSearch] = useState(filters?.search || '');
     const [category, setCategory] = useState(filters?.category || 'all');
-    
-    // Default ke 'mandatory' jika di URL tidak ada filter tipe course
-    const [courseType, setCourseType] = useState(filters?.course_type || 'mandatory'); 
 
     // State untuk menyimpan nilai dropdown divisi yang dipilih (Default ke 'all')
     const [division, setDivision] = useState(filters?.division || 'all');
 
     useEffect(() => {
         if (!filters?.course_type) {
-            updateFilters(search, category, 'mandatory', division);
+            updateFilters(search, category, division);
         }
     }, []);
 
@@ -103,18 +102,19 @@ export default function CoursesIndex({
         if (search === (filters?.search || '')) return;
 
         const delayDebounceFn = setTimeout(() => {
-            updateFilters(search, category, courseType, division);
+            updateFilters(search, category, division);
         }, 500); 
 
         return () => clearTimeout(delayDebounceFn);
     }, [search]);
 
     // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
-    const updateFilters = (newSearch: string, newCategory: string, newCourseType: string, newDivision: string) => {
+    // course_type selalu dikirim sebagai 'mandatory'
+    const updateFilters = (newSearch: string, newCategory: string, newDivision: string) => {
         const queryParams: any = {};
         if (newSearch) queryParams.search = newSearch;
         if (newCategory !== 'all') queryParams.category = newCategory;
-        if (newCourseType) queryParams.course_type = newCourseType;
+        queryParams.course_type = 'mandatory';
         if (newDivision !== 'all') queryParams.division = newDivision;
         if (filters?.journey_id) queryParams.journey_id = filters.journey_id;
 
@@ -134,18 +134,13 @@ export default function CoursesIndex({
 
     const handleCategoryChange = (val: string) => {
         setCategory(val);
-        updateFilters(search, val, courseType, division);
-    };
-
-    const handleCourseTypeChange = (val: string) => {
-        setCourseType(val);
-        updateFilters(search, category, val, division);
+        updateFilters(search, val, division);
     };
 
     // Fungsi handler ketika dropdown divisi berubah di frontend
     const handleDivisionChange = (val: string) => {
         setDivision(val);
-        updateFilters(search, category, courseType, val);
+        updateFilters(search, category, val);
     };
 
     const handleEnrollClick = (course: Course) => {
@@ -163,10 +158,9 @@ export default function CoursesIndex({
         }
     };
 
-    const restrictedDivisions = ['dse', 'cse', 'rse'];
     const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
-    const userDivision = auth?.user?.division?.toLowerCase() || '';
-    const showDropdown = isAdmin || !restrictedDivisions.includes(userDivision);
+    // Dropdown kategori sekarang hanya untuk admin, disembunyikan untuk semua user biasa (semua divisi)
+    const showDropdown = isAdmin;
 
     return (
         <AppLayout breadcrumbs={[{ title: 'Courses', href: '/courses' }]}>
@@ -185,25 +179,37 @@ export default function CoursesIndex({
                             <p className="mt-0.5 text-2xl font-bold text-sky-600">Available Courses</p>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total</p>
-                        <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.total}</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">courses available</p>
+                    <div className="flex items-center gap-6">
+                        <div className="text-right">
+                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total</p>
+                            <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.total}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">courses available</p>
+                        </div>
+                        {filters?.journey_id && (
+                            <div className="text-right border-l border-sky-100 dark:border-sky-900 pl-6">
+                                <p className="text-xs font-medium uppercase tracking-widest text-sky-400">TOTAL</p>
+                                <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{totalModules ?? 0}</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">modules available</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto flex-wrap">
-                        <div className="relative w-full sm:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Cari kursus..."
-                                value={search}
-                                onChange={handleSearchChange}
-                                className="pl-9"
-                            />
-                        </div>
+                        {/* Search hanya tampil untuk admin, disembunyikan untuk user biasa */}
+                        {isAdmin && (
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder="Cari kursus..."
+                                    value={search}
+                                    onChange={handleSearchChange}
+                                    className="pl-9"
+                                />
+                            </div>
+                        )}
                         {showDropdown && (
                             <Select value={category} onValueChange={handleCategoryChange}>
                                 <SelectTrigger className="w-full sm:w-48">
@@ -217,17 +223,6 @@ export default function CoursesIndex({
                                 </SelectContent>
                             </Select>
                         )}
-
-                        {/* FILTER UTAMA: Mandatory & Non-Mandatory */}
-                        <Select value={courseType} onValueChange={handleCourseTypeChange}>
-                            <SelectTrigger className="w-full sm:w-48">
-                                <SelectValue placeholder="Tipe Sifat Kursus" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="mandatory">Mandatory (Wajib)</SelectItem>
-                                <SelectItem value="non_mandatory">Non-Mandatory</SelectItem>
-                            </SelectContent>
-                        </Select>
 
                         {/* FILTER DROPDOWN DIVISI  */}
                         {/* {auth?.user?.role === 'admin' && (
@@ -514,7 +509,7 @@ export default function CoursesIndex({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Apakah anda yakin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus kursus secara permanen beserta semua data modul dan progres di dalamnya.
+                            Ini akan menghapus kursus secara permanen beserta semua data modul dan progres di dalamnya.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

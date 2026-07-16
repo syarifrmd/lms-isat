@@ -139,7 +139,7 @@ export function AppSidebar() {
                                                 {user.name}
                                             </span>
                                             <span className="truncate text-xs text-muted-foreground mt-0.5 group-hover/profile:text-white transition-colors">
-                                                {user.email}
+                                                {user.username ? `${user.username}` : user.email}
                                             </span>
                                             {(role === 'user' || role === 'trainer') && (
                                                 <span className="text-[10px] font-medium text-yellow-500 mt-1 uppercase tracking-wide">

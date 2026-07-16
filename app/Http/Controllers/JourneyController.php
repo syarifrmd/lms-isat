@@ -11,7 +11,6 @@ class JourneyController extends Controller
         $user = \Illuminate\Support\Facades\Auth::user();
         
         $search = $request->input('search');
-        $courseType = $request->input('course_type', 'mandatory');
         $divisionFilter = $request->input('division'); 
 
         $query = \App\Models\Journey::with('creator')

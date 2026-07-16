@@ -32,9 +32,9 @@ const translations = {
         welcome: 'Selamat Datang Kembali',
         googleLogin: 'Masuk dengan Google',
         or: 'Atau',
-        email: {
-            label: 'Alamat Email',
-            placeholder: 'nama@indosatooredoo.com',
+        username: {
+            label: 'Username',
+            placeholder: 'Masukkan username Anda',
         },
         password: {
             label: 'Kata Sandi',
@@ -49,7 +49,7 @@ const translations = {
             desc: 'Platform pembelajaran digital terpadu untuk pengembangan kompetensi karyawan Indosat Ooredoo Hutchison.',
         },
         footer: {
-            text: 'Gunakan kredensial email Indosat Anda untuk masuk',
+            text: 'Gunakan username dan kata sandi Anda untuk masuk',
             link: 'Belum punya akun? Daftar',
         },
     },
@@ -59,9 +59,9 @@ const translations = {
         welcome: 'Welcome Back',
         googleLogin: 'Sign In with Google',
         or: 'Or',
-        email: {
-            label: 'Email Address',
-            placeholder: 'name@indosatooredoo.com',
+        username: {
+            label: 'Username',
+            placeholder: 'Enter your username',
         },
         password: {
             label: 'Password',
@@ -76,7 +76,7 @@ const translations = {
             desc: 'An integrated digital learning platform for the competency development of Indosat Ooredoo Hutchison employees.',
         },
         footer: {
-            text: 'Use your Indosat email credentials to sign in',
+            text: 'Use your username and password to sign in',
             link: "Don't have an account? Sign Up",
         },
     },
@@ -201,24 +201,24 @@ export default function Login({
                             <>
                                 <div className="space-y-2">
                                     <div>
-                                        <Label htmlFor="email" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.email.label}</Label>
+                                        <Label htmlFor="username" className="text-xs text-gray-700 dark:text-gray-300 font-semibold">{t.username.label}</Label>
                                         <div className="relative group mt-1">
                                             <div className="absolute left-3 top-2.5 z-10 text-gray-400 group-focus-within:text-red-600 transition-colors">
                                                 <Mail size={15} />
                                             </div>
                                             <Input
-                                                id="email"
-                                                type="email"
-                                                name="email"
+                                                id="username"
+                                                type="text"
+                                                name="username"
                                                 required
                                                 autoFocus
                                                 tabIndex={1}
-                                                autoComplete="email"
-                                                placeholder={t.email.placeholder}
+                                                autoComplete="username"
+                                                placeholder={t.username.placeholder}
                                                 className="h-9 pl-9 text-sm bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-red-600/20 focus:border-red-600 rounded-lg"
                                             />
                                         </div>
-                                        <InputError message={errors.email} className="text-xs mt-0.5" />
+                                        <InputError message={errors.username} className="text-xs mt-0.5" />
                                     </div>
 
                                     <div>

@@ -26,7 +26,8 @@ class CourseController extends Controller
         
         $search = $request->input('search');
         $category = $request->input('category');
-        $courseType = $request->input('course_type', 'mandatory');
+        // Dropdown Mandatory/Non-Mandatory sudah dihapus di frontend, course_type dikunci permanen ke 'mandatory'
+        $courseType = 'mandatory';
         $progressStatus = $request->input('progress_status');
         $divisionFilter = $request->input('division'); 
         $journeyId = $request->input('journey_id');
@@ -75,11 +76,8 @@ class CourseController extends Controller
                   ->where('course_division.target_division', $user->division);
         }
         
-        if ($courseType === 'mandatory') {
-            $query->where('courses.is_mandatory', true);
-        } elseif ($courseType === 'non_mandatory') {
-            $query->where('courses.is_mandatory', false);
-        }
+        // Hanya course mandatory yang ditampilkan (filter non-mandatory sudah tidak diperlukan)
+        $query->where('courses.is_mandatory', true);
        
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -142,6 +140,13 @@ class CourseController extends Controller
             ->whereNotNull('target_division')
             ->where('target_division', '!=', '')
             ->pluck('target_division');
+
+        // Total modul yang ada di seluruh course yang tergabung dalam journey ini
+        $totalModules = 0;
+        if ($journeyId) {
+            $courseIdsInJourney = Course::where('journey_id', $journeyId)->pluck('id');
+            $totalModules = Module::whereIn('course_id', $courseIdsInJourney)->count();
+        }
             
         return Inertia::render('Courses/Index', [
             'courses' => $courses,
@@ -154,7 +159,8 @@ class CourseController extends Controller
                 'journey_id' => $journeyId,
             ],
             'categories' => $categories,
-            'divisions' => $divisions 
+            'divisions' => $divisions,
+            'totalModules' => $totalModules,
         ]);
     }
 

@@ -22,6 +22,7 @@ class UserManagementController extends Controller
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('id', 'like', "%{$search}%");
             });
@@ -104,33 +105,35 @@ class UserManagementController extends Controller
    public function store(Request $request)
     {
         $validated = $request->validate([
-            'id' => 'required|string|unique:users,id',
-            'name' => 'required|string|max:255',
+            'id' => 'nullable|string|unique:users,id',
+            'name' => 'nullable|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username',
             'email' => 'nullable|email|unique:users,email',
-            'password' => 'nullable|string|min:8',
-            'role' => 'required|in:admin,trainer,user',
+            'password' => 'nullable|string|min:5',
+            'role' => 'nullable|in:admin,trainer,user',
             'region' => 'nullable|string|max:255',
+            'circle' => 'nullable|string|max:255',
             'division' => 'nullable|string|max:255',
             'brand' => 'nullable|string|max:255',
             'micro_cluster' => 'nullable|string|max:255',
             'branch' => 'nullable|string|max:255',
             'area' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
         ]);
 
         $user = User::create([
-            'id' => $validated['id'],
-            'name' => $validated['name'],
+            'id' => $validated['id'] ?: 'USR-' . strtoupper(\Illuminate\Support\Str::random(8)),
+            'name' => $validated['name'] ?? null,
+            'username' => $validated['username'] ?? null,
             'email' => $validated['email'] ?? null,
             'password' => $validated['password'] ? Hash::make($validated['password']) : null,
-            'role' => $validated['role'],
+            'role' => $validated['role'] ?? null,
             'region' => $validated['region'] ?? null,
+            'circle' => $validated['circle'] ?? null,
             'division' => $validated['division'] ?? null,
             'brand' => $validated['brand'] ?? null,
             'micro_cluster' => $validated['micro_cluster'] ?? null,
             'branch' => $validated['branch'] ?? null,
             'area' => $validated['area'] ?? null,
-            'region' => $validated['region'] ?? null,
             'is_registered' => false,
             'email_verified_at' => now(),
         ]);
@@ -144,28 +147,32 @@ class UserManagementController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'nullable|string|max:255',
+            'username' => ['nullable', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'email' => ['nullable', 'email', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|in:admin,trainer,user',
+            'role' => 'nullable|in:admin,trainer,user',
             'division' => 'nullable|string|max:255',
             'brand' => 'nullable|string|max:255',
             'micro_cluster' => 'nullable|string|max:255',
             'branch' => 'nullable|string|max:255',
             'area' => 'nullable|string|max:255',
             'region' => 'nullable|string|max:255',
-            'password' => 'nullable|string|min:8',
+            'circle' => 'nullable|string|max:255',
+            'password' => 'nullable|string|min:5',
         ]);
 
         $updateData = [
-            'name' => $validated['name'],
+            'name' => $validated['name'] ?? null,
+            'username' => $validated['username'] ?? null,
             'email' => $validated['email'] ?? null,
-            'role' => $validated['role'],
+            'role' => $validated['role'] ?? null,
             'division' => $validated['division'] ?? null,
             'brand' => $validated['brand'] ?? null,
             'micro_cluster' => $validated['micro_cluster'] ?? null,
             'branch' => $validated['branch'] ?? null,
             'area' => $validated['area'] ?? null,
             'region' => $validated['region'] ?? null,
+            'circle' => $validated['circle'] ?? null,
         ];
 
         // Only update password if provided
@@ -227,12 +234,14 @@ class UserManagementController extends Controller
     {
         $request->validate([
             'rows'             => 'required|array|min:1',
-            'rows.*.nik'       => 'required|string',
-            'rows.*.name'      => 'required|string|max:255',
+            'rows.*.nik'       => 'nullable|string',
+            'rows.*.name'      => 'nullable|string|max:255',
+            'rows.*.username'  => 'nullable|string|max:255',
             'rows.*.email'     => 'nullable|email',
             'rows.*.password'      => 'nullable|string',
             'rows.*.role'      => 'nullable|in:admin,trainer,user',
             'rows.*.region'    => 'nullable|string|max:255',
+            'rows.*.circle'    => 'nullable|string',
             'rows.*.division'  => 'nullable|string',
             'rows.*.brand'         => 'nullable|string',
             'rows.*.micro_cluster' => 'nullable|string',
@@ -249,7 +258,7 @@ class UserManagementController extends Controller
 
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
-            $nik       = trim($row['nik']);
+            $nik       = !empty($row['nik']) ? trim($row['nik']) : 'USR-' . strtoupper(\Illuminate\Support\Str::random(8));
             $status = strtolower(trim($row['status'] ?? ''));
             if ($status === 'off') {
                 $skipped++;
@@ -263,6 +272,18 @@ class UserManagementController extends Controller
                     'row'     => $rowNumber,
                     'nik'     => $nik,
                     'message' => 'NIK sudah terdaftar di sistem.',
+                ];
+                continue;
+            }
+
+            // Validate username uniqueness (if provided)
+            $username = !empty($row['username']) ? trim($row['username']) : $nik;
+            if (User::where('username', $username)->exists()) {
+                $failed++;
+                $errors[] = [
+                    'row'     => $rowNumber,
+                    'nik'     => $nik,
+                    'message' => 'Username sudah terdaftar di sistem.',
                 ];
                 continue;
             }
@@ -285,10 +306,11 @@ class UserManagementController extends Controller
 
                 User::create([
                     'id'           => $nik,
-                    'name'         => trim($row['name']),
+                    'name'         => !empty($row['name']) ? trim($row['name']) : null,
+                    'username'     => $username,
                     'email'        => $email,
                     'password'     => \Illuminate\Support\Facades\Hash::make($plainPassword),
-                    'role'         => !empty($row['role']) ? $row['role'] : 'user',
+                    'role'         => !empty($row['role']) ? $row['role'] : null,
                     'division'     => !empty($row['division']) ? trim($row['division']) : null,
                     'brand'         => !empty($row['brand']) ? trim($row['brand']) : null,
                     'micro_cluster' => !empty($row['micro_cluster']) ? trim($row['micro_cluster']) : null,
@@ -296,6 +318,7 @@ class UserManagementController extends Controller
                     'area'          => !empty($row['area']) ? trim($row['area']) : null,
                     'is_registered'=> true,
                     'region'       => !empty($row['region']) ? trim($row['region']) : null,
+                    'circle'       => !empty($row['circle']) ? trim($row['circle']) : null,
                     'email_verified_at' => now(),
                 ]);
                 $success++;
@@ -327,10 +350,10 @@ class UserManagementController extends Controller
         ];
 
       $rows = [
-            ['nik', 'nama', 'email', 'password', 'role', 'division', 'brand', 'micro_cluster', 'branch', 'area', 'region', 'status'],
-            ['1234567890', 'Budi Santoso', 'budi@example.com', 'BudiSandi123', 'user', 'DSE', 'Samsung', 'Micro A', 'Branch Jkt', 'Area 1', 'Jakarta', 'active'],
-            ['0987654321', 'Siti Rahayu', '', 'SitiPass99', 'user', 'BSM', 'Oppo', 'Micro B', 'Branch Sby', 'Area 2', 'Surabaya', 'active'],
-            ['1122334455', 'Joko Widodo', '', 'JokoRahasia', 'user', 'HOS', 'Vivo', 'Micro C', 'Branch Bdg', 'Area 3', 'Bandung', 'off'],
+            ['nik', 'nama', 'username', 'email', 'password', 'role', 'division', 'brand', 'micro_cluster', 'branch', 'area', 'region', 'circle', 'status'],
+            ['1234567890', 'Budi Santoso', 'budi.santoso', 'budi@example.com', 'BudiSandi123', 'user', 'DSE', 'Samsung', 'Micro A', 'Branch Jkt', 'Area 1', 'Jakarta', 'Circle 1', 'active'],
+            ['0987654321', 'Siti Rahayu', 'siti.rahayu', '', 'SitiPass99', 'user', 'BSM', 'Oppo', 'Micro B', 'Branch Sby', 'Area 2', 'Surabaya', 'Circle 2', 'active'],
+            ['1122334455', 'Joko Widodo', 'joko.widodo', '', 'JokoRahasia', 'user', 'HOS', 'Vivo', 'Micro C', 'Branch Bdg', 'Area 3', 'Bandung', 'Circle 3', 'off'],
         ];
 
         $callback = function () use ($rows) {

@@ -33,15 +33,17 @@ export interface SharedData {
 export interface User {
     id: string; // NIK as primary key
     name: string;
+    username?: string;
     email: string;
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;
     updated_at: string;
-    role: 'admin' | 'trainer' | 'user';
+    role: 'admin' | 'trainer' | 'user' | null;
     employee_id?: string;
     region?: string;
+    circle?: string;
     full_name?: string;
     level?: number;
     points?: number;

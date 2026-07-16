@@ -75,6 +75,7 @@ export default function Profile({
     const { data, setData, post, processing, errors, recentlySuccessful } = useForm<{
         _method: string;
         name: string;
+        username: string;
         email: string;
         region: string;
         avatar: File | null;
@@ -82,6 +83,7 @@ export default function Profile({
     }>({
         _method: 'PATCH',
         name: user.name ?? '',
+        username: user.username ?? '',
         email: user.email ?? '',
         region: user.region ?? '',
         avatar: null,
@@ -180,7 +182,7 @@ export default function Profile({
 
                     {/* Form */}
                     <form onSubmit={submit} className="space-y-5" encType="multipart/form-data">
-                        {/* Row 1: Full Name + NIK */}
+                        {/* Row 1: Full Name + Username */}
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label htmlFor="name">
@@ -199,6 +201,23 @@ export default function Profile({
                                 <InputError message={errors.name} />
                             </div>
 
+                            <div className="space-y-1.5">
+                                <Label htmlFor="username">Username</Label>
+                                <Input
+                                    id="username"
+                                    name="username"
+                                    value={data.username}
+                                    onChange={(e) => setData('username', e.target.value)}
+                                    autoComplete="username"
+                                    placeholder="Username untuk login"
+                                    className="bg-muted/30"
+                                />
+                                <InputError message={errors.username} />
+                            </div>
+                        </div>
+
+                        {/* Row 1b: NIK (read-only) */}
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label htmlFor="nik">Employee ID (NIK)</Label>
                                 <Input

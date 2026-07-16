@@ -313,6 +313,7 @@ export default function UsersIndex() {
                                 <TableRow className="bg-gray-50/80 hover:bg-gray-50/80 dark:bg-gray-900/40 dark:hover:bg-gray-900/40">
                                     <TableHead>NIK</TableHead>
                                     <TableHead>Nama</TableHead>
+                                    <TableHead>Username</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Divisi</TableHead>
@@ -321,6 +322,7 @@ export default function UsersIndex() {
                                     <TableHead>Branch</TableHead>
                                     <TableHead>Area</TableHead>
                                     <TableHead>Region</TableHead>
+                                    <TableHead>Circle</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right sticky right-0 z-10 bg-gray-50 dark:bg-gray-900 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">Aksi</TableHead>
                                 </TableRow>
@@ -328,7 +330,7 @@ export default function UsersIndex() {
                             <TableBody>
                                 {users.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={12} className="py-10 text-center text-muted-foreground">
+                                        <TableCell colSpan={14} className="py-10 text-center text-muted-foreground">
                                             Tidak ada data user
                                         </TableCell>
                                     </TableRow>
@@ -337,6 +339,7 @@ export default function UsersIndex() {
                                         <TableRow key={user.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-900/30">
                                             <TableCell className="font-mono text-sm">{user.id}</TableCell>
                                             <TableCell className="font-medium">{user.name}</TableCell>
+                                            <TableCell>{user.username || '-'}</TableCell>
                                             <TableCell>{user.email || '-'}</TableCell>
                                             <TableCell>{getRoleBadge(user.role)}</TableCell>
                                             <TableCell>{user.division || '-'}</TableCell>
@@ -345,6 +348,7 @@ export default function UsersIndex() {
                                             <TableCell>{user.branch || '-'}</TableCell>
                                             <TableCell>{user.area || '-'}</TableCell>
                                             <TableCell>{user.region || '-'}</TableCell>
+                                            <TableCell>{user.circle || '-'}</TableCell>
                                             <TableCell>{getStatusBadge(user.is_registered)}</TableCell>
                                             <TableCell className="text-right sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]">
                                                 <DropdownMenu>
@@ -395,7 +399,7 @@ export default function UsersIndex() {
                                 <div className="mb-3 flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{user.name}</p>
-                                        <p className="truncate text-xs text-muted-foreground">{user.email || '-'}</p>
+                                        <p className="truncate text-xs text-muted-foreground">@{user.username || '-'}</p>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -431,6 +435,10 @@ export default function UsersIndex() {
                                         <p className="font-mono text-sm">{user.id}</p>
                                     </div>
                                     <div>
+                                        <p className="text-muted-foreground">Email</p>
+                                        <p className="text-sm font-medium">{user.email || '-'}</p>
+                                    </div>
+                                    <div>
                                         <p className="text-muted-foreground">Divisi</p>
                                         <p className="text-sm font-medium">{user.division || '-'}</p>
                                     </div>
@@ -453,6 +461,10 @@ export default function UsersIndex() {
                                     <div>
                                         <p className="text-muted-foreground">Region</p>
                                         <p className="text-sm font-medium">{user.region || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Circle</p>
+                                        <p className="text-sm font-medium">{user.circle || '-'}</p>
                                     </div>
                                     <div>
                                         <p className="mb-1 text-muted-foreground">Role</p>

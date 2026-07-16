@@ -35,7 +35,7 @@ import { cn } from '@/lib/utils';
 interface EditUserModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    user: User & { division?: string }; 
+    user: User & { division?: string; username?: string; circle?: string }; 
     regions: string[];
     divisions: string[];
     brands?: string[];            
@@ -54,9 +54,11 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
 
     const { data, setData, put, transform, processing, errors, reset } = useForm({
         name: user.name,
+        username: user.username || '',
         email: user.email || '',
-        role: user.role,
+        role: user.role || 'user',
         region: user.region || '',
+        circle: user.circle || '',
         division: user.division || '', 
         brand: user.brand || '',                 
         micro_cluster: user.micro_cluster || '',  
@@ -75,8 +77,9 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                 setCustomDivision(userDivision);
                 setData({
                     name: user.name,
+                    username: user.username || '',
                     email: user.email || '',
-                    role: user.role,
+                    role: user.role || 'user',
                     division: '', 
                     brand: user.brand || '',                 
                 micro_cluster: user.micro_cluster || '',  
@@ -84,14 +87,16 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                 area: user.area || '',
                 password: '',
                 region: user.region || '',
+                circle: user.circle || '',
                 });
             } else {
                 setIsCustomDivision(false);
                 setCustomDivision('');
                 setData({
                     name: user.name,
+                    username: user.username || '',
                     email: user.email || '',
-                    role: user.role,
+                    role: user.role || 'user',
                     division: userDivision,
                     brand: user.brand || '',                 
                     micro_cluster: user.micro_cluster || '',  
@@ -99,6 +104,7 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                     area: user.area || '',
                     password: '',
                     region: user.region || '',
+                    circle: user.circle || '',
                 });
             }
         }
@@ -168,7 +174,7 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
     return (
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
-                <DialogContent className="sm:max-w-[600px] bg-background text-foreground border-border">
+                <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto bg-background text-foreground border-border">
                     <DialogHeader className="space-y-3 pb-4 border-b border-border">
                         <DialogTitle className="text-xl flex items-center gap-2">
                             <div className="p-2 bg-primary/10 rounded-full">
@@ -211,12 +217,25 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
-                                <Label htmlFor="edit-name" className="text-sm font-medium">Nama Lengkap *</Label>
+                                <Label htmlFor="edit-name" className="text-sm font-medium">Nama Lengkap</Label>
                                 <div className="relative">
                                     <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input id="edit-name" value={data.name} onChange={(e) => setData('name', e.target.value)} required className="pl-9" />
+                                    <Input id="edit-name" value={data.name} onChange={(e) => setData('name', e.target.value)} className="pl-9" />
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-username" className="text-sm font-medium">Username</Label>
+                                <div className="relative">
+                                    <UserIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-username" value={data.username} onChange={(e) => setData('username', e.target.value)} className="pl-9" />
+                                </div>
+                                {errors.username && (
+                                    <p className="text-xs text-destructive">{errors.username}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
                                 <Label htmlFor="edit-email" className="text-sm font-medium">Email</Label>
                                 <div className="relative">
@@ -239,6 +258,16 @@ export default function EditUserModal({ open, onOpenChange, user, regions, divis
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input id="edit-region" value={data.region} onChange={(e) => setData('region', e.target.value)} className="pl-9" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-circle" className="text-sm font-medium">Circle</Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input id="edit-circle" value={data.circle} onChange={(e) => setData('circle', e.target.value)} className="pl-9" />
                                 </div>
                             </div>
                         </div>
