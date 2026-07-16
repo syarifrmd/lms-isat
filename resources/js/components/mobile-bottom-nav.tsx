@@ -42,7 +42,7 @@ export function MobileBottomNav() {
                     { title: 'Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
-                    { title: 'Settings', href: '/settings', icon: Settings },
+                    // { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
