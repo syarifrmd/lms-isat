@@ -236,13 +236,17 @@ class DashboardController extends Controller
         // halaman "My Learning" (tidak pakai rollup ke bawahan, murni division sendiri).
         $coursesAvailableCount = Course::whereNotNull('journey_id')
             ->whereHas('journey.divisions', function ($q) use ($divisionUpper) {
-                $q->where('target_division', $divisionUpper)->where('is_mandatory', 1);
+                $q->where('target_division', $divisionUpper)
+                    ->where('is_mandatory', 1)
+                    ->where('is_locked', 0);
             })
             ->count();
 
         $modulesAvailableCount = Course::whereNotNull('journey_id')
             ->whereHas('journey.divisions', function ($q) use ($divisionUpper) {
-                $q->where('target_division', $divisionUpper)->where('is_mandatory', 1);
+                $q->where('target_division', $divisionUpper)
+                    ->where('is_mandatory', 1)
+                    ->where('is_locked', 0);
             })
             ->withCount('modules')
             ->get()

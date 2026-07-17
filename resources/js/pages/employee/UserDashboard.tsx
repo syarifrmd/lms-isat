@@ -123,11 +123,11 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 Jelajahi kursus yang tersedia dan daftar untuk mulai melacak progresmu.
                             </p>
                         </div>
-                        <Link href="/courses"
+                        <Link href="/journeys"
                               className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-2.5
                                          text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
                             <BookOpen className="h-4 w-4" />
-                            Jelajahi Kursus
+                            Jelajahi Journey
                         </Link>
                     </div>
                 )}

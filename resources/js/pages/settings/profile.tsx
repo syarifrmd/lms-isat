@@ -15,29 +15,6 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { edit } from '@/routes/profile';
 import { logout } from '@/routes';
 
-const REGIONS = [
-    'Jakarta',
-    'Bandung',
-    'Surabaya',
-    'Medan',
-    'Makassar',
-    'Semarang',
-    'Palembang',
-    'Balikpapan',
-    'Manado',
-    'Denpasar',
-    'Yogyakarta',
-    'Solo',
-    'Malang',
-    'Bogor',
-    'Batam',
-    'Pekanbaru',
-    'Banjarmasin',
-    'Pontianak',
-    'Samarinda',
-    'Lampung',
-];
-
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Profile',
@@ -57,17 +34,25 @@ const ROLE_COLORS: Record<string, string> = {
     user: 'bg-green-100 text-green-700',
 };
 
-export default function Profile({
-    mustVerifyEmail,
-    status,
-}: {
-    mustVerifyEmail: boolean;
-    status?: string;
-}) {
+// Kolom database yang dipakai berbeda-beda tergantung division (level jabatan)
+type AreaFieldKey = 'circle' | 'region' | 'area' | 'branch' | 'micro_cluster';
+
+const DIVISION_FIELD_MAP: Record<string, { key: AreaFieldKey; label: string }> = {
+    HOC: { key: 'circle', label: 'Circle' },
+    HOR: { key: 'region', label: 'Region' },
+    HOS: { key: 'area', label: 'Area' },
+    BSM: { key: 'branch', label: 'Branch' },
+    CSE: { key: 'micro_cluster', label: 'Micro Cluster' },
+    DSE: { key: 'micro_cluster', label: 'Micro Cluster' },
+};
+
+export default function Profile() {
     const { auth } = usePage<SharedData>().props;
     const user = auth.user;
 
     const avatarUrl = user.avatar ?? null;
+
+    const areaField = DIVISION_FIELD_MAP[user.division] ?? { key: 'region' as AreaFieldKey, label: 'Region' };
 
     const [preview, setPreview] = useState<string | null>(avatarUrl);
     const avatarInput = useRef<HTMLInputElement>(null);
@@ -76,16 +61,22 @@ export default function Profile({
         _method: string;
         name: string;
         username: string;
-        email: string;
+        circle: string;
         region: string;
+        area: string;
+        branch: string;
+        micro_cluster: string;
         avatar: File | null;
         remove_avatar: boolean;
     }>({
         _method: 'PATCH',
         name: user.name ?? '',
         username: user.username ?? '',
-        email: user.email ?? '',
+        circle: user.circle ?? '',
         region: user.region ?? '',
+        area: user.area ?? '',
+        branch: user.branch ?? '',
+        micro_cluster: user.micro_cluster ?? '',
         avatar: null,
         remove_avatar: false,
     });
@@ -230,55 +221,22 @@ export default function Profile({
                             </div>
                         </div>
 
-                        {/* Row 2: Email + Region */}
+                        {/* Row 2: Area field (kolom mengikuti division user) */}
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <div className="space-y-1.5">
-                                <Label htmlFor="email">
-                                    Email <span className="text-rose-500">*</span>
+                                <Label htmlFor={areaField.key}>
+                                    {areaField.label} <span className="text-rose-500">*</span>
                                 </Label>
                                 <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                    className="bg-muted/30"
-                                />
-                                <InputError message={errors.email} />
-                                {mustVerifyEmail && user.email_verified_at === null && (
-                                    <p className="text-xs text-amber-600">
-                                        Your email address is unverified.
-                                    </p>
-                                )}
-                                {status === 'verification-link-sent' && (
-                                    <p className="text-xs text-green-600">
-                                        Verification link sent!
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <Label htmlFor="region">
-                                    Region <span className="text-rose-500">*</span>
-                                </Label>
-                                <Input
-                                    id="region"
-                                    list="region-list"
-                                    value={data.region}
-                                    onChange={(e) => setData('region', e.target.value)}
-                                    placeholder="Type or select region"
+                                    id={areaField.key}
+                                    name={areaField.key}
+                                    value={data[areaField.key]}
+                                    onChange={(e) => setData(areaField.key, e.target.value)}
+                                    placeholder={`Masukkan ${areaField.label.toLowerCase()}`}
                                     className="bg-muted/30"
                                     autoComplete="off"
                                 />
-                                <datalist id="region-list">
-                                    {REGIONS.map((r) => (
-                                        <option key={r} value={r} />
-                                    ))}
-                                </datalist>
-                                <InputError message={errors.region} />
+                                <InputError message={errors[areaField.key]} />
                             </div>
                         </div>
 

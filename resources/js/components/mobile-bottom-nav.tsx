@@ -21,6 +21,7 @@ interface NavItem {
 export function MobileBottomNav() {
     const { props, url } = usePage<SharedData>();
     const role = props.auth.user.role?.toLowerCase();
+    const division = (props.auth.user.division || '').toString().trim().toUpperCase();
 
     // Same active-route logic as the desktop sidebar (AppSidebar), so an
     // item highlights the same way on mobile as it does on desktop.
@@ -42,20 +43,22 @@ export function MobileBottomNav() {
                     { title: 'Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
                     { title: 'Desain Stempel', href: '/admin/certificate-templates', icon: Palette },
-                    { title: 'Settings', href: '/settings', icon: Settings },
+                    // { title: 'Settings', href: '/settings', icon: Settings },
                 ];
             case 'trainer':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Summary', href: '/students', icon: Users },
+                    // Divisi DSE tidak boleh mengakses Summary (My Progress).
+                    ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/journeys', icon: BookOpen },
-                    { title: 'My Progress', href: '/students', icon: Users },
+                    // Divisi DSE tidak boleh mengakses My Progress.
+                    ...(division !== 'DSE' ? [{ title: 'My Progress', href: '/students', icon: Users }] : []),
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:

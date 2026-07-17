@@ -31,7 +31,6 @@ Route::match(['get', 'post'], '/register', function () {
     return redirect()->route('login');
 })->name('register.disabled');
 
-
 // --- GOOGLE LOGIN & REGISTER FLOW (BARU) ---
 Route::controller(SocialLoginController::class)->group(function () {
     // 1. Tombol Login Google
@@ -58,7 +57,7 @@ Route::controller(SocialLoginController::class)->group(function () {
 
 
 // Trainer Only Routes - Course Create (Must be before /courses/{id})
-Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
+Route::middleware(['auth', 'role:trainer'])->group(function () {
     // Journeys
     Route::get('/journeys/create', [\App\Http\Controllers\JourneyController::class, 'create'])->name('journeys.create');
     Route::post('/journeys', [\App\Http\Controllers\JourneyController::class, 'store'])->name('journeys.store');
@@ -76,7 +75,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
     Route::post('/trainer/video-upload', [TrainerVideoUploadController::class, 'store'])->name('trainer.video-upload.store');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Heartbeat aktivitas belajar (dipanggil frontend setiap 60 detik)
@@ -124,6 +123,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
     Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 
+    Route::get('/students/profile/{enrollmentId}', [StudentController::class, 'profile'])->name('students.profile');
+    Route::get('/students/my-activity/{courseId}', [StudentController::class, 'myActivityDetail'])->name('students.my-activity-detail');
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 });
@@ -131,7 +132,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // Trainer Only Routes
-Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
+Route::middleware(['auth', 'role:trainer'])->group(function () {
     // Module Management
     Route::get('/courses/{course}/modules/create', [ModuleController::class, 'create'])->name('modules.create');
     Route::post('/courses/{course}/modules', [ModuleController::class, 'store'])->name('modules.store');
@@ -160,7 +161,7 @@ Route::middleware(['auth', 'verified', 'role:trainer'])->group(function () {
 });
 
 // Admin Only Routes - User Management
-Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
     Route::delete('/divisions', [UserManagementController::class, 'deleteDivision'])->name('divisions.destroy');
