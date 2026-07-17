@@ -1392,16 +1392,17 @@ interface ModuleTimerProps {
     moduleId: number;
     durationMinutes: number;
     onTimeUp: () => void;
+    userId: number;
 }
 
-function ModuleTimer({ moduleId, durationMinutes, onTimeUp }: ModuleTimerProps) {
-    const deadlineKey = `module_timer_deadline_${moduleId}`;
-    const remainingKey = `module_timer_remaining_seconds_${moduleId}`;
-    const expiredCountKey = `module_timer_expired_count_${moduleId}`;
+function ModuleTimer({ moduleId, durationMinutes, onTimeUp, userId }: ModuleTimerProps) {
+    const deadlineKey = `module_timer_deadline_${userId}_${moduleId}`;
+    const remainingKey = `module_timer_remaining_seconds_${userId}_${moduleId}`;
+    const expiredCountKey = `module_timer_expired_count_${userId}_${moduleId}`;
     // Menyimpan durasi (menit) yang dipakai saat deadline dibuat, supaya kalau durasi modul
     // diubah setelah timer lama sempat tersimpan di localStorage, timer lama itu tidak terus
     // dipakai (tidak nyambung lagi dengan durasi yang sekarang di-set).
-    const durationKey = `module_timer_duration_${moduleId}`;
+    const durationKey = `module_timer_duration_${userId}_${moduleId}`;
 
     const [isExpired, setIsExpired] = useState(false);
     // Dulu dibaca langsung dari localStorage saat render (tanpa state), jadi tampilannya bisa
@@ -1802,6 +1803,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                                             moduleId={module.id}
                                                             durationMinutes={course.duration_minutes ?? 5}
                                                             onTimeUp={() => handleModuleTimeUp(module.id)}
+                                                            userId={auth.user.id}
                                                         />
                                                     );
                                                 })()}

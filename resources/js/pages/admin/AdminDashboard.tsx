@@ -1,4 +1,4 @@
-﻿import { type SharedData } from '@/types';
+import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
@@ -65,14 +65,14 @@ interface AdminDashboardProps {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bar: string }> = {
     published: { label: 'Published', color: 'text-emerald-700 dark:text-emerald-400', bar: 'bg-emerald-500' },
-    draft:     { label: 'Draft',     color: 'text-amber-700 dark:text-amber-400',    bar: 'bg-amber-400'  },
-    archived:  { label: 'Archived',  color: 'text-gray-600 dark:text-gray-400',      bar: 'bg-gray-400'   },
+    draft: { label: 'Draft', color: 'text-amber-700 dark:text-amber-400', bar: 'bg-amber-400' },
+    archived: { label: 'Archived', color: 'text-gray-600 dark:text-gray-400', bar: 'bg-gray-400' },
 };
 
 const ENROLL_STATUS_CONFIG: Record<string, string> = {
-    active:    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    active: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-    dropped:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    dropped: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
 function formatMonth(key: string) {
@@ -130,7 +130,7 @@ function StatCard({
         <div className={`group relative h-full overflow-hidden rounded-[22px] border p-4 font-sans shadow-sm transition-all hover:shadow-md ${tone === 'highlight'
             ? 'border-gray-100 bg-white hover:border-red-700/20 hover:bg-linear-to-br hover:from-red-600 hover:via-red-500 hover:to-red-500 hover:text-white hover:shadow-red-950/10 dark:border-white/10 dark:bg-neutral-900'
             : `bg-white ${borderColor} dark:bg-neutral-900`
-        }`}>
+            }`}>
             <div className="flex h-full min-h-33 flex-col">
                 <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
@@ -172,7 +172,7 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
 
     // Quick links
     const quickLinks = [
-        { label: 'Settings',       href: '/settings',    icon: Settings },
+        { label: 'Settings', href: '/settings', icon: Settings },
     ];
 
     return (
@@ -188,11 +188,11 @@ export default function AdminDashboard({ data }: AdminDashboardProps) {
                         </h1>
                     </div>
                     <div className="flex items-center justify-center rounded-2xl">
-                      <img 
-                        src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
-                        alt={user.name}
-                        className="h-14 w-14 shrink-0 rounded-full border-2 border-yellow-400 object-cover md:h-20 md:w-20"
-                      />
+                        <img
+                            src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
+                            alt={user.name}
+                            className="h-14 w-14 shrink-0 rounded-full border-2 border-yellow-400 object-cover md:h-20 md:w-20"
+                        />
                     </div>
                 </div>
                 {/* Quick links */}

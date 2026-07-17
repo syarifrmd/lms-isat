@@ -120,7 +120,7 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
     const [minScore] = useState(quiz.min_score);
     const [isTimed, setIsTimed] = useState(quiz.is_timed);
     const [timeLimitSecond, setTimeLimitSecond] = useState(quiz.time_limit_second ?? 1800);
-    const [xpBonus, setXpBonus] = useState(quiz.xp_bonus);
+    const [xpBonus, setXpBonus] = useState(50);
     const [questions, setQuestions] = useState<Question[]>(
         quiz.questions.map((q) => ({
             id: q.id,
@@ -430,9 +430,11 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                                         id="xp_bonus"
                                                         type="number"
                                                         min="0"
-                                                        value={xpBonus}
+                                                        value={50.00}
                                                         onChange={(e) => setXpBonus(parseFloat(e.target.value))}
-                                                        className="pr-8"
+                                                        className="pr-8 disabled:opacity-100"
+                                                        disabled
+                                                        readOnly
                                                     />
                                                     <Zap className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-500" />
                                                 </div>
@@ -640,9 +642,9 @@ export default function EditQuiz({ quiz, course, modules }: EditQuizProps) {
                                                                 min="5"
                                                                 max="50"
                                                                 step="5"
-                                                                value={question.point}
-                                                                onChange={(e) => updateQuestion(qIndex, 'point', parseInt(e.target.value))}
-                                                                className="w-full h-1.5 rounded-full accent-amber-500 cursor-pointer"
+                                                                value={10}
+                                                                disabled
+                                                                className="w-full h-1.5 rounded-full accent-amber-500 opacity-50 cursor-not-allowed"
                                                             />
                                                         </div>
                                                         <div className="w-16 text-center">

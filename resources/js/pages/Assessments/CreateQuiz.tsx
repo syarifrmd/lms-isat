@@ -399,9 +399,11 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                         id="xp_bonus"
                                                         type="number"
                                                         min="0"
-                                                        value={data.xp_bonus}
+                                                        value={50.00}
                                                         onChange={(e) => setData('xp_bonus', parseFloat(e.target.value))}
-                                                        className="pr-8"
+                                                        className="pr-8 disabled:opacity-100"
+                                                        disabled
+                                                        readOnly
                                                     />
                                                     <Zap className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-500" />
                                                 </div>
@@ -608,9 +610,9 @@ export default function CreateQuiz({ course, modules }: CreateQuizProps) {
                                                                 min="5"
                                                                 max="50"
                                                                 step="5"
-                                                                value={question.point}
-                                                                onChange={(e) => updateQuestion(qIndex, 'point', parseInt(e.target.value))}
-                                                                className="w-full h-1.5 rounded-full accent-amber-500 cursor-pointer"
+                                                                value={10}
+                                                                disabled
+                                                                className="w-full h-1.5 rounded-full accent-amber-500 opacity-50 cursor-not-allowed"
                                                             />
                                                         </div>
                                                         <div className="w-16 text-center">

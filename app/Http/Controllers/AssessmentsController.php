@@ -254,7 +254,7 @@ class AssessmentsController extends Controller
                 'min_score' => $validated['min_score'] ?? 0,
                 'is_timed' => $validated['is_timed'] ?? false,
                 'time_limit_second' => $validated['time_limit_second'],
-                'xp_bonus' => $validated['xp_bonus'],
+                'xp_bonus' => 50,
                 'status' => $validated['status'],
             ]);
 
@@ -366,7 +366,7 @@ class AssessmentsController extends Controller
                 'min_score' => $validated['min_score'] ?? 0,
                 'is_timed' => $validated['is_timed'] ?? false,
                 'time_limit_second' => $validated['time_limit_second'],
-                'xp_bonus' => $validated['xp_bonus'],
+                'xp_bonus' => 50,
                 'status' => $validated['status'] ?? $quiz->status,
             ]);
 

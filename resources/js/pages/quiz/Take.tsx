@@ -1,11 +1,11 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock, AlertCircle, Award, CheckCircle, ChevronLeft, ChevronRight, Send } from 'lucide-react';
-import { Quiz, UserQuizAttempt } from '@/types';
+import { Quiz, UserQuizAttempt, SharedData } from '@/types';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
     AlertDialog,
@@ -37,6 +37,9 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const MAX_ATTEMPTS = 3;
     const isLimitReached = (attempts_count >= MAX_ATTEMPTS) && (!previousAttempt?.is_passed);
     
+    const { auth } = usePage<SharedData>().props;
+    const userId = auth.user.id;
+
     const { post, processing } = useForm();
 
     const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
@@ -48,7 +51,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const [isModuleTimeExpired, setIsModuleTimeExpired] = useState(false);
 
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>(() => {
-        const saved = localStorage.getItem(`quiz_${quiz.id}_answers`);
+        const saved = localStorage.getItem(`quiz_${userId}_${quiz.id}_answers`);
         return saved ? JSON.parse(saved) : {};
     });
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -68,7 +71,7 @@ export default function TakeQuiz({ quiz, course, previousAttempt, attempts_count
     const moduleExpiredRef = useRef(false);
     useEffect(() => {
         if (!quiz.module_id) return;
-        const deadlineKey = `module_timer_deadline_${quiz.module_id}`;
+        const deadlineKey = `module_timer_deadline_${userId}_${quiz.module_id}`;
 
         const checkTime = () => {
             const savedDeadline = localStorage.getItem(deadlineKey);
@@ -127,7 +130,7 @@ useEffect(() => {
     const limitSeconds = Number(quiz.time_limit_second);
 
     if (isTimedQuiz && limitSeconds > 0) {
-        const storageKey = `quiz_${quiz.id}_end_time`;
+        const storageKey = `quiz_${userId}_${quiz.id}_end_time`;
         let endTime = localStorage.getItem(storageKey);
 
         if (!endTime) {
@@ -155,8 +158,8 @@ useEffect(() => {
     
         setIsTimeUp(true);
 
-        localStorage.removeItem(`quiz_${quiz.id}_answers`);
-        localStorage.removeItem(`quiz_${quiz.id}_end_time`);
+        localStorage.removeItem(`quiz_${userId}_${quiz.id}_answers`);
+        localStorage.removeItem(`quiz_${userId}_${quiz.id}_end_time`);
         
         const payloadAnswers = getFormattedAnswers(selectedAnswersRef.current);
         setSelectedAnswers({});
@@ -204,7 +207,7 @@ useEffect(() => {
     const handleAnswerSelect = (questionId: number, answerId: number) => {
         setSelectedAnswers((prev) => {
             const updated = { ...prev, [questionId]: answerId };
-            localStorage.setItem(`quiz_${quiz.id}_answers`, JSON.stringify(updated));
+            localStorage.setItem(`quiz_${userId}_${quiz.id}_answers`, JSON.stringify(updated));
             return updated;
         });
     };
@@ -232,8 +235,8 @@ useEffect(() => {
 
         console.log("Payload dikirim:", payload);
 
-        localStorage.removeItem(`quiz_${quiz.id}_answers`);
-        localStorage.removeItem(`quiz_${quiz.id}_end_time`);
+        localStorage.removeItem(`quiz_${userId}_${quiz.id}_answers`);
+        localStorage.removeItem(`quiz_${userId}_${quiz.id}_end_time`);
 
         router.post(`/quiz/${quiz.id}/submit`, payload, {
             preserveState: false,  

@@ -96,14 +96,12 @@ export function MobileBottomNav() {
                             {/* Icon & label */}
                             <span className="relative z-10 flex flex-col items-center gap-0.5">
                                 <Icon
-                                    className={`h-6 w-6 transition-colors ${
-                                        active ? 'text-white' : 'text-neutral-500 dark:text-white/60'
-                                    }`}
+                                    className={`h-6 w-6 transition-colors ${active ? 'text-white' : 'text-neutral-500 dark:text-white/60'
+                                        }`}
                                 />
                                 <span
-                                    className={`text-[10px] leading-tight font-medium text-center transition-colors ${
-                                        active ? 'text-white' : 'text-neutral-500 dark:text-white/50'
-                                    }`}
+                                    className={`text-[10px] leading-tight font-medium text-center transition-colors ${active ? 'text-white' : 'text-neutral-500 dark:text-white/50'
+                                        }`}
                                 >
                                     {item.title}
                                 </span>
