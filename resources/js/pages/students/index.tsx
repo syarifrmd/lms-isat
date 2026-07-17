@@ -1,462 +1,348 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
-import {
-    LayoutGrid,
-    Users2,
-    AlertCircle,
-    Bookmark,
-    ChevronRight,
-    ChevronDown,
-    Building2,
-    MapPinned,
-} from 'lucide-react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-interface CourseRef {
-    id: number;
-    title: string;
-    is_mandatory: boolean;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface DivisionBreakdown {
+    division: string;
+    total: number;
+    completed: number;
+    online: number;
 }
 
-interface PerCourseStat {
+interface MyTeamCourse {
     course_id: number;
-    course_title: string;
-    is_mandatory: boolean;
-    enrolled: number;
-    finish: number;
-    presentase: number;
+    title: string;
+    total_users: number;
+    total_completed: number;
+    by_division: DivisionBreakdown[];
 }
 
-interface GroupStat {
-    name: string;
-    total_selesai: number;
-    finish_total: number;
-    presentase_total: number;
-    per_course: PerCourseStat[];
+interface MyActivityCourse {
+    course_id: number;
+    title: string;
+    status: 'completed' | 'in_progress' | 'not_started';
+    progress_percentage: number;
 }
 
-interface MicroClusterRow extends GroupStat {}
-
-interface BranchRow extends GroupStat {
-    micro_clusters: MicroClusterRow[];
+interface QuizResult {
+    quiz_id: number;
+    quiz_title: string;
+    passing_score: number;
+    attempts_count: number;
+    is_passed: boolean;
+    highest_score: number | null;
+    last_attempt_at: string | null;
+    failed_score_count: number;
+    failed_time_count: number;
 }
 
-interface DivisionRow extends GroupStat {
-    branches: BranchRow[];
+interface ModuleProgress {
+    module_id: number;
+    module_title: string;
+    order_sequence: number;
+    has_video: boolean;
+    has_text: boolean;
+    has_document: boolean;
+    is_video_watched: boolean;
+    is_text_read: boolean;
+    is_document_read: boolean;
+    is_completed: boolean;
+    quizzes: QuizResult[];
 }
 
 interface Props {
-    summary: DivisionRow[];
-    summaryCourses: CourseRef[];
+    scope_label: string;
+    scope_value: string;
+    status_date: string;
+    division_count: number;
+    course_count: number;
+    my_team: { courses: MyTeamCourse[] };
+    my_activity: { courses: MyActivityCourse[] };
 }
 
-function PercentPill({ value }: { value: number }) {
-    const tone =
-        value >= 75
-            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900'
-            : value >= 40
-                ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900'
-                : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900';
+// ---------------------------------------------------------------------------
+// Small building blocks
+// ---------------------------------------------------------------------------
 
+function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
     return (
-        <span className={`inline-block min-w-[52px] text-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
-            {value}%
-        </span>
+        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
+            <button
+                type="button"
+                onClick={() => router.visit(`/students/${course.course_id}`)}
+                className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3 hover:brightness-95 transition"
+            >
+                <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
+                    <BookOpen className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{course.title}</p>
+                    <p className="text-[11px] text-gray-400">{course.total_completed} selesai</p>
+                </div>
+            </button>
+            <div className="px-4 py-3">
+                {course.by_division.length === 0 ? (
+                    <p className="text-[11px] text-gray-400 text-center py-2">Belum ada divisi dalam cakupan.</p>
+                ) : (
+                    <div className="flex flex-wrap gap-2">
+                        {course.by_division.map((d) => (
+                            <button
+                                type="button"
+                                key={d.division}
+                                onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
+                                className="text-left rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1.5 min-w-[74px] hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
+                            >
+                                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{d.division}</p>
+                                <div className="flex items-baseline gap-1 mt-0.5">
+                                    <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{d.completed}</span>
+                                    <span className="text-[9px] text-gray-400">selesai</span>
+                                </div>
+                                <p className="flex items-center gap-1 mt-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    {d.online} user active
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 
-export default function StudentsIndex({ summary, summaryCourses }: Props) {
-    const [openDivisions, setOpenDivisions] = useState<Set<string>>(new Set());
-    const [openBranches, setOpenBranches] = useState<Set<string>>(new Set());
-    const [openCourseDetail, setOpenCourseDetail] = useState<Set<string>>(new Set());
+function ListCardHeader({ icon, eyebrow, title }: { icon: React.ReactNode; eyebrow: string; title: string }) {
+    return (
+        <div className="rounded-t-2xl border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">{icon}</div>
+            <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-400 truncate">{eyebrow}</p>
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{title}</p>
+            </div>
+        </div>
+    );
+}
 
-    const toggleCourseDetail = (key: string) => {
-        setOpenCourseDetail((prev) => {
-            const next = new Set(prev);
-            next.has(key) ? next.delete(key) : next.add(key);
-            return next;
-        });
-    };
+// ---------------------------------------------------------------------------
+// Module detail (dipakai My Activity, panel kanan)
+// ---------------------------------------------------------------------------
 
-    const toggleDivision = (name: string) => {
-        setOpenDivisions((prev) => {
-            const next = new Set(prev);
-            next.has(name) ? next.delete(name) : next.add(name);
-            return next;
-        });
-    };
+function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
+    if (!modules || modules.length === 0) {
+        return <p className="text-sm text-gray-400 py-6 text-center">Belum ada modul untuk course ini.</p>;
+    }
 
-    const toggleBranch = (key: string) => {
-        setOpenBranches((prev) => {
-            const next = new Set(prev);
-            next.has(key) ? next.delete(key) : next.add(key);
-            return next;
-        });
-    };
+    return (
+        <div className="grid sm:grid-cols-2 gap-3">
+            {modules.map((m, idx) => {
+                const doneCount = [m.has_video ? m.is_video_watched : null, m.has_document ? m.is_document_read : null].filter((v) => v !== null).length;
+                const totalCount = [m.has_video, m.has_document].filter(Boolean).length;
+
+                return (
+                    <div
+                        key={m.module_id}
+                        className={`rounded-xl border p-3 ${
+                            m.is_completed
+                                ? 'border-emerald-100 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/10'
+                                : 'border-gray-100 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/20'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="h-5 w-5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-[10px] flex items-center justify-center font-semibold text-gray-500 shrink-0">
+                                    {idx + 1}
+                                </span>
+                                <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{m.module_title}</span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 shrink-0">{doneCount}/{totalCount}</span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+                            {m.has_video && (
+                                <span className={`flex items-center gap-1 ${m.is_video_watched ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                    <PlayCircle className="h-3.5 w-3.5" /> Video
+                                </span>
+                            )}
+                            {m.has_document && (
+                                <span className={`flex items-center gap-1 ${m.is_document_read ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                    <FileIcon className="h-3.5 w-3.5" /> Dokumen
+                                </span>
+                            )}
+                            {m.has_text && (
+                                <span className={`flex items-center gap-1 ${m.is_text_read ? 'text-emerald-500' : 'text-gray-400'}`}>
+                                    <FileText className="h-3.5 w-3.5" /> Teks
+                                </span>
+                            )}
+                        </div>
+
+                        {m.quizzes.map((q) => (
+                            <div
+                                key={q.quiz_id}
+                                className={`rounded-lg px-2.5 py-2 flex items-center justify-between gap-2 ${
+                                    q.is_passed ? 'bg-emerald-50 dark:bg-emerald-950/20' : q.attempts_count > 0 ? 'bg-red-50 dark:bg-red-950/20' : 'bg-gray-100 dark:bg-gray-700/40'
+                                }`}
+                            >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                    <Trophy className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                    <span className="text-[11px] text-gray-600 dark:text-gray-300 truncate">{q.quiz_title}</span>
+                                </div>
+                                <span className={`text-[10px] font-semibold shrink-0 ${q.is_passed ? 'text-emerald-600' : q.attempts_count > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                    {q.is_passed ? 'LULUS' : q.attempts_count > 0 ? `${q.highest_score ?? 0}/${q.passing_score} \u00b7 ${q.attempts_count}x` : 'BELUM DIKERJAKAN'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+export default function StudentsIndex({ my_team, scope_label, scope_value, status_date, division_count, course_count, my_activity }: Props) {
+    const [selectedCourseId, setSelectedCourseId] = useState<number | null>(my_activity.courses[0]?.course_id ?? null);
+    const [activityLoading, setActivityLoading] = useState(false);
+    const [activityModules, setActivityModules] = useState<ModuleProgress[]>([]);
 
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Summary', href: '/students' },
     ];
 
-    const grandTotalSelesai = summary.reduce((sum, d) => sum + d.total_selesai, 0);
-    const grandFinishTotal = summary.reduce((sum, d) => sum + d.finish_total, 0);
-    const grandPresentase = grandFinishTotal > 0 ? Math.round((grandTotalSelesai / grandFinishTotal) * 1000) / 10 : 0;
+    const selectCourse = async (courseId: number) => {
+        setSelectedCourseId(courseId);
+        setActivityLoading(true);
+        try {
+            const res = await fetch(`/students/my-activity/${courseId}`);
+            const data = await res.json();
+            setActivityModules(data.modules_progress ?? []);
+        } finally {
+            setActivityLoading(false);
+        }
+    };
 
-    const colCount = 4 + summaryCourses.length * 2;
+    useEffect(() => {
+        if (selectedCourseId) {
+            selectCourse(selectedCourseId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Summary" />
 
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
-
-                {/* Header Card */}
-                <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-600 dark:text-sky-300 flex items-center justify-center shrink-0">
-                            <LayoutGrid className="h-6 w-6" />
+                {/* Header */}
+                <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="h-11 w-11 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
+                            <LayoutGrid className="h-5 w-5" />
                         </div>
                         <div>
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Report</p>
-                            <p className="mt-0.5 text-2xl font-bold text-sky-600">Summary</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">
-                                {summary.length} division &bull; {summaryCourses.length} course dipantau
+                            <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">Summary</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {division_count} division &bull; {course_count} course dipantau
                             </p>
                         </div>
                     </div>
-                    <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm shrink-0">
-                        <div className="h-9 w-9 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center">
-                            <Users2 className="h-4 w-4" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase tracking-wide text-gray-400">Total Presentase</p>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
-                                {grandTotalSelesai} / {grandFinishTotal} selesai ({grandPresentase}%)
-                            </p>
-                        </div>
+                    <div className="text-right text-xs text-gray-400">
+                        <p>
+                            {scope_label}: <span className="font-semibold text-gray-600 dark:text-gray-300">{scope_value}</span>
+                        </p>
+                        <p>Status Data: {status_date}</p>
                     </div>
                 </div>
 
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-4 text-[11px] text-gray-400 dark:text-gray-500 px-1">
-                    <span className="flex items-center gap-1"><ChevronRight className="h-3 w-3" /> Klik nama Division / Branch untuk membuka rincian</span>
-                    <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> Branch</span>
-                    <span className="flex items-center gap-1"><MapPinned className="h-3 w-3" /> Micro Cluster</span>
+                {/* My Team: 1 card per course, breakdown user selesai per divisi */}
+                <div>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">My Team</p>
+                    {my_team.courses.length === 0 ? (
+                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-10 text-center text-sm text-gray-400">
+                            Belum ada course dengan journey yang bisa ditampilkan untuk tim Anda.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {my_team.courses.map((c) => (
+                                <MyTeamCourseCard key={c.course_id} course={c} />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {/* Table (desktop / tablet) */}
-                <div className="hidden md:block rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-sky-50/70 dark:bg-sky-950/40 border-b border-gray-100 dark:border-gray-700">
-                                    <th rowSpan={2} className="sticky left-0 z-10 bg-sky-50/70 dark:bg-sky-950/40 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 min-w-[240px]">
-                                        Division / Branch / Micro Cluster
-                                    </th>
-                                    <th rowSpan={2} className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-l border-gray-100 dark:border-gray-700">
-                                        Total Selesai
-                                    </th>
-                                    <th rowSpan={2} className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                        Total User
-                                    </th>
-                                    <th rowSpan={2} className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 border-r border-gray-100 dark:border-gray-700">
-                                        Total Presentase
-                                    </th>
-                                    {summaryCourses.map((course) => (
-                                        <th key={course.id} colSpan={2} className="px-3 py-2 text-center border-r border-gray-100 dark:border-gray-700 max-w-[220px]">
-                                            <div className="flex flex-col items-center gap-1">
-                                                <Link
-                                                    href={`/students/${course.id}`}
-                                                    className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 truncate max-w-[200px] hover:underline"
-                                                    title={`Lihat report ${course.title}`}
-                                                >
-                                                    {course.title}
-                                                </Link>
-                                                {course.is_mandatory ? (
-                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60">
-                                                        <AlertCircle className="h-2.5 w-2.5" /> Mandatory
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
-                                                        <Bookmark className="h-2.5 w-2.5" /> Non-Mandatory
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                                <tr className="bg-sky-50/40 dark:bg-sky-950/20 border-b border-gray-100 dark:border-gray-700">
-                                    {summaryCourses.map((course) => (
-                                        <>
-                                            <th key={`${course.id}-f`} className="px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                                                Selesai
-                                            </th>
-                                            <th key={`${course.id}-p`} className="px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-gray-400 border-r border-gray-100 dark:border-gray-700">
-                                                %
-                                            </th>
-                                        </>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
-                                {summary.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={colCount} className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
-                                            Belum ada data enrollment untuk direkap.
-                                        </td>
-                                    </tr>
+                {/* My Activity */}
+                <div>
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">My Activity</p>
+                    <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
+                        {/* Left: mandatory course list */}
+                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                            <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Course Saya" />
+                            <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
+                                {my_activity.courses.length === 0 ? (
+                                    <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada course mandatory.</p>
                                 ) : (
-                                    summary.map((division) => {
-                                        const divOpen = openDivisions.has(division.name);
+                                    my_activity.courses.map((c) => {
+                                        const active = c.course_id === selectedCourseId;
+                                        const statusText =
+                                            c.status === 'completed' ? 'Selesai' : c.status === 'in_progress' ? 'Sedang dikerjakan' : 'Belum dimulai';
                                         return (
-                                            <>
-                                                {/* DIVISION ROW */}
-                                                <tr
-                                                    key={`div-${division.name}`}
-                                                    onClick={() => toggleDivision(division.name)}
-                                                    className="cursor-pointer bg-sky-50/50 dark:bg-sky-950/20 hover:bg-sky-100/60 dark:hover:bg-sky-900/30 transition-colors"
-                                                >
-                                                    <td className="sticky left-0 z-10 bg-sky-50/50 dark:bg-sky-950/20 px-4 py-2.5 font-semibold text-gray-800 dark:text-gray-100">
-                                                        <div className="flex items-center gap-1.5">
-                                                            {divOpen ? <ChevronDown className="h-4 w-4 text-sky-500 shrink-0" /> : <ChevronRight className="h-4 w-4 text-sky-500 shrink-0" />}
-                                                            <span>{division.name}</span>
-                                                            <span className="ml-1 text-[10px] font-medium text-gray-400">({division.branches.length} branch)</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-center font-semibold text-gray-700 dark:text-gray-200 border-l border-gray-100 dark:border-gray-700">
-                                                        {division.total_selesai}
-                                                    </td>
-                                                    <td className="px-3 py-2.5 text-center text-gray-500 dark:text-gray-400">{division.finish_total}</td>
-                                                    <td className="px-3 py-2.5 text-center border-r border-gray-100 dark:border-gray-700">
-                                                        <PercentPill value={division.presentase_total} />
-                                                    </td>
-                                                    {division.per_course.map((pc) => (
-                                                        <>
-                                                            <td key={`${pc.course_id}-f`} className="px-2 py-2.5 text-center text-gray-600 dark:text-gray-300">
-                                                                {pc.finish}
-                                                            </td>
-                                                            <td key={`${pc.course_id}-p`} className="px-2 py-2.5 text-center text-[11px] text-gray-400 border-r border-gray-100 dark:border-gray-700">
-                                                                {pc.presentase}%
-                                                            </td>
-                                                        </>
-                                                    ))}
-                                                </tr>
-
-                                                {/* BRANCH ROWS */}
-                                                {divOpen &&
-                                                    division.branches.map((branch) => {
-                                                        const branchKey = `${division.name}|${branch.name}`;
-                                                        const branchOpen = openBranches.has(branchKey);
-                                                        return (
-                                                            <>
-                                                                <tr
-                                                                    key={`branch-${branchKey}`}
-                                                                    onClick={() => toggleBranch(branchKey)}
-                                                                    className="cursor-pointer bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
-                                                                >
-                                                                    <td className="sticky left-0 z-10 bg-white dark:bg-gray-800 px-4 py-2 pl-9 text-gray-700 dark:text-gray-200">
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            {branchOpen ? <ChevronDown className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
-                                                                            <Building2 className="h-3.5 w-3.5 text-gray-300 shrink-0" />
-                                                                            <span className="font-medium">{branch.name}</span>
-                                                                            <span className="ml-1 text-[10px] text-gray-400">({branch.micro_clusters.length} micro cluster)</span>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-3 py-2 text-center font-medium text-gray-600 dark:text-gray-300 border-l border-gray-100 dark:border-gray-700">
-                                                                        {branch.total_selesai}
-                                                                    </td>
-                                                                    <td className="px-3 py-2 text-center text-gray-400">{branch.finish_total}</td>
-                                                                    <td className="px-3 py-2 text-center border-r border-gray-100 dark:border-gray-700">
-                                                                        <PercentPill value={branch.presentase_total} />
-                                                                    </td>
-                                                                    {branch.per_course.map((pc) => (
-                                                                        <>
-                                                                            <td key={`${pc.course_id}-f`} className="px-2 py-2 text-center text-gray-500 dark:text-gray-400">
-                                                                                {pc.finish}
-                                                                            </td>
-                                                                            <td key={`${pc.course_id}-p`} className="px-2 py-2 text-center text-[11px] text-gray-400 border-r border-gray-100 dark:border-gray-700">
-                                                                                {pc.presentase}%
-                                                                            </td>
-                                                                        </>
-                                                                    ))}
-                                                                </tr>
-
-                                                                {/* MICRO CLUSTER ROWS */}
-                                                                {branchOpen &&
-                                                                    branch.micro_clusters.map((mc) => (
-                                                                        <tr
-                                                                            key={`mc-${branchKey}|${mc.name}`}
-                                                                            className="bg-gray-50/60 dark:bg-gray-900/30"
-                                                                        >
-                                                                            <td className="sticky left-0 z-10 bg-gray-50/60 dark:bg-gray-900/30 px-4 py-2 pl-16 text-gray-600 dark:text-gray-300">
-                                                                                <div className="flex items-center gap-1.5">
-                                                                                    <MapPinned className="h-3 w-3 text-gray-300 shrink-0" />
-                                                                                    <span>{mc.name}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="px-3 py-2 text-center text-gray-500 dark:text-gray-400 border-l border-gray-100 dark:border-gray-700">
-                                                                                {mc.total_selesai}
-                                                                            </td>
-                                                                            <td className="px-3 py-2 text-center text-gray-400">{mc.finish_total}</td>
-                                                                            <td className="px-3 py-2 text-center border-r border-gray-100 dark:border-gray-700">
-                                                                                <PercentPill value={mc.presentase_total} />
-                                                                            </td>
-                                                                            {mc.per_course.map((pc) => (
-                                                                                <>
-                                                                                    <td key={`${pc.course_id}-f`} className="px-2 py-2 text-center text-gray-500 dark:text-gray-400">
-                                                                                        {pc.finish}
-                                                                                    </td>
-                                                                                    <td key={`${pc.course_id}-p`} className="px-2 py-2 text-center text-[11px] text-gray-400 border-r border-gray-100 dark:border-gray-700">
-                                                                                        {pc.presentase}%
-                                                                                    </td>
-                                                                                </>
-                                                                            ))}
-                                                                        </tr>
-                                                                    ))}
-                                                            </>
-                                                        );
-                                                    })}
-                                            </>
+                                            <button
+                                                key={c.course_id}
+                                                type="button"
+                                                onClick={() => selectCourse(c.course_id)}
+                                                className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
+                                                    active ? 'bg-sky-50 dark:bg-sky-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/20'
+                                                }`}
+                                            >
+                                                <div className="min-w-0">
+                                                    <p className={`text-sm font-semibold truncate ${active ? 'text-sky-700 dark:text-sky-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                                                        {c.title}
+                                                    </p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">{statusText}</p>
+                                                </div>
+                                                <div className="shrink-0">
+                                                    {c.status === 'completed' ? (
+                                                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                                    ) : c.status === 'in_progress' ? (
+                                                        <span className="text-xs font-bold text-amber-500">{c.progress_percentage}%</span>
+                                                    ) : (
+                                                        <span className="text-sm font-bold text-gray-300">&mdash;</span>
+                                                    )}
+                                                </div>
+                                            </button>
                                         );
                                     })
                                 )}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
+
+                        {/* Right: module detail of selected course */}
+                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                            <ListCardHeader
+                                icon={<LayoutGrid className="h-4 w-4" />}
+                                eyebrow="Detail Progress"
+                                title={my_activity.courses.find((c) => c.course_id === selectedCourseId)?.title ?? '-'}
+                            />
+                            <div className="p-4">
+                                {activityLoading ? (
+                                    <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" /> Memuat modul...
+                                    </div>
+                                ) : (
+                                    <ModulesDetail modules={activityModules} />
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                {/* Card list (mobile) */}
-                <div className="md:hidden flex flex-col gap-3">
-                    {summary.length === 0 ? (
-                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-10 text-center text-sm text-gray-400 dark:text-gray-500 shadow-sm">
-                            Belum ada data enrollment untuk direkap.
-                        </div>
-                    ) : (
-                        summary.map((division) => {
-                            const divOpen = openDivisions.has(division.name);
-                            return (
-                                <div
-                                    key={`m-div-${division.name}`}
-                                    className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-gray-800 shadow-sm overflow-hidden"
-                                >
-                                    {/* Division header */}
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleDivision(division.name)}
-                                        className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-sky-50/60 dark:bg-sky-950/20 active:bg-sky-100/60 dark:active:bg-sky-900/30 transition-colors text-left"
-                                    >
-                                        <div className="flex items-center gap-1.5 min-w-0">
-                                            {divOpen ? <ChevronDown className="h-4 w-4 text-sky-500 shrink-0" /> : <ChevronRight className="h-4 w-4 text-sky-500 shrink-0" />}
-                                            <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{division.name}</span>
-                                        </div>
-                                        <PercentPill value={division.presentase_total} />
-                                    </button>
-                                    <div className="px-4 py-2 flex items-center justify-between text-[11px] text-gray-400 border-b border-gray-50 dark:border-gray-700">
-                                        <span>{division.branches.length} branch</span>
-                                        <span>{division.total_selesai} / {division.finish_total} selesai</span>
-                                    </div>
-
-                                    {/* Branches */}
-                                    {divOpen && (
-                                        <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
-                                            {division.branches.map((branch) => {
-                                                const branchKey = `${division.name}|${branch.name}`;
-                                                const branchOpen = openBranches.has(branchKey);
-                                                return (
-                                                    <div key={`m-branch-${branchKey}`}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleBranch(branchKey)}
-                                                            className="w-full flex items-center justify-between gap-2 pl-8 pr-4 py-2.5 active:bg-gray-50 dark:active:bg-gray-700/40 text-left"
-                                                        >
-                                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                                {branchOpen ? <ChevronDown className="h-3.5 w-3.5 text-sky-400 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-sky-400 shrink-0" />}
-                                                                <Building2 className="h-3.5 w-3.5 text-gray-300 shrink-0" />
-                                                                <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{branch.name}</span>
-                                                            </div>
-                                                            <PercentPill value={branch.presentase_total} />
-                                                        </button>
-                                                        <div className="pl-8 pr-4 pb-2 flex items-center justify-between text-[10px] text-gray-400">
-                                                            <span>{branch.micro_clusters.length} micro cluster</span>
-                                                            <span>{branch.total_selesai} / {branch.finish_total} selesai</span>
-                                                        </div>
-
-                                                        {/* Micro clusters */}
-                                                        {branchOpen && (
-                                                            <div className="flex flex-col divide-y divide-gray-50 dark:divide-gray-700">
-                                                                {branch.micro_clusters.map((mc) => {
-                                                                    const mcKey = `${branchKey}|${mc.name}`;
-                                                                    const mcCourseKey = `mc:${mcKey}`;
-                                                                    const mcCourseOpen = openCourseDetail.has(mcCourseKey);
-                                                                    return (
-                                                                        <div key={`m-mc-${mcKey}`} className="bg-gray-50/60 dark:bg-gray-900/30">
-                                                                            <div className="flex items-center justify-between gap-2 pl-14 pr-4 py-2">
-                                                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                                                    <MapPinned className="h-3 w-3 text-gray-300 shrink-0" />
-                                                                                    <span className="text-xs text-gray-600 dark:text-gray-300 truncate">{mc.name}</span>
-                                                                                </div>
-                                                                                <PercentPill value={mc.presentase_total} />
-                                                                            </div>
-                                                                            <div className="pl-14 pr-4 pb-1 flex items-center justify-between text-[10px] text-gray-400">
-                                                                                <span>{mc.total_selesai} / {mc.finish_total} selesai</span>
-                                                                            </div>
-                                                                            <button
-                                                                                type="button"
-                                                                                onClick={() => toggleCourseDetail(mcCourseKey)}
-                                                                                className="w-full flex items-center justify-between gap-1 pl-14 pr-4 py-2 text-[11px] font-medium text-sky-600 dark:text-sky-400 active:bg-sky-50 dark:active:bg-sky-900/20"
-                                                                            >
-                                                                                <span>Detail course</span>
-                                                                                {mcCourseOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                                                                            </button>
-                                                                            {mcCourseOpen && (
-                                                                                <div className="pl-14 pr-4 pb-2.5 flex flex-col gap-1">
-                                                                                    {mc.per_course.map((pc) => (
-                                                                                        <Link
-                                                                                            key={pc.course_id}
-                                                                                            href={`/students/${pc.course_id}`}
-                                                                                            onClick={(e) => e.stopPropagation()}
-                                                                                            className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 active:bg-sky-50 dark:active:bg-sky-900/20 transition-colors"
-                                                                                            title={`Lihat report ${pc.course_title}`}
-                                                                                        >
-                                                                                            <div className="min-w-0 flex flex-col gap-1">
-                                                                                                <span className="truncate text-[11px] text-sky-600 dark:text-sky-400">{pc.course_title}</span>
-                                                                                                {pc.is_mandatory ? (
-                                                                                                    <span className="inline-flex items-center gap-0.5 w-fit px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/60">
-                                                                                                        <AlertCircle className="h-2.5 w-2.5" /> Mandatory
-                                                                                                    </span>
-                                                                                                ) : (
-                                                                                                    <span className="inline-flex items-center gap-0.5 w-fit px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wide bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
-                                                                                                        <Bookmark className="h-2.5 w-2.5" /> Non-Mandatory
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                            <span className="shrink-0 flex items-center gap-1 text-[10px] text-gray-400">
-                                                                                                {pc.finish} &bull; {pc.presentase}%
-                                                                                                <ChevronRight className="h-3 w-3 text-gray-300" />
-                                                                                            </span>
-                                                                                        </Link>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-                {/* <p className="text-[11px] text-gray-400 dark:text-gray-500 px-1">
-                    Total Presentase = Total Selesai &divide; Total User &times; 100%. Data disaring otomatis sesuai hak akses akun Anda (division / branch / micro cluster).
-                </p> */}
             </div>
         </AppLayout>
     );

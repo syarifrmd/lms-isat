@@ -42,6 +42,7 @@ export function AppSidebar() {
     const { auth } = props;
     const role = auth.user.role?.toLowerCase();
     const user = auth.user;
+    const division = (user.division || '').toString().trim().toUpperCase();
 
     // Helper to check active route
     const isActive = (path: string) => {
@@ -67,14 +68,16 @@ export function AppSidebar() {
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
-                    { title: 'Summary', href: '/students', icon: Users },
+                    // Divisi DSE tidak boleh mengakses Summary (My Progress).
+                    ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
                 ];
             case 'user':
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                     { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
-                    { title: 'My Progress', href: '/students', icon: Users },
+                    // Divisi DSE tidak boleh mengakses My Progress.
+                    ...(division !== 'DSE' ? [{ title: 'My Progress', href: '/students', icon: Users }] : []),
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:
