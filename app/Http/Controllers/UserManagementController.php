@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -250,86 +251,137 @@ class UserManagementController extends Controller
             'rows.*.status'    => 'nullable|string',
         ]);
 
+        // Bulk import can legitimately take a while for large batches (thousands of rows).
+        // The default PHP/Laravel execution time limit (often 30-60s) is what was killing
+        // the previous request halfway through. Give this endpoint more room to work.
+        // (For very large files the frontend also now splits the upload into smaller
+        // batches, so this is a safety net rather than the primary fix.)
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(300);
+        }
+
         $rows    = $request->input('rows');
         $success = 0;
         $failed  = 0;
         $skipped = 0;
         $errors  = [];
 
+        // Step 1: normalize rows and drop "off" status rows up front.
+        $candidates = [];
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 1;
-            $nik       = !empty($row['nik']) ? trim($row['nik']) : 'USR-' . strtoupper(\Illuminate\Support\Str::random(8));
-            $status = strtolower(trim($row['status'] ?? ''));
+            $status    = strtolower(trim($row['status'] ?? ''));
+
             if ($status === 'off') {
                 $skipped++;
                 continue;
             }
 
-            // Skip duplicate NIK in DB
-            if (User::where('id', $nik)->exists()) {
-                $failed++;
-                $errors[] = [
-                    'row'     => $rowNumber,
-                    'nik'     => $nik,
-                    'message' => 'NIK sudah terdaftar di sistem.',
-                ];
-                continue;
-            }
-
-            // Validate username uniqueness (if provided)
+            $nik      = !empty($row['nik']) ? trim($row['nik']) : 'USR-' . strtoupper(\Illuminate\Support\Str::random(8));
             $username = !empty($row['username']) ? trim($row['username']) : $nik;
-            if (User::where('username', $username)->exists()) {
+            $email    = !empty($row['email']) ? trim($row['email']) : null;
+
+            $candidates[] = [
+                'row_number' => $rowNumber,
+                'nik'        => $nik,
+                'username'   => $username,
+                'email'      => $email,
+                'raw'        => $row,
+            ];
+        }
+
+        if (empty($candidates)) {
+            return response()->json([
+                'success' => 0,
+                'skipped' => $skipped,
+                'failed'  => 0,
+                'errors'  => [],
+            ]);
+        }
+
+        // Step 2: instead of running 3 SELECT queries PER ROW (which is what made
+        // ~3000 rows turn into 9000-12000+ queries and blow past the time limit),
+        // fetch every NIK/username/email that already exists in ONE query each,
+        // scoped only to the values present in this batch.
+        $niks      = array_column($candidates, 'nik');
+        $usernames = array_column($candidates, 'username');
+        $emails    = array_values(array_filter(array_column($candidates, 'email')));
+
+        $existingNiks      = User::whereIn('id', $niks)->pluck('id')->flip();
+        $existingUsernames = User::whereIn('username', $usernames)->pluck('username')->flip();
+        $existingEmails    = $emails ? User::whereIn('email', $emails)->pluck('email')->flip() : collect();
+
+        // Step 3: build the rows to insert, also guarding against duplicate
+        // NIK/username/email appearing more than once inside the same file.
+        $seenNiks      = [];
+        $seenUsernames = [];
+        $seenEmails    = [];
+        $insertRows    = [];
+        $now           = now();
+
+        foreach ($candidates as $c) {
+            $rowNumber = $c['row_number'];
+            $nik       = $c['nik'];
+            $username  = $c['username'];
+            $email     = $c['email'];
+            $row       = $c['raw'];
+
+            if (isset($existingNiks[$nik]) || isset($seenNiks[$nik])) {
                 $failed++;
-                $errors[] = [
-                    'row'     => $rowNumber,
-                    'nik'     => $nik,
-                    'message' => 'Username sudah terdaftar di sistem.',
-                ];
+                $errors[] = ['row' => $rowNumber, 'nik' => $nik, 'message' => 'NIK sudah terdaftar di sistem.'];
                 continue;
             }
 
-            // Validate email uniqueness (if provided)
-            $email = !empty($row['email']) ? trim($row['email']) : null;
-            if ($email && User::where('email', $email)->exists()) {
+            if (isset($existingUsernames[$username]) || isset($seenUsernames[$username])) {
                 $failed++;
-                $errors[] = [
-                    'row'     => $rowNumber,
-                    'nik'     => $nik,
-                    'message' => 'Email sudah terdaftar di sistem.',
-                ];
+                $errors[] = ['row' => $rowNumber, 'nik' => $nik, 'message' => 'Username sudah terdaftar di sistem.'];
                 continue;
             }
 
-            try {
+            if ($email && (isset($existingEmails[$email]) || isset($seenEmails[$email]))) {
+                $failed++;
+                $errors[] = ['row' => $rowNumber, 'nik' => $nik, 'message' => 'Email sudah terdaftar di sistem.'];
+                continue;
+            }
+
+            $seenNiks[$nik]         = true;
+            $seenUsernames[$username] = true;
+            if ($email) {
+                $seenEmails[$email] = true;
+            }
 
             $plainPassword = !empty($row['password']) ? trim($row['password']) : $nik;
 
-                User::create([
-                    'id'           => $nik,
-                    'name'         => !empty($row['name']) ? trim($row['name']) : null,
-                    'username'     => $username,
-                    'email'        => $email,
-                    'password'     => \Illuminate\Support\Facades\Hash::make($plainPassword),
-                    'role'         => !empty($row['role']) ? $row['role'] : null,
-                    'division'     => !empty($row['division']) ? trim($row['division']) : null,
-                    'brand'         => !empty($row['brand']) ? trim($row['brand']) : null,
-                    'micro_cluster' => !empty($row['micro_cluster']) ? trim($row['micro_cluster']) : null,
-                    'branch'        => !empty($row['branch']) ? trim($row['branch']) : null,
-                    'area'          => !empty($row['area']) ? trim($row['area']) : null,
-                    'is_registered'=> true,
-                    'region'       => !empty($row['region']) ? trim($row['region']) : null,
-                    'circle'       => !empty($row['circle']) ? trim($row['circle']) : null,
-                    'email_verified_at' => now(),
-                ]);
-                $success++;
-            } catch (\Exception $e) {
-                $failed++;
-                $errors[] = [
-                    'row'     => $rowNumber,
-                    'nik'     => $nik,
-                    'message' => 'Gagal menyimpan: ' . $e->getMessage(),
-                ];
-            }
+            $insertRows[] = [
+                'id'                => $nik,
+                'name'              => !empty($row['name']) ? trim($row['name']) : null,
+                'username'          => $username,
+                'email'             => $email,
+                'password'          => Hash::make($plainPassword),
+                'role'              => !empty($row['role']) ? $row['role'] : null,
+                'division'          => !empty($row['division']) ? trim($row['division']) : null,
+                'brand'             => !empty($row['brand']) ? trim($row['brand']) : null,
+                'micro_cluster'     => !empty($row['micro_cluster']) ? trim($row['micro_cluster']) : null,
+                'branch'            => !empty($row['branch']) ? trim($row['branch']) : null,
+                'area'              => !empty($row['area']) ? trim($row['area']) : null,
+                'is_registered'     => true,
+                'region'            => !empty($row['region']) ? trim($row['region']) : null,
+                'circle'            => !empty($row['circle']) ? trim($row['circle']) : null,
+                'email_verified_at' => $now,
+                'created_at'        => $now,
+                'updated_at'        => $now,
+            ];
+            $success++;
+        }
+
+        // Step 4: insert in chunks of 500 inside a transaction. A single bulk
+        // INSERT per chunk is dramatically faster than one INSERT per row.
+        if (!empty($insertRows)) {
+            DB::transaction(function () use ($insertRows) {
+                foreach (array_chunk($insertRows, 500) as $chunk) {
+                    DB::table('users')->insert($chunk);
+                }
+            });
         }
 
         return response()->json([

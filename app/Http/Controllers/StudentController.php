@@ -46,12 +46,39 @@ class StudentController extends Controller
         return Inertia::render('students/index', [
             'scope_label'    => $scopeLabel,
             'scope_value'    => $scopeValue,
-            'status_date'    => now()->translatedFormat('d F Y'),
+            // Dipaksa pakai timezone Asia/Jakarta (WIB) secara eksplisit, supaya tanggal yang
+            // ditampilkan benar walau timezone default server/config app.php belum di-set ke
+            // Asia/Jakarta (kalau masih UTC, jam pagi WIB bisa kebaca sebagai "hari sebelumnya").
+            'status_date'    => now()->timezone('Asia/Jakarta')->translatedFormat('d F Y'),
             'division_count' => count($visibleDivisions),
             'course_count'   => count($myTeam['courses']),
             'my_team'        => $myTeam,
             'my_activity'    => $myActivity,
         ]);
+    }
+
+    /**
+     * JSON ringan: jumlah "user active" per divisi (sesuai scope viewer), untuk di-poll
+     * berkala dari frontend supaya status online terasa realtime tanpa perlu reload/refetch
+     * seluruh data My Team yang lebih berat.
+     */
+    public function onlineCounts(Request $request)
+    {
+        $user = Auth::user();
+        $this->denyIfRestrictedDivision($user);
+
+        $visibleDivisions = $user->role === 'admin'
+            ? ['HOC', 'HOR', 'HOS', 'BSM', 'CSE', 'DSE']
+            : $this->visibleDivisionsFor($user->division ?? '');
+
+        $ownDivision = strtoupper(trim($user->division ?? ''));
+        $divisionOrder = collect($visibleDivisions)->unique()->reject(fn($div) => $div === $ownDivision)->values();
+
+        if ($divisionOrder->isEmpty()) {
+            return response()->json([]);
+        }
+
+        return response()->json($this->onlineCountByDivision($user, $divisionOrder));
     }
 
     /**
@@ -340,16 +367,25 @@ class StudentController extends Controller
             return ['courses' => []];
         }
 
-        // Course yang ditargetkan ke salah satu divisi yang bisa dilihat viewer, dan punya journey
-        $courseIds = DB::table('course_division')
+        // Course yang ditargetkan ke salah satu divisi yang bisa dilihat viewer, dan punya journey.
+        // Diurutkan sesuai kolom `position` di course_division (bukan alfabetis) — kalau satu course
+        // ditarget ke beberapa divisi dengan position berbeda, dipakai posisi PALING KECIL di antara
+        // divisi yang visible bagi viewer.
+        $courseDivisionRows = DB::table('course_division')
             ->whereIn('target_division', $visibleDivisions)
-            ->pluck('course_id')
-            ->unique();
+            ->get(['course_id', 'position']);
+
+        $positionByCourseId = $courseDivisionRows
+            ->groupBy('course_id')
+            ->map(fn($rows) => $rows->min('position'));
+
+        $courseIds = $positionByCourseId->keys();
 
         $courses = Course::whereNotNull('journey_id')
             ->whereIn('id', $courseIds)
-            ->orderBy('title')
-            ->get();
+            ->get()
+            ->sortBy(fn($course) => $positionByCourseId->get($course->id) ?? PHP_INT_MAX)
+            ->values();
 
         if ($courses->isEmpty()) {
             return ['courses' => []];
@@ -378,17 +414,11 @@ class StudentController extends Controller
         // UpdateLastSeen menaruh flag "online-user-{id}" ke cache dengan TTL 5 menit di
         // setiap request user yang login. Tidak butuh migration/kolom tambahan, dan tidak
         // bergantung SESSION_DRIVER (yang seringkali bukan 'database' sehingga tabel
-        // `sessions` tidak pernah terisi).
+        // `sessions` tidak pernah terisi). Cache-nya juga langsung dihapus saat user logout
+        // (lihat ClearOnlineStatusOnLogout listener), jadi tidak nyangkut aktif meski sudah keluar.
         // PENTING: dihitung dari SELURUH populasi peer per divisi (bukan hanya yang enrolled
         // di course tertentu), supaya user yang aktif tapi belum enroll course itu tetap kehitung.
-        $onlineCountByDivision = $divisionOrder->mapWithKeys(function ($div) use ($peerUsers) {
-            $count = $peerUsers
-                ->filter(fn($u) => strtoupper(trim($u->division ?? '')) === $div)
-                ->filter(fn($u) => Cache::has('online-user-' . $u->id))
-                ->count();
-
-            return [$div => $count];
-        });
+        $onlineCountByDivision = $this->onlineCountByDivision($user, $divisionOrder);
 
         $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision) {
             $courseEnrollments = $allEnrollments->where('course_id', $course->id);
@@ -416,6 +446,28 @@ class StudentController extends Controller
         })->values();
 
         return ['courses' => $courseCards];
+    }
+
+    /**
+     * Hitung jumlah "user active" per divisi, dari populasi peer user (geo+brand scope sesuai
+     * viewer), berdasarkan flag Cache 'online-user-{id}' yang ditaruh middleware UpdateLastSeen.
+     * Dipakai bersama oleh buildMyTeam() dan endpoint polling onlineCounts().
+     */
+    private function onlineCountByDivision($user, $divisionOrder)
+    {
+        $peerUsersQuery = User::query();
+        $this->applyPeerScope($peerUsersQuery, $user);
+        $peerUsersQuery->whereIn(DB::raw('UPPER(TRIM(division))'), $divisionOrder->all());
+        $peerUsers = $peerUsersQuery->get(['id', 'division']);
+
+        return $divisionOrder->mapWithKeys(function ($div) use ($peerUsers) {
+            $count = $peerUsers
+                ->filter(fn($u) => strtoupper(trim($u->division ?? '')) === $div)
+                ->filter(fn($u) => Cache::has('online-user-' . $u->id))
+                ->count();
+
+            return [$div => $count];
+        });
     }
 
     /**
