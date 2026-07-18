@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { User, BreadcrumbItem, SharedData } from '@/types';
@@ -80,12 +80,20 @@ interface UsersPageProps extends SharedData {
     };
     regions: string[];
     divisions: string[];
+    brands: string[];
+    micro_clusters: string[];
+    branches: string[];
+    areas: string[];
     filters: {
         search?: string;
         role?: string;
         status?: string;
         region?: string;
         division?: string;
+        brand?: string;
+        micro_cluster?: string;
+        branch?: string;
+        area?: string;
         sort?: string;
         direction?: string;
     };
@@ -97,12 +105,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function UsersIndex() {
-    const { users, regions, divisions, filters } = usePage<UsersPageProps>().props;
+    const { users, regions, divisions, brands, micro_clusters, branches, areas, filters } = usePage<UsersPageProps>().props;
     const [search, setSearch] = useState(filters.search || '');
     const [selectedRole, setSelectedRole] = useState(filters.role || 'all');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
     const [selectedRegion, setSelectedRegion] = useState(filters.region || 'all');
     const [selectedDivision, setSelectedDivision] = useState(filters.division || 'all');
+    const [selectedBrand, setSelectedBrand] = useState(filters.brand || 'all');
+    const [selectedMicroCluster, setSelectedMicroCluster] = useState(filters.micro_cluster || 'all');
+    const [selectedBranch, setSelectedBranch] = useState(filters.branch || 'all');
+    const [selectedArea, setSelectedArea] = useState(filters.area || 'all');
     
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -117,13 +129,17 @@ export default function UsersIndex() {
         applyFilters();
     };
 
-    const applyFilters = () => {
+    const applyFilters = (overrides?: { search?: string }) => {
         router.get('/admin/users', {
-            search: search || undefined,
+            search: (overrides?.search ?? search) || undefined,
             role: selectedRole !== 'all' ? selectedRole : undefined,
             status: selectedStatus !== 'all' ? selectedStatus : undefined,
             region: selectedRegion !== 'all' ? selectedRegion : undefined,
             division: selectedDivision !== 'all' ? selectedDivision : undefined,
+            brand: selectedBrand !== 'all' ? selectedBrand : undefined,
+            micro_cluster: selectedMicroCluster !== 'all' ? selectedMicroCluster : undefined,
+            branch: selectedBranch !== 'all' ? selectedBranch : undefined,
+            area: selectedArea !== 'all' ? selectedArea : undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -136,8 +152,28 @@ export default function UsersIndex() {
         setSelectedStatus('all');
         setSelectedRegion('all');
         setSelectedDivision('all');
+        setSelectedBrand('all');
+        setSelectedMicroCluster('all');
+        setSelectedBranch('all');
+        setSelectedArea('all');
         router.get('/admin/users', {}, { preserveState: true });
     };
+
+    // Auto-search while typing, without needing to press "Cari". Debounced so
+    // we don't fire a request on every keystroke — it waits until the user
+    // pauses typing for a moment.
+    const isFirstRender = useRef(true);
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const timeout = setTimeout(() => {
+            applyFilters({ search });
+        }, 400);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [search]);
 
     const handleEdit = (user: User) => {
         setSelectedUser(user);
@@ -534,14 +570,14 @@ export default function UsersIndex() {
             )}
 
             <Dialog open={isFilterModalOpen} onOpenChange={setIsFilterModalOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>Filter User</DialogTitle>
                         <DialogDescription>
                             Pilih kriteria untuk menyaring daftar user.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-3">
+                    <div className="space-y-3 overflow-y-auto pr-1 -mr-1">
                         <div>
                             <Label className="mb-2 block text-sm">Role</Label>
                             <Select value={selectedRole} onValueChange={setSelectedRole}>
@@ -598,6 +634,74 @@ export default function UsersIndex() {
                                     {divisions?.map((division) => (
                                         <SelectItem key={division} value={division}>
                                             {division}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <Label className="mb-2 block text-sm">Brand</Label>
+                            <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Brand</SelectItem>
+                                    {brands?.map((brand) => (
+                                        <SelectItem key={brand} value={brand}>
+                                            {brand}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <Label className="mb-2 block text-sm">Micro Cluster</Label>
+                            <Select value={selectedMicroCluster} onValueChange={setSelectedMicroCluster}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Micro Cluster" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Micro Cluster</SelectItem>
+                                    {micro_clusters?.map((mc) => (
+                                        <SelectItem key={mc} value={mc}>
+                                            {mc}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <Label className="mb-2 block text-sm">Branch</Label>
+                            <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Branch" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Branch</SelectItem>
+                                    {branches?.map((branch) => (
+                                        <SelectItem key={branch} value={branch}>
+                                            {branch}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
+                            <Label className="mb-2 block text-sm">Area</Label>
+                            <Select value={selectedArea} onValueChange={setSelectedArea}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Area" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Area</SelectItem>
+                                    {areas?.map((area) => (
+                                        <SelectItem key={area} value={area}>
+                                            {area}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

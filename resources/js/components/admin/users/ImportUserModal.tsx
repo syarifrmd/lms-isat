@@ -123,6 +123,13 @@ const SYNONYMS: Record<string, string[]> = {
 
 const NONE = '__none__';
 
+// Sending 3000-4000 rows in a single request is what was causing the server
+// to error out and only save part of the data (the request would time out or
+// hit body-size limits partway through, after some rows were already
+// committed). Splitting into smaller batches keeps each request small and
+// fast, and failures in one batch don't lose progress from the others.
+const IMPORT_CHUNK_SIZE = 250;
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function autoMatch(headers: string[]): Mapping {
@@ -232,6 +239,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const [parseError, setParseError] = useState<string | null>(null);
     const [isParsing, setIsParsing]   = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [importProgress, setImportProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
     const [result, setResult]         = useState<ImportResult | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -244,6 +252,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
             setMapping({ nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE });
             setParseError(null);
             setResult(null);
+            setImportProgress({ done: 0, total: 0 });
         }
         onOpenChange(val);
     };
@@ -298,39 +307,78 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
     const handleImport = async () => {
         setIsImporting(true);
         setParseError(null);
+
+        const payloadData = mappedRows.filter(r => r.status !== 'off');
+
+        // Split into batches of IMPORT_CHUNK_SIZE rows and send them one at a
+        // time. This keeps each request well within server timeouts/body-size
+        // limits, and lets us show real progress for big files instead of one
+        // long silent spinner.
+        const chunks: typeof payloadData[] = [];
+        for (let i = 0; i < payloadData.length; i += IMPORT_CHUNK_SIZE) {
+            chunks.push(payloadData.slice(i, i + IMPORT_CHUNK_SIZE));
+        }
+
+        setImportProgress({ done: 0, total: payloadData.length });
+
+        const aggregate: ImportResult = { success: 0, skipped: 0, failed: 0, errors: [] };
+        let rowOffset = 0;
+
         try {
-            
-            const payloadData = mappedRows.filter(r => r.status !== 'off');
+            for (const chunk of chunks) {
+                const { data } = await axios.post<ImportResult>('/admin/users/import', { rows: chunk });
 
-            
-            const payload = {
-                rows: payloadData
-            };
+                aggregate.success += data.success;
+                aggregate.skipped += data.skipped;
+                aggregate.failed += data.failed;
+                // Row numbers from each batch are relative to that batch, so
+                // offset them back to their position in the original file.
+                aggregate.errors.push(
+                    ...data.errors.map(e => ({ ...e, row: e.row + rowOffset }))
+                );
 
-            const { data } = await axios.post<ImportResult>('/admin/users/import', payload);
-            
-            setResult(data);
+                rowOffset += chunk.length;
+                setImportProgress(prev => ({ ...prev, done: Math.min(prev.done + chunk.length, payloadData.length) }));
+            }
+
+            setResult(aggregate);
             setStep('result');
             if (onSuccess) onSuccess();
         } catch (err: unknown) {
+            // A batch failed partway through. Show whatever succeeded so far
+            // instead of throwing it away, along with an error explaining
+            // the interruption.
+            const remaining = payloadData.length - rowOffset;
+            let message: string;
+
             if (axios.isAxiosError(err) && err.response) {
                 if (err.response.status === 422) {
                     const validationErrors = err.response.data.errors;
-                    
                     if (validationErrors && typeof validationErrors === 'object') {
-                       
                         const errorMessages = Object.entries(validationErrors)
                             .map(([key, messages]) => `${key}: ${(messages as string[]).join(', ')}`)
                             .join(' | ');
-                        setParseError(`Gagal Validasi Backend: ${errorMessages}`);
+                        message = `Gagal Validasi Backend: ${errorMessages}`;
                     } else {
-                        setParseError(err.response.data.message || 'Data yang dikirim tidak lolos validasi sistem.');
+                        message = err.response.data.message || 'Data yang dikirim tidak lolos validasi sistem.';
                     }
                 } else {
-                    setParseError(err.response.data.message || 'Terjadi kesalahan internal server.');
+                    message = err.response.data.message || 'Terjadi kesalahan internal server.';
                 }
             } else {
-                setParseError('Terjadi kesalahan jaringan atau koneksi terputus.');
+                message = 'Terjadi kesalahan jaringan atau koneksi terputus.';
+            }
+
+            if (aggregate.success > 0 || aggregate.failed > 0) {
+                aggregate.errors.push({
+                    row: rowOffset + 1,
+                    nik: '-',
+                    message: `Proses import terhenti (${message}). ${aggregate.success} data sebelumnya sudah berhasil tersimpan, ${remaining} baris belum diproses — silakan ulangi import untuk sisa data.`,
+                });
+                setResult(aggregate);
+                setStep('result');
+            } else {
+                setParseError(message);
             }
         } finally {
             setIsImporting(false);
@@ -495,6 +543,21 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                 </div>
                             </div>
 
+                            {isImporting && importProgress.total > 0 && (
+                                <div className="space-y-1.5 p-3.5 rounded-lg bg-sky-50/60 border border-sky-100">
+                                    <div className="flex items-center justify-between text-xs font-medium text-sky-700">
+                                        <span>Mengimport data secara bertahap agar tidak timeout...</span>
+                                        <span>{importProgress.done} / {importProgress.total}</span>
+                                    </div>
+                                    <div className="h-2 w-full rounded-full bg-sky-100 overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full bg-sky-600 transition-all duration-300"
+                                            style={{ width: `${Math.min(100, (importProgress.done / importProgress.total) * 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="rounded-xl border shadow-sm bg-background overflow-hidden">
                                 <div className="overflow-x-auto max-w-full">
                                     <Table>
@@ -643,7 +706,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                             </Button>
                             <Button size="sm" onClick={handleImport} disabled={isImporting}>
                                 {isImporting ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses...</>
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Memproses {importProgress.done}/{importProgress.total}...</>
                                 ) : (
                                     <>Import {importableRows.length} Data<ArrowRight className="w-4 h-4 ml-1.5" /></>
                                 )}
@@ -661,6 +724,7 @@ export default function ImportUserModal({ open, onOpenChange, onSuccess }: Props
                                 setMapping({ nik: NONE, name: NONE, username: NONE, email: NONE, password: NONE, role: NONE, division: NONE, brand: NONE, micro_cluster: NONE, branch: NONE, area: NONE, region: NONE, circle: NONE, status: NONE });
                                 setParseError(null);
                                 setResult(null);
+                                setImportProgress({ done: 0, total: 0 });
                             }}>
                                 Upload File Baru
                             </Button>

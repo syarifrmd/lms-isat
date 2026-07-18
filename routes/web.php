@@ -125,6 +125,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/students/profile/{enrollmentId}', [StudentController::class, 'profile'])->name('students.profile');
     Route::get('/students/my-activity/{courseId}', [StudentController::class, 'myActivityDetail'])->name('students.my-activity-detail');
+    // Route literal ini WAJIB ada sebelum '/students/{courseId}' di bawah, kalau tidak
+    // Laravel akan salah tangkap "online-counts" sebagai {courseId} dan error.
+    Route::get('/students/online-counts', [StudentController::class, 'onlineCounts'])->name('students.online-counts');
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 });

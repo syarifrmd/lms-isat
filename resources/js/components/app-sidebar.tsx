@@ -73,11 +73,11 @@ export function AppSidebar() {
                 ];
             case 'user':
                 return [
-                    { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
+                    { title: 'Setting', href: dashboard().url, icon: Settings},
                     { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                     // Divisi DSE tidak boleh mengakses My Progress.
-                    ...(division !== 'DSE' ? [{ title: 'My Progress', href: '/students', icon: Users }] : []),
+                    ...(division !== 'DSE' ? [{ title: 'Dashboard', href: '/students', icon: LayoutDashboard }] : []),
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                 ];
             default:

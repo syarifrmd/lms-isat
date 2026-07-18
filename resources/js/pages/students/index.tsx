@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -69,7 +69,11 @@ interface Props {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
+function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; onlineByDivision: Record<string, number> }) {
+    // HOR & HOS: level manajemen -> tile sendiri, tanpa angka selesai/user active.
+    const managementTiles = course.by_division.filter((d) => d.division === 'HOR' || d.division === 'HOS');
+    const statTiles = course.by_division.filter((d) => d.division !== 'HOR' && d.division !== 'HOS');
+
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <button
@@ -89,25 +93,47 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                 {course.by_division.length === 0 ? (
                     <p className="text-[11px] text-gray-400 text-center py-2">Belum ada divisi dalam cakupan.</p>
                 ) : (
-                    <div className="flex flex-wrap gap-2">
-                        {course.by_division.map((d) => (
-                            <button
-                                type="button"
-                                key={d.division}
-                                onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
-                                className="text-left rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1.5 min-w-[74px] hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
-                            >
-                                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{d.division}</p>
-                                <div className="flex items-baseline gap-1 mt-0.5">
-                                    <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{d.completed}</span>
-                                    <span className="text-[9px] text-gray-400">selesai</span>
-                                </div>
-                                <p className="flex items-center gap-1 mt-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                    {d.online} user active
-                                </p>
-                            </button>
-                        ))}
+                    <div className="flex flex-col gap-2">
+                        {/* HOR & HOS: level manajemen, ditampilkan sebagai card/tile sendiri tanpa
+                            angka "selesai"/"user active" — cukup link langsung ke detail peserta. */}
+                        {managementTiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {managementTiles.map((d) => (
+                                    <button
+                                        type="button"
+                                        key={d.division}
+                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
+                                        className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+                                    >
+                                        {d.division}
+                                        <ChevronRight className="h-3 w-3" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {statTiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {statTiles.map((d) => (
+                                    <button
+                                        type="button"
+                                        key={d.division}
+                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
+                                        className="text-left rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1.5 min-w-[74px] hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
+                                    >
+                                        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{d.division}</p>
+                                        <div className="flex items-baseline gap-1 mt-0.5">
+                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{d.completed}</span>
+                                            <span className="text-[9px] text-gray-400">selesai</span>
+                                        </div>
+                                        <p className="flex items-center gap-1 mt-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                            {onlineByDivision[d.division] ?? d.online} user active
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -211,6 +237,14 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityModules, setActivityModules] = useState<ModuleProgress[]>([]);
 
+    // Status "user active" per divisi, di-seed dari data awal lalu di-refresh sendiri lewat
+    // polling ringan (lihat effect di bawah) supaya kerasa realtime tanpa reload manual.
+    const [onlineByDivision, setOnlineByDivision] = useState<Record<string, number>>(() => {
+        const map: Record<string, number> = {};
+        my_team.courses.forEach((c) => c.by_division.forEach((d) => { map[d.division] = d.online; }));
+        return map;
+    });
+
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Summary', href: '/students' },
@@ -233,6 +267,60 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
             selectCourse(selectedCourseId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Real-time "user active": fetch JSON kecil /students/online-counts tiap 5 detik dan
+    // update HANYA angka online-nya (tidak reload halaman/tidak refetch seluruh My Team),
+    // jadi terasa langsung berubah tanpa perlu reload manual. Otomatis berhenti kalau tab
+    // sedang tidak aktif dilihat (hemat request), lanjut lagi + langsung refresh begitu
+    // tab dibuka lagi.
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval> | null = null;
+        let cancelled = false;
+
+        const fetchOnlineCounts = async () => {
+            try {
+                const res = await fetch('/students/online-counts', {
+                    headers: { Accept: 'application/json' },
+                });
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                setOnlineByDivision((prev) => ({ ...prev, ...data }));
+            } catch {
+                // Abaikan error jaringan sesaat, coba lagi di polling berikutnya.
+            }
+        };
+
+        const startPolling = () => {
+            if (interval) return;
+            interval = setInterval(fetchOnlineCounts, 5000);
+        };
+
+        const stopPolling = () => {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchOnlineCounts();
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        };
+
+        fetchOnlineCounts();
+        startPolling();
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            cancelled = true;
+            stopPolling();
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
     }, []);
 
     return (
@@ -272,7 +360,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {my_team.courses.map((c) => (
-                                <MyTeamCourseCard key={c.course_id} course={c} />
+                                <MyTeamCourseCard key={c.course_id} course={c} onlineByDivision={onlineByDivision} />
                             ))}
                         </div>
                     )}
