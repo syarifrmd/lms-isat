@@ -46,9 +46,6 @@ class StudentController extends Controller
         return Inertia::render('students/index', [
             'scope_label'    => $scopeLabel,
             'scope_value'    => $scopeValue,
-            // Dipaksa pakai timezone Asia/Jakarta (WIB) secara eksplisit, supaya tanggal yang
-            // ditampilkan benar walau timezone default server/config app.php belum di-set ke
-            // Asia/Jakarta (kalau masih UTC, jam pagi WIB bisa kebaca sebagai "hari sebelumnya").
             'status_date'    => now()->timezone('Asia/Jakarta')->translatedFormat('d F Y'),
             'division_count' => count($visibleDivisions),
             'course_count'   => count($myTeam['courses']),
@@ -157,7 +154,7 @@ class StudentController extends Controller
         $course = Course::findOrFail($courseId);
         $user = Auth::user();
 
-        // Divisi DSE tidak diperbolehkan mengakses detail peserta (bagian dari My Progress).
+        // Divisi DSE tidak diperbolehkan mengakses detail peserta (bagian dari summary.
         $this->denyIfRestrictedDivision($user);
 
         $visibleDivisions = $this->visibleDivisionsFor($user->division ?? '');
@@ -197,16 +194,14 @@ class StudentController extends Controller
             ->with('user:id,name,username,email,avatar,division,region,area,branch,micro_cluster,circle,brand')
             ->orderBy('enrollment_at', 'desc');
 
-        // Peserta yang tampil di sini mengikuti scope circle/region/area/branch/micro_cluster + brand
-        // sesuai level division viewer (lihat applyPeerScope()), bukan lagi hierarki division saja.
+       
         if ($user->role !== 'admin') {
             $enrollmentsQuery->whereHas('user', function ($q) use ($user) {
                 $this->applyPeerScope($q, $user);
             });
         }
 
-        // Filter opsional per-divisi (dari klik tile divisi tertentu di card My Team, mis. ?division=BSM),
-        // supaya klik tile BSM cuma nampilin peserta BSM, bukan campur dengan divisi lain di bawahnya.
+        
         $divisionFilter = strtoupper(trim((string) $request->query('division', '')));
         if ($divisionFilter !== '') {
             $enrollmentsQuery->whereHas('user', function ($q) use ($divisionFilter) {
@@ -264,10 +259,7 @@ class StudentController extends Controller
         ]);
     }
 
-    /**
-     * Bangun array modules_progress untuk 1 course terhadap 1 enrollment (nullable).
-     * Dipakai bersama oleh show(), profile(), dan myActivityDetail() supaya tidak duplikat logic.
-     */
+   
     private function buildModulesProgress($modules, ?Enrollment $enrollment): array
     {
         if (!$enrollment) {
@@ -350,11 +342,7 @@ class StudentController extends Controller
         })->values()->toArray();
     }
 
-    /**
-     * My Team: 1 card per course (yang punya journey), berisi total user selesai
-     * dipecah per divisi mulai dari level viewer ke bawah (HOC->HOR->HOS->BSM->CSE/RSE->DSE).
-     * Populasi user yang dihitung mengikuti applyPeerScope() (geo field + brand sama).
-     */
+   
     private function buildMyTeam($user): array
     {
         $allDivisions = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE', 'RSE', 'DSE'];
@@ -367,10 +355,7 @@ class StudentController extends Controller
             return ['courses' => []];
         }
 
-        // Course yang ditargetkan ke salah satu divisi yang bisa dilihat viewer, dan punya journey.
-        // Diurutkan sesuai kolom `position` di course_division (bukan alfabetis) — kalau satu course
-        // ditarget ke beberapa divisi dengan position berbeda, dipakai posisi PALING KECIL di antara
-        // divisi yang visible bagi viewer.
+       
         $courseDivisionRows = DB::table('course_division')
             ->whereIn('target_division', $visibleDivisions)
             ->get(['course_id', 'position']);
@@ -391,8 +376,7 @@ class StudentController extends Controller
             return ['courses' => []];
         }
 
-        // Populasi peer user (geo + brand sama), dibatasi ke divisi yang boleh dilihat viewer.
-        // Pakai UPPER(TRIM()) supaya tidak meleset karena beda kapitalisasi/spasi pada kolom division.
+       
         $peerUsersQuery = User::query();
         $this->applyPeerScope($peerUsersQuery, $user);
         $peerUsersQuery->whereIn(DB::raw('UPPER(TRIM(division))'), $visibleDivisions);
@@ -400,9 +384,7 @@ class StudentController extends Controller
         $peerUserIds = $peerUsers->pluck('id');
         $divisionByUserId = $peerUsers->keyBy('id');
 
-        // Urutan divisi yang ditampilkan: mulai dari level viewer sendiri ke bawah, tanpa duplikat.
-        // Divisi viewer sendiri TIDAK ditampilkan sebagai tile (misal login HOC, tile HOC tidak
-        // perlu muncul di card-nya sendiri) — hanya divisi di bawahnya yang relevan untuk dipantau.
+        
         $ownDivision = strtoupper(trim($user->division ?? ''));
         $divisionOrder = collect($visibleDivisions)->unique()->reject(fn($div) => $div === $ownDivision)->values();
 
@@ -410,14 +392,7 @@ class StudentController extends Controller
             ->whereIn('user_id', $peerUserIds)
             ->get(['id', 'course_id', 'user_id', 'completed_at']);
 
-        // "User active": pakai Cache (bukan tabel `sessions`/kolom DB baru). Middleware
-        // UpdateLastSeen menaruh flag "online-user-{id}" ke cache dengan TTL 5 menit di
-        // setiap request user yang login. Tidak butuh migration/kolom tambahan, dan tidak
-        // bergantung SESSION_DRIVER (yang seringkali bukan 'database' sehingga tabel
-        // `sessions` tidak pernah terisi). Cache-nya juga langsung dihapus saat user logout
-        // (lihat ClearOnlineStatusOnLogout listener), jadi tidak nyangkut aktif meski sudah keluar.
-        // PENTING: dihitung dari SELURUH populasi peer per divisi (bukan hanya yang enrolled
-        // di course tertentu), supaya user yang aktif tapi belum enroll course itu tetap kehitung.
+        
         $onlineCountByDivision = $this->onlineCountByDivision($user, $divisionOrder);
 
         $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision) {
@@ -448,11 +423,7 @@ class StudentController extends Controller
         return ['courses' => $courseCards];
     }
 
-    /**
-     * Hitung jumlah "user active" per divisi, dari populasi peer user (geo+brand scope sesuai
-     * viewer), berdasarkan flag Cache 'online-user-{id}' yang ditaruh middleware UpdateLastSeen.
-     * Dipakai bersama oleh buildMyTeam() dan endpoint polling onlineCounts().
-     */
+  
     private function onlineCountByDivision($user, $divisionOrder)
     {
         $peerUsersQuery = User::query();
@@ -470,19 +441,23 @@ class StudentController extends Controller
         });
     }
 
-    /**
-     * Mandatory journeys milik division user (via journey_divisions.is_mandatory)
-     * lalu diambil course-course di dalam journey tersebut, plus status pengerjaan user sendiri.
-     */
+   
     private function buildMyActivity($user): array
     {
         $mandatoryJourneyIds = JourneyDivision::where('target_division', $user->division ?? '')
             ->where('is_mandatory', true)
             ->pluck('journey_id');
 
+        
+        $ownDivision = strtoupper(trim($user->division ?? ''));
+        $positionByCourseId = DB::table('course_division')
+            ->whereRaw('UPPER(TRIM(target_division)) = ?', [$ownDivision])
+            ->pluck('position', 'course_id');
+
         $courses = Course::whereIn('journey_id', $mandatoryJourneyIds)
-            ->orderBy('title')
-            ->get();
+            ->get()
+            ->sortBy(fn($course) => $positionByCourseId->get($course->id) ?? PHP_INT_MAX)
+            ->values();
 
         $enrollments = Enrollment::where('user_id', $user->id)
             ->whereIn('course_id', $courses->pluck('id'))
@@ -527,18 +502,7 @@ class StudentController extends Controller
         }
     }
 
-    /**
-     * Kolom `users.avatar` di DB cuma nyimpen path relatif (mis. "avatars/xxx.jpg"), hasil
-     * dari Storage::disk('public')->put(...). Path mentah itu tidak bisa langsung dipakai
-     * sebagai <img src>, jadi perlu diubah dulu jadi URL yang bisa diakses browser.
-     *
-     * Sengaja pakai Storage::disk('public')->url() (hasilnya URL RELATIF, mis. "/storage/avatars/xxx.jpg")
-     * dan BUKAN asset('storage/...'), karena asset() membangun URL absolut memakai host/port dari
-     * APP_URL di .env — kalau APP_URL tidak persis sama dengan port yang lagi dipakai browser
-     * (mis. Laragon jalan di :8080 tapi APP_URL masih default tanpa port / port lain), hasilnya
-     * request ke port yang salah dan gambar jadi broken walau file & symlink-nya sudah benar.
-     * URL relatif otomatis ikut origin halaman yang sedang dibuka, jadi aman dari masalah ini.
-     */
+   
     private function resolveAvatarUrl(?string $path): ?string
     {
         if (!$path) {
@@ -580,11 +544,7 @@ class StudentController extends Controller
         };
     }
 
-    /**
-     * Terapkan filter "sama geo-field + sama brand" ke query builder atas tabel users.
-     * Admin bebas lihat semua. Brand IOH bebas lihat semua brand.
-     * Perbandingan dibuat case-insensitive & trim supaya tidak meleset karena beda kapitalisasi/spasi.
-     */
+    
     private function applyPeerScope($query, $user): void
     {
         if ($user->role === 'admin') {
