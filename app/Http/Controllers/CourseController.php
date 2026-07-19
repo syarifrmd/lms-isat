@@ -20,6 +20,94 @@ class CourseController extends Controller
     {
     }
 
+    /**
+     * Rapikan ulang nomor "position" pada satu divisi agar selalu berurutan
+     * rapat mulai dari 1 (1,2,3,...) tanpa celah/lompatan, tanpa mengubah
+     * urutan relatif antar course yang sudah ada. Dipanggil setiap kali ada
+     * insert/delete di course_division supaya nomor tidak terus membengkak.
+     */
+    private function normalizeDivisionPositions(string $division): void
+    {
+        $rows = DB::table('course_division')
+            ->where('target_division', $division)
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get(['id', 'position']);
+
+        $expected = 1;
+        foreach ($rows as $row) {
+            if ((int) $row->position !== $expected) {
+                DB::table('course_division')->where('id', $row->id)->update(['position' => $expected]);
+            }
+            $expected++;
+        }
+    }
+
+    /**
+     * Hitung position + prerequisite_course_id untuk satu (course, divisi)
+     * berdasarkan input dari form. Mendukung mode:
+     * - posisi kosong  => otomatis ditaruh di urutan paling akhir divisi tsb
+     * - posisi diisi   => manual, course lain yang bentrok akan digeser +1
+     * - gembok 'auto'  => otomatis mengikuti course di posisi sebelumnya (chain)
+     * - gembok 'none'  => sengaja TANPA gembok walau bukan posisi pertama
+     * - gembok <id>    => gembok eksplisit ke course tertentu di divisi yang sama
+     */
+    private function resolveDivisionPositionAndPrerequisite(
+        string $division,
+        ?int $currentCourseId,
+        $rawPosition,
+        $rawPrerequisite,
+        bool $isMandatory
+    ): array {
+        if (!$isMandatory) {
+            return [1, null];
+        }
+
+        $manualPosition = ($rawPosition !== null && $rawPosition !== '') ? (int) $rawPosition : null;
+
+        if ($manualPosition !== null) {
+            $position = max(1, $manualPosition);
+
+            // Geser course lain di divisi yang sama yang sudah menempati
+            // posisi >= posisi baru, supaya tidak ada 2 course posisi sama.
+            DB::table('course_division')
+                ->where('target_division', $division)
+                ->where('position', '>=', $position)
+                ->when($currentCourseId, fn ($q) => $q->where('course_id', '!=', $currentCourseId))
+                ->increment('position');
+        } else {
+            // Otomatis: taruh di urutan paling akhir divisi ini.
+            $maxPosition = DB::table('course_division')
+                ->where('target_division', $division)
+                ->when($currentCourseId, fn ($q) => $q->where('course_id', '!=', $currentCourseId))
+                ->max('position');
+            $position = ((int) $maxPosition) + 1;
+        }
+
+        if ($rawPrerequisite === 'none') {
+            // Sengaja tanpa gembok meskipun posisinya bukan yang pertama.
+            $prerequisiteCourseId = null;
+        } elseif ($rawPrerequisite === 'auto' || $rawPrerequisite === null || $rawPrerequisite === '') {
+            $prerequisiteCourseId = null;
+            if ($position > 1) {
+                $previousCoursePivot = DB::table('course_division')
+                    ->where('position', $position - 1)
+                    ->where('target_division', $division)
+                    ->when($currentCourseId, fn ($q) => $q->where('course_id', '!=', $currentCourseId))
+                    ->first();
+
+                if ($previousCoursePivot) {
+                    $prerequisiteCourseId = $previousCoursePivot->course_id;
+                }
+            }
+        } else {
+            // Gembok eksplisit ke course tertentu (relasi bebas, tidak harus berurutan).
+            $prerequisiteCourseId = (int) $rawPrerequisite;
+        }
+
+        return [$position, $prerequisiteCourseId];
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -176,14 +264,20 @@ class CourseController extends Controller
         
         $mandatoryCourses = Course::join('course_division', 'courses.id', '=', 'course_division.course_id')
             ->where('courses.is_mandatory', true)
-            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
+            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division', 'course_division.prerequisite_course_id']);
         
         $journeys = \App\Models\Journey::select('id', 'title')->get();
+
+        $divisions = DB::table('course_division')->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
 
         return Inertia::render('Courses/Create', [
             'categories' => $categories,
             'mandatoryCourses' => $mandatoryCourses, 
             'journeys' => $journeys,
+            'divisions' => $divisions,
             'auth' => [
                 'user' => [
                     'role'     => $user->role,
@@ -206,7 +300,8 @@ class CourseController extends Controller
             'is_timer_active' => 'required|boolean',
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
             'position' => 'nullable|array',
-            'prerequisite_course_id' => 'nullable|exists:courses,id',
+            'prerequisite_course_id' => 'nullable',
+            'prerequisite_course_id.*' => 'nullable|string',
             'journey_id' => 'required|exists:journeys,id',
         ]);
 
@@ -235,36 +330,25 @@ class CourseController extends Controller
             'end_date' => $request->input('end_date'),
         ]);
 
+        $positionsMap = $request->input('position', []);
+        $prerequisiteMap = $request->input('prerequisite_course_id', []);
+        if (!is_array($prerequisiteMap)) {
+            // Backward compatibility: kalau masih dikirim sebagai 1 nilai tunggal (bukan per divisi)
+            $singleValue = $prerequisiteMap;
+            $prerequisiteMap = [];
+            foreach ($targetDivisions as $division) {
+                $prerequisiteMap[$division] = $singleValue;
+            }
+        }
+
         foreach ($targetDivisions as $division) {
-            $positionsMap = $request->input('position', []);
-            $position = ($isMandatory && isset($positionsMap[$division])) ? (int)$positionsMap[$division] : 1;
-
-            if ($isMandatory) {
-                $existingCourse = DB::table('course_division')
-                    ->where('target_division', $division)
-                    ->where('position', $position)
-                    ->exists();
-
-                if ($existingCourse) {
-                    DB::table('course_division')
-                        ->where('target_division', $division)
-                        ->where('position', '>=', $position)
-                        ->increment('position');
-                }
-            }
-
-            $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
-
-            if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
-                $previousCoursePivot = DB::table('course_division')
-                    ->where('position', $position - 1)
-                    ->where('target_division', $division) 
-                    ->first();
-                    
-                if ($previousCoursePivot) {
-                    $prerequisiteCourseId = $previousCoursePivot->course_id;
-                }
-            }
+            [$position, $prerequisiteCourseId] = $this->resolveDivisionPositionAndPrerequisite(
+                $division,
+                $course->id,
+                $positionsMap[$division] ?? null,
+                $prerequisiteMap[$division] ?? 'auto',
+                $isMandatory
+            );
 
             DB::table('course_division')->insert([
                 'course_id' => $course->id,
@@ -274,6 +358,11 @@ class CourseController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+
+        // Rapikan ulang nomor urutan tiap divisi yang terpengaruh agar tetap 1,2,3,... rapat.
+        foreach (array_unique($targetDivisions) as $division) {
+            $this->normalizeDivisionPositions($division);
         }
 
         return redirect()->route('courses.index')->with('success', 'Course berhasil dibuat!');
@@ -404,11 +493,35 @@ class CourseController extends Controller
             $previousModuleCompleted = $moduleState['is_completed'];
         }
 
+        // PENTING: jangan pakai $course->prerequisite_course_id (hasil MAX() agregat
+        // dari semua divisi) untuk cek gembok. Course bisa punya gembok BERBEDA di
+        // tiap divisi, jadi kita ambil baris course_division milik divisi user yang
+        // sedang membuka course ini secara spesifik.
+        $viewerDivision = Auth::check() ? Auth::user()->division : null;
+
+        $myDivisionPivot = null;
+        if ($viewerDivision) {
+            $myDivisionPivot = DB::table('course_division')
+                ->where('course_id', $id)
+                ->where('target_division', $viewerDivision)
+                ->first();
+        }
+        // Fallback (mis. admin/trainer tanpa divisi cocok, atau untuk keperluan tampilan
+        // referensi saja): pakai baris posisi paling awal. Ini tidak mempengaruhi status
+        // terkunci siswa biasa karena $isTrainer sudah men-skip pengecekan di bawah, dan
+        // siswa selalu punya divisi yang match dengan course yang tampil untuknya.
+        if (!$myDivisionPivot) {
+            $myDivisionPivot = DB::table('course_division')
+                ->where('course_id', $id)
+                ->orderBy('position')
+                ->first();
+        }
+
         $isLockedByPrerequisite = false;
         $prerequisiteCourseTitle = '';
 
-        if (!$isTrainer && $course->prerequisite_course_id) {
-            $prerequisite = Course::find($course->prerequisite_course_id);
+        if (!$isTrainer && $myDivisionPivot && $myDivisionPivot->prerequisite_course_id) {
+            $prerequisite = Course::find($myDivisionPivot->prerequisite_course_id);
             if ($prerequisite) {
                 $prerequisiteCourseTitle = $prerequisite->title;
                 $prereqEnrollment = Enrollment::where('user_id', Auth::id())
@@ -448,15 +561,16 @@ class CourseController extends Controller
         
         $targetDivisions = $pivotRecords->pluck('target_division')->toArray();
         $positionsMap = [];
+        $prerequisiteMap = [];
         foreach ($pivotRecords as $rec) {
             $positionsMap[$rec->target_division] = $rec->position;
+            // 'none' = sengaja tanpa gembok, tersimpan eksplisit per divisi (bukan agregat global)
+            $prerequisiteMap[$rec->target_division] = $rec->prerequisite_course_id ? (string) $rec->prerequisite_course_id : 'none';
         }
 
         $course->target_division = $targetDivisions;
         $course->position = $positionsMap;
-
-        $firstPivot = $pivotRecords->first();
-        $course->prerequisite_course_id = $firstPivot ? $firstPivot->prerequisite_course_id : null;
+        $course->prerequisite_course_id = $prerequisiteMap;
 
         $course->load(['modules' => function ($q) {
             $q->orderBy('order_sequence', 'asc'); 
@@ -467,15 +581,21 @@ class CourseController extends Controller
         $mandatoryCourses = Course::join('course_division', 'courses.id', '=', 'course_division.course_id')
             ->where('courses.is_mandatory', true)
             ->where('courses.id', '!=', $course->id)
-            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division']);
+            ->get(['courses.id', 'courses.title', 'course_division.position', 'course_division.target_division', 'course_division.prerequisite_course_id']);
 
         $journeys = \App\Models\Journey::select('id', 'title')->get();
+
+        $divisions = DB::table('course_division')->distinct()
+            ->whereNotNull('target_division')
+            ->where('target_division', '!=', '')
+            ->pluck('target_division');
 
         return Inertia::render('Courses/Edit', [
             'course' => $course,
             'categories' => $categories,
             'mandatoryCourses' => $mandatoryCourses, 
             'journeys' => $journeys,
+            'divisions' => $divisions,
         ]);
     }
 
@@ -506,7 +626,8 @@ class CourseController extends Controller
             'duration_minutes' => 'required_if:is_timer_active,true|nullable|integer|min:1',
             'target_division'  => 'nullable|array',
             'position'         => 'nullable|array',
-            'prerequisite_course_id' => 'nullable|exists:courses,id',
+            'prerequisite_course_id' => 'nullable',
+            'prerequisite_course_id.*' => 'nullable|string',
             'journey_id'       => 'required|exists:journeys,id',
         ]);
 
@@ -539,40 +660,35 @@ class CourseController extends Controller
 
         $course->update($updateData);
 
+        // Simpan daftar divisi lama supaya nomor urutannya bisa dirapikan lagi
+        // setelah baris lama dihapus (mencegah celah/lompatan nomor).
+        $oldDivisions = DB::table('course_division')
+            ->where('course_id', $course->id)
+            ->pluck('target_division')
+            ->unique()
+            ->toArray();
+
         DB::table('course_division')->where('course_id', $course->id)->delete();
 
+        $positionsMap = $request->input('position', []);
+        $prerequisiteMap = $request->input('prerequisite_course_id', []);
+        if (!is_array($prerequisiteMap)) {
+            // Backward compatibility: kalau masih dikirim sebagai 1 nilai tunggal (bukan per divisi)
+            $singleValue = $prerequisiteMap;
+            $prerequisiteMap = [];
+            foreach ($targetDivisions as $division) {
+                $prerequisiteMap[$division] = $singleValue;
+            }
+        }
+
         foreach ($targetDivisions as $division) {
-            $positionsMap = $request->input('position', []);
-            $position = ($isMandatory && isset($positionsMap[$division])) ? (int)$positionsMap[$division] : 1;
-
-            if ($isMandatory) {
-                $existingCourse = DB::table('course_division')
-                    ->where('target_division', $division)
-                    ->where('position', $position)
-                    ->where('course_id', '!=', $course->id) 
-                    ->exists();
-
-                if ($existingCourse) {
-                    DB::table('course_division')
-                        ->where('target_division', $division)
-                        ->where('position', '>=', $position)
-                        ->where('course_id', '!=', $course->id)
-                        ->increment('position');
-                }
-            }
-
-            $prerequisiteCourseId = $request->prerequisite_course_id ?? null; 
-            if ($isMandatory && $position > 1 && !$prerequisiteCourseId) {
-                $previousCoursePivot = DB::table('course_division')
-                    ->where('position', $position - 1)
-                    ->where('target_division', $division) 
-                    ->where('course_id', '!=', $course->id) 
-                    ->first();
-                    
-                if ($previousCoursePivot) {
-                    $prerequisiteCourseId = $previousCoursePivot->course_id;
-                }
-            }
+            [$position, $prerequisiteCourseId] = $this->resolveDivisionPositionAndPrerequisite(
+                $division,
+                $course->id,
+                $positionsMap[$division] ?? null,
+                $prerequisiteMap[$division] ?? 'auto',
+                $isMandatory
+            );
 
             DB::table('course_division')->insert([
                 'course_id' => $course->id,
@@ -582,6 +698,12 @@ class CourseController extends Controller
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
+        }
+
+        // Rapikan ulang nomor urutan untuk semua divisi yang terpengaruh
+        // (baik yang lama ditinggalkan maupun yang baru dipakai).
+        foreach (array_unique(array_merge($oldDivisions, $targetDivisions)) as $division) {
+            $this->normalizeDivisionPositions($division);
         }
 
         return redirect()->route('courses.edit', $course->id)

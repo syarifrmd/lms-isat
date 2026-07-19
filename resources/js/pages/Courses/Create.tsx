@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { BookOpen, ArrowLeft, ShieldAlert, Award } from 'lucide-react';
+import { BookOpen, ArrowLeft, ShieldAlert, Award, Lock, Unlock, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface CreateCourseProps {
@@ -40,7 +40,7 @@ export default function CreateCourse({ categories, divisions, mandatoryCourses, 
     is_timer_active: true, 
     duration_minutes: 5,  
     position: {} as Record<string, number | string>,                    
-    prerequisite_course_id: '',     
+    prerequisite_course_id: {} as Record<string, string>, // per divisi: 'auto' | 'none' | '<course_id>'
 });
 
 const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -49,11 +49,11 @@ const [isCustomCategory, setIsCustomCategory] = useState(false);
 useEffect(() => {
     // Logic Reset Position & Prerequisite jika non-mandatory (Timer tetap berlaku untuk semua sifat kursus)
     if (!data.is_mandatory) {
-        if (Object.keys(data.position).length > 0 || data.prerequisite_course_id !== '') {
+        if (Object.keys(data.position).length > 0 || Object.keys(data.prerequisite_course_id).length > 0) {
             setData(prev => ({
                 ...prev,
                 position: {}, 
-                prerequisite_course_id: ''
+                prerequisite_course_id: {}
             }));
         }
     }
@@ -63,11 +63,22 @@ useEffect(() => {
     if (value === 'all') {
         setData(prev => {
             const isAllSelected = divisions && prev.target_division.length === divisions.length;
+            const nextDivisions = isAllSelected ? [] : (divisions ? [...divisions] : []);
+
+            const nextPrerequisite = { ...prev.prerequisite_course_id };
+            if (isAllSelected) {
+                divisions?.forEach(div => { delete nextPrerequisite[div]; });
+            } else {
+                divisions?.forEach(div => {
+                    if (!nextPrerequisite[div]) nextPrerequisite[div] = 'auto';
+                });
+            }
 
             return {
                 ...prev,
-                target_division: isAllSelected ? [] : (divisions ? [...divisions] : []),
-                position: {} 
+                target_division: nextDivisions,
+                position: {},
+                prerequisite_course_id: nextPrerequisite,
             };
         });
     } else {
@@ -78,16 +89,21 @@ useEffect(() => {
                 ? currentDivisions.filter(d => d !== value)
                 : [...currentDivisions, value];
             
-            // Menghapus key posisi divisi jika divisi tersebut di-uncheck
+            // Menghapus key posisi/gembok divisi jika divisi tersebut di-uncheck
             const nextPosition = { ...prev.position };
-            if (isSelected && nextPosition[value] !== undefined) {
+            const nextPrerequisite = { ...prev.prerequisite_course_id };
+            if (isSelected) {
                 delete nextPosition[value];
+                delete nextPrerequisite[value];
+            } else if (!nextPrerequisite[value]) {
+                nextPrerequisite[value] = 'auto';
             }
             
             return {
                 ...prev,
                 target_division: nextDivisions,
-                position: nextPosition
+                position: nextPosition,
+                prerequisite_course_id: nextPrerequisite,
             };
         });
     }
@@ -281,122 +297,149 @@ useEffect(() => {
             Pengaturan Kursus Wajib (Mandatory)
         </h4>
         
-        {/* Urutan Posisi Tampilan */}
-        <div className="space-y-3.5">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Urutan Posisi Tampilan Course per Divisi
-            </Label>
-            
-            {(() => {
-                const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
-                
-                return targetDivs.map((divName) => (
-                    <div key={divName} className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-150 shadow-xs">
-                        <div className="sm:w-1/3">
-                            <span className="text-xs font-bold text-gray-400 uppercase block">Divisi Target</span>
-                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{divName}</span>
-                        </div>
-                        <div className="sm:w-2/3 space-y-1">
-                            <Input
-                                type="number"
-                                min="0"
-                                placeholder="Masukkan nomor urutan posisi (Contoh: 1, 2, 5)"
-                                value={data.position[divName] !== undefined ? data.position[divName] : ''}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    setData('position', {
-                                        ...data.position,
-                                        [divName]: val === '' ? '' : parseInt(val, 10)
-                                    });
-                                }}
-                            />
-                        </div>
-                    </div>
-                ));
-            })()}
-            {errors.position && <InputError message={errors.position} />}
-        </div>
+        {/* Urutan Posisi & Gembok (Prasyarat) per Divisi — dinamis, tiap divisi bisa beda */}
+        <p className="text-[11px] text-gray-400 -mt-1">
+            Kosongkan posisi untuk otomatis ditaruh di urutan paling akhir divisi tsb. Gembok bisa diatur bebas per divisi: otomatis (mengikuti course sebelumnya), tanpa gembok, atau kunci ke course tertentu.
+        </p>
 
-        {/* Hint boks urutan posisi terpakai */}
-        <div className="mt-2 p-3.5 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-2 mb-2 text-slate-700 dark:text-slate-300">
-                <div className="w-1.5 h-3.5 bg-sky-500 rounded-full"></div>
-                <span className="text-xs font-semibold uppercase tracking-wider">
-                    Referensi Urutan Posisi Terpakai Saat Ini
-                </span>
-            </div>
+        {(() => {
+            const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
 
-            <div className="space-y-3 mt-2">
-                {(() => {
-                    const targetDivs = data.target_division.length === 0 ? ['Semua Divisi'] : data.target_division;
+            return targetDivs.map((divName) => {
+                const coursesInDivision = (mandatoryCourses || [])
+                    .filter((c: any) => {
+                        if (divName === 'Semua Divisi') return true;
+                        if (Array.isArray(c.target_division)) return c.target_division.includes(divName);
+                        return c.target_division === divName;
+                    })
+                    .filter((c: any, idx: number, arr: any[]) => arr.findIndex(x => x.id === c.id) === idx)
+                    .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
-                    return targetDivs.map((divName) => {
-                        const filteredCourses = (mandatoryCourses || [])
-                            .filter((c: any) => {
-                                if (divName === 'Semua Divisi') return true;
-                                if (Array.isArray(c.target_division)) {
-                                    return c.target_division.includes(divName);
-                                }
-                                return c.target_division === divName;
-                            })
-                            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                // ── Preview urutan real-time, termasuk course baru yang sedang dibuat ──
+                const rawPos = data.position[divName];
+                const currentPosition = (rawPos !== undefined && rawPos !== '')
+                    ? Number(rawPos)
+                    : (coursesInDivision.length > 0 ? Math.max(...coursesInDivision.map((o: any) => o.position || 0)) + 1 : 1);
+                const currentPrereqRaw = data.prerequisite_course_id[divName] || 'auto';
+                const currentPrereqValue = currentPrereqRaw === 'none'
+                    ? null
+                    : (currentPrereqRaw === 'auto' ? 'AUTO' : Number(currentPrereqRaw));
 
-                        return (
-                            <div key={divName} className="space-y-1.5">
-                                <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 block uppercase">
-                                    Divisi: {divName}
-                                </span>
-                                <div className="flex flex-wrap gap-2">
-                                    {filteredCourses.length > 0 ? (
-                                        filteredCourses.map((c: any) => (
-                                            <div 
-                                                key={c.id} 
-                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 text-xs"
+                const timeline = [
+                    ...coursesInDivision.map((c: any) => ({
+                        id: c.id,
+                        title: c.title,
+                        position: c.position || 1,
+                        prerequisiteId: c.prerequisite_course_id ? Number(c.prerequisite_course_id) : null,
+                        isCurrent: false,
+                    })),
+                    {
+                        id: -1,
+                        title: data.title || 'Course baru ini',
+                        position: currentPosition,
+                        prerequisiteId: currentPrereqValue,
+                        isCurrent: true,
+                    },
+                ].sort((a, b) => (a.position || 0) - (b.position || 0));
+
+                return (
+                    <div key={divName} className="flex flex-col gap-3 bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-150 shadow-xs">
+                        <span className="text-xs font-bold text-gray-400 uppercase block">Divisi: {divName}</span>
+
+                        {/* ── Referensi urutan + relasi gembok (di atas input, per divisi) ── */}
+                        <div className="flex flex-wrap items-center gap-1 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
+                            {timeline.length === 0 ? (
+                                <span className="text-[11px] text-gray-400 italic">Belum ada course di divisi ini.</span>
+                            ) : (
+                                timeline.map((item, idx) => {
+                                    const locked = item.prerequisiteId !== null && item.prerequisiteId !== undefined;
+                                    const prevItem = idx > 0 ? timeline[idx - 1] : null;
+                                    const resolvedTargetId = item.prerequisiteId === 'AUTO' ? prevItem?.id : item.prerequisiteId;
+                                    const isChainToPrevious = locked && prevItem && resolvedTargetId === prevItem.id;
+                                    const connectorColor = !locked
+                                        ? 'text-gray-300 dark:text-gray-700'
+                                        : (isChainToPrevious ? 'text-gray-400 dark:text-gray-500' : 'text-amber-500');
+
+                                    return (
+                                        <div key={`${item.id}-${idx}`} className="flex items-center gap-1">
+                                            {idx > 0 && <ArrowRight className={`h-3.5 w-3.5 shrink-0 ${connectorColor}`} />}
+                                            <div
+                                                title={locked ? (isChainToPrevious ? 'Terkunci ke course sebelumnya' : 'Terkunci ke course lain (relasi custom)') : 'Tanpa gembok — selalu terbuka'}
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[11px] ${
+                                                    item.isCurrent ? 'ring-2 ring-blue-400 dark:ring-blue-500' : ''
+                                                } ${
+                                                    locked
+                                                        ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/20 dark:border-red-900 dark:text-red-300'
+                                                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900 dark:text-emerald-300'
+                                                }`}
                                             >
-                                                <span className="font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-1.5 py-0.5 rounded-md text-[10px]">
-                                                    #{c.position}
-                                                </span>
-                                                <span className="text-gray-600 dark:text-gray-300 font-medium max-w-[150px] truncate">
-                                                    {c.title}
+                                                <span className="font-bold text-[9px] px-1 py-0.5 rounded bg-white/70 dark:bg-black/20">#{item.position}</span>
+                                                {locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
+                                                <span className="font-medium max-w-[130px] truncate">
+                                                    {item.title}{item.isCurrent ? ' (Ini)' : ''}
                                                 </span>
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-[11px] text-gray-400 dark:text-gray-500 italic py-1">
-                                            Belum ada posisi terpakai di divisi ini.
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    });
-                })()}
-            </div>
-        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-[10px] text-gray-400 -mt-1">
+                            <span className="flex items-center gap-1"><Unlock className="h-2.5 w-2.5 text-emerald-500" /> Hijau = tanpa gembok</span>
+                            <span className="flex items-center gap-1"><Lock className="h-2.5 w-2.5 text-red-500" /> Merah = terkunci</span>
+                            <span className="flex items-center gap-1"><ArrowRight className="h-2.5 w-2.5 text-gray-400" /> Abu = rantai normal</span>
+                            <span className="flex items-center gap-1"><ArrowRight className="h-2.5 w-2.5 text-amber-500" /> Kuning = relasi custom (lompat)</span>
+                        </div>
 
-       {/* Dropdown Memilih Kursus Prasyarat (Gembok) */}
-        <div className="space-y-1">
-            <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Kursus Syarat (Course Terkunci)
-            </Label>
-            <Select
-                value={data.prerequisite_course_id || "none"}
-                onValueChange={value => setData('prerequisite_course_id', value === 'none' ? '' : value)}
-            >
-                <SelectTrigger className="w-full">
-                    <SelectValue placeholder=" Pilih Course Awal " />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="none"> Pilih Course Awal (Tanpa Prasyarat) </SelectItem>
-                    {mandatoryCourses && mandatoryCourses.map((course) => (
-                        <SelectItem key={course.id} value={course.id.toString()}>
-                            {course.title}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
-        </div>
+                        {/* ── Input Posisi & Gembok ── */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <span className="text-[11px] text-gray-500">Urutan Posisi</span>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Otomatis (di urutan akhir)"
+                                    value={data.position[divName] !== undefined ? data.position[divName] : ''}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setData('position', {
+                                            ...data.position,
+                                            [divName]: val === '' ? '' : parseInt(val, 10)
+                                        });
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <span className="text-[11px] text-gray-500">Gembok (Kursus Syarat)</span>
+                                <Select
+                                    value={data.prerequisite_course_id[divName] || 'auto'}
+                                    onValueChange={value => setData('prerequisite_course_id', {
+                                        ...data.prerequisite_course_id,
+                                        [divName]: value,
+                                    })}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="auto">Otomatis (ikuti urutan sebelumnya)</SelectItem>
+                                        <SelectItem value="none">Tanpa Gembok (Selalu Terbuka)</SelectItem>
+                                        {coursesInDivision.map((c: any) => (
+                                            <SelectItem key={c.id} value={c.id.toString()}>
+                                                #{c.position} {c.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                );
+            });
+        })()}
+        {errors.position && <InputError message={errors.position} />}
+        {errors.prerequisite_course_id && <InputError message={errors.prerequisite_course_id} />}
+
     </div>
 )}
 

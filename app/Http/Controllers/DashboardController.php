@@ -177,50 +177,22 @@ class DashboardController extends Controller
         // ── Default (User/Employee) ──────────────────────────────────────────
         $userId = $user->id;
 
-        // ── Tentukan scope user (diri sendiri + bawahan) berdasarkan hirarki division ──
-        // HOC lihat semua di circle-nya, HOR lihat semua di region-nya, HOS lihat semua
-        // di area-nya, BSM lihat semua di branch-nya, CSE/RSE lihat semua di micro_cluster-nya
-        // (bareng DSE di micro_cluster yang sama), DSE hanya diri sendiri.
-        // Hanya user dengan brand yang SAMA yang dihitung — KECUALI brand 'IOH',
-        // yang bisa melihat lintas brand (IOH + brand lain, mis. 3ID).
+        // Semua card (Course Tersedia, Modul Tersedia, Modul Selesai, Stamp) hanya
+        // membaca data DIRI SENDIRI — tidak ada rollup ke bawahan/hirarki division.
         $divisionUpper = strtoupper((string) $user->division);
-        $brandUpper     = strtoupper((string) $user->brand);
 
-        $scopeUserIdsQuery = User::query();
-        if ($brandUpper !== 'IOH') {
-            $scopeUserIdsQuery->where('brand', $user->brand);
-        }
-        // brand IOH: tidak difilter -> ikut semua brand
-
-        if ($divisionUpper === 'HOC') {
-            $scopeUserIdsQuery->where('circle', $user->circle);
-        } elseif ($divisionUpper === 'HOR') {
-            $scopeUserIdsQuery->where('region', $user->region);
-        } elseif ($divisionUpper === 'HOS') {
-            $scopeUserIdsQuery->where('area', $user->area);
-        } elseif ($divisionUpper === 'BSM') {
-            $scopeUserIdsQuery->where('branch', $user->branch);
-        } elseif (in_array($divisionUpper, ['CSE', 'RSE'], true)) {
-            $scopeUserIdsQuery->where('micro_cluster', $user->micro_cluster);
-        } else {
-            // DSE (atau division lain yang tidak dikenal): hanya diri sendiri
-            $scopeUserIdsQuery->where('id', $userId);
-        }
-
-        $scopeUserIds = $scopeUserIdsQuery->pluck('id');
-
-        // Stats (hanya untuk kursus mandatory) — diri sendiri + bawahan dalam scope
-        $enrolledCount    = Enrollment::whereIn('user_id', $scopeUserIds)
+        // Stats (hanya untuk kursus mandatory) — diri sendiri saja
+        $enrolledCount    = Enrollment::where('user_id', $userId)
             ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->count();
-        $completedCount   = Enrollment::whereIn('user_id', $scopeUserIds)
+        $completedCount   = Enrollment::where('user_id', $userId)
             ->whereNotNull('completed_at')
             ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->count();
-        $quizAttemptCount = UserQuizAttempt::whereIn('user_id', $scopeUserIds)
+        $quizAttemptCount = UserQuizAttempt::where('user_id', $userId)
             ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->count();
-        $passedQuizCount  = UserQuizAttempt::whereIn('user_id', $scopeUserIds)
+        $passedQuizCount  = UserQuizAttempt::where('user_id', $userId)
             ->where('is_passed', true)
             ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->count();
@@ -252,10 +224,10 @@ class DashboardController extends Controller
             ->get()
             ->sum('modules_count');
 
-        // Modul Selesai: jumlah modul yang sudah diselesaikan oleh diri sendiri + bawahan
-        // dalam scope, untuk course mandatory yang punya journey.
+        // Modul Selesai: jumlah modul yang sudah diselesaikan oleh diri sendiri saja,
+        // untuk course mandatory yang punya journey.
         $modulesCompletedCount = ModuleProgress::where('is_completed', true)
-            ->whereHas('enrollment', fn ($q) => $q->whereIn('user_id', $scopeUserIds))
+            ->whereHas('enrollment', fn ($q) => $q->where('user_id', $userId))
             ->whereHas('module.course', function ($q) {
                 $q->where('is_mandatory', 1)->whereNotNull('journey_id');
             })
