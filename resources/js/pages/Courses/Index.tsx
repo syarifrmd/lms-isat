@@ -284,10 +284,13 @@ export default function CoursesIndex({
                                     >
                                         {/* Overlay Gembok 1 Card Penuh jika status Terkunci */}
                                         {isLocked && (
-                                            <div className="absolute inset-0 z-30 flex items-center justify-center transition-all duration-300">
-                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30">
+                                            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center transition-all duration-300">
+                                                <div className="h-14 w-14 rounded-full bg-gray-600/90 dark:bg-gray-700/90 text-white shadow-xl flex items-center justify-center border border-gray-500/30 mb-2">
                                                     <Lock className="h-6 w-6" />
                                                 </div>
+                                                <span className="text-white text-xs font-medium px-3 py-1 bg-gray-800/80 rounded-full shadow-sm text-center">
+                                                    (Selesaikan course sebelumnya)
+                                                </span>
                                             </div>
                                         )}
 

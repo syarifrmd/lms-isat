@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, AlertCircle, Award, CheckCircle, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { Clock, AlertCircle, Award, CheckCircle, ChevronLeft, ChevronRight, Send, ArrowLeft } from 'lucide-react';
 import { Quiz, UserQuizAttempt, SharedData } from '@/types';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
@@ -258,10 +258,21 @@ useEffect(() => {
     };
 
     const breadcrumbs = [
-        { title: 'Kursus', href: '/courses' },
+        { title: auth.user.role === 'user' ? 'Modul' : 'Kursus', href: auth.user.role === 'user' ? undefined : '/courses' },
         { title: course.title, href: `/courses/${course.id}` },
         { title: quiz.title, href: '#' },
     ];
+
+    // Jika gagal 3 kali, pastikan sisa waktu modul yang lama di-reset, 
+    // agar saat mengulang modul dari awal, timer modul kembali utuh.
+    useEffect(() => {
+        if (isLimitReached && quiz.module_id) {
+            localStorage.removeItem(`module_timer_deadline_${userId}_${quiz.module_id}`);
+            localStorage.removeItem(`module_timer_remaining_seconds_${userId}_${quiz.module_id}`);
+            localStorage.removeItem(`module_timer_duration_${userId}_${quiz.module_id}`);
+            localStorage.removeItem(`module_timer_expired_count_${userId}_${quiz.module_id}`);
+        }
+    }, [isLimitReached, quiz.module_id, userId]);
 
     // — Already passed screen —
     if (has_passed) {
@@ -343,6 +354,19 @@ useEffect(() => {
 
                 {/* ── Sticky header: title + timer + progress ── */}
                 <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-3 bg-background/95 backdrop-blur border-b mb-6">
+                    {auth.user.role === 'user' && (
+                        <div className="mb-2">
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="-ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                onClick={() => window.history.back()}
+                            >
+                                <ArrowLeft className="w-4 h-4 mr-1.5" />
+                                Kembali
+                            </Button>
+                        </div>
+                    )}
                     <div className="flex items-center justify-between gap-4 mb-2">
                         <div className="min-w-0">
                             <h1 className="font-bold text-lg leading-tight truncate">{quiz.title}</h1>

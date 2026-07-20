@@ -3,7 +3,7 @@ import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Terminal, Download } from 'lucide-react';
+import { PlayCircle, FileText, Plus, File as FileIcon, Link as LinkIcon, Edit, FileQuestion, Clock, Award, AlertCircle, Lock, CheckCircle, Star, MessageSquare, Trash2, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Terminal, Download, ArrowLeft } from 'lucide-react';
 import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
 import PptxSlideViewer from '@/components/PptxSlideViewer';
 import { PDFViewer, PDFViewerRef } from '@embedpdf/react-pdf-viewer';
@@ -1650,13 +1650,27 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     return (
         <AppLayout 
             breadcrumbs={[
-                { title: 'Courses', href: '/courses' }, 
+                { title: auth.user.role === 'user' ? 'Modul' : 'Courses', href: auth.user.role === 'user' ? undefined : '/courses' }, 
                 { title: course.title, href: `/courses/${course.id}` }
             ]}
         >
             <Head title={course.title} />
 
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
+
+                {auth.user.role === 'user' && (
+                    <div className="flex items-center -mb-2">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="-ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            onClick={() => window.history.back()}
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-1.5" />
+                            Kembali
+                        </Button>
+                    </div>
+                )}
 
                 {/* ── Course Title Header ── */}
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-linear-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm px-6 py-5">

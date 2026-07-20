@@ -76,12 +76,12 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                     </div>
                     <div className="w-full sm:w-[500px]">
                         <Select value={selectedQuizId ? selectedQuizId.toString() : undefined} onValueChange={handleQuizChange}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Pilih modul..." className="truncate" />
+                            <SelectTrigger className="w-full h-auto min-h-10 py-2 text-left [&>span]:line-clamp-none [&>span]:whitespace-normal [&>span]:break-words items-start">
+                                <SelectValue placeholder="Pilih modul..." />
                             </SelectTrigger>
-                            <SelectContent className="max-w-[500px] break-words">
+                            <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-[500px]">
                                 {quizzes.map((quiz: any) => (
-                                    <SelectItem key={quiz.id} value={quiz.id.toString()} className="whitespace-normal">
+                                    <SelectItem key={quiz.id} value={quiz.id.toString()} className="whitespace-normal break-words py-2 text-left items-start">
                                         {quiz.name}
                                     </SelectItem>
                                 ))}
@@ -156,7 +156,7 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
 
                             {leaderboard.length === 0 ? (
                                 <div className="py-16 text-center text-sm text-gray-400">
-                                    {selectedQuizId ? 'Belum ada yang mengerjakan kuis di modul ini!' : 'Belum ada data di leaderboard.'}
+                                    {selectedQuizId ? 'Belum ada yang mengerjakan kuis di modul ini!' : 'Silakan pilih modul terlebih dahulu untuk melihat leaderboard.'}
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-gray-50 dark:divide-gray-700 overflow-y-auto flex-1 max-h-[500px]">

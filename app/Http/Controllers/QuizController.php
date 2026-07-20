@@ -40,6 +40,8 @@ class QuizController extends Controller
         $sessionKey = "quiz_active_questions_" . $quiz->id . "_" . $userId;
         $sessionSeedKey = "quiz_seed_" . $quiz->id . "_" . $userId;
 
+        $sessionStartKey = "quiz_start_" . $quiz->id . "_" . $userId;
+
         if (!session()->has($sessionKey)) {
             $seed = mt_rand();
             $randomQuestionIds = $quiz->questions()
@@ -49,6 +51,7 @@ class QuizController extends Controller
                 ->toArray();
             session()->put($sessionKey, $randomQuestionIds);
             session()->put($sessionSeedKey, $seed);
+            session()->put($sessionStartKey, now());
         }
 
         $activeQuestionIds = session()->get($sessionKey);
@@ -113,6 +116,8 @@ class QuizController extends Controller
         
         $activeQuestionIds = session()->get($sessionKey, []);
         $seed = session()->get($sessionSeedKey, mt_rand());
+        $sessionStartKey = "quiz_start_" . $quiz->id . "_" . $userId;
+        $startTime = session()->get($sessionStartKey, now());
 
         if (empty($activeQuestionIds)) {
             $activeQuestionIds = collect($validated['answers'])->pluck('question_id')->toArray();
@@ -125,7 +130,7 @@ class QuizController extends Controller
             $totalPoints = $questions->sum('point');
             $earnedPoints = 0;
 
-            $attempt = UserQuizAttempt::create([
+            $attempt = new UserQuizAttempt([
                 'user_id' => Auth::id(),
                 'quiz_id' => $quiz->id,
                 'course_id' => $quiz->course_id,
@@ -133,6 +138,9 @@ class QuizController extends Controller
                 'is_passed' => false,
                 'submitted_at' => now(),
             ]);
+            $attempt->created_at = $startTime;
+            $attempt->updated_at = now();
+            $attempt->save();
 
             $clientAnswers = collect($validated['answers'])->whereIn('question_id', $activeQuestionIds);
 
@@ -214,6 +222,7 @@ class QuizController extends Controller
 
             session()->forget($sessionKey);
             session()->forget($sessionSeedKey);
+            session()->forget($sessionStartKey);
 
             DB::commit();
 
