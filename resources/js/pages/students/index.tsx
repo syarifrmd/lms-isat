@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Users, Layers, Building2, Inbox } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -16,17 +16,39 @@ interface DivisionBreakdown {
 
 interface MyTeamCourse {
     course_id: number;
+    journey_id: number;
     title: string;
     total_users: number;
     total_completed: number;
     by_division: DivisionBreakdown[];
 }
 
+interface MyTeamJourney {
+    journey_id: number;
+    journey_title: string;
+    total_courses: number;
+    total_users: number;
+    total_completed: number;
+    total_modules: number;
+    divisions: string[];
+    courses: MyTeamCourse[];
+}
+
 interface MyActivityCourse {
     course_id: number;
+    journey_id: number;
     title: string;
     status: 'completed' | 'in_progress' | 'not_started';
     progress_percentage: number;
+}
+
+interface MyActivityJourney {
+    journey_id: number;
+    journey_title: string;
+    total_courses: number;
+    completed_count: number;
+    in_progress_count: number;
+    courses: MyActivityCourse[];
 }
 
 interface QuizResult {
@@ -61,8 +83,8 @@ interface Props {
     status_date: string;
     division_count: number;
     course_count: number;
-    my_team: { courses: MyTeamCourse[] };
-    my_activity: { courses: MyActivityCourse[] };
+    my_team: { journeys: MyTeamJourney[] };
+    my_activity: { journeys: MyActivityJourney[] };
 }
 
 // ---------------------------------------------------------------------------
@@ -78,7 +100,7 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <button
                 type="button"
-                onClick={() => router.visit(`/students/${course.course_id}`)}
+                onClick={() => router.visit(`/students/${course.course_id}?journey=${course.journey_id}`)}
                 className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3 hover:brightness-95 transition"
             >
                 <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
@@ -102,7 +124,7 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
                                     <button
                                         type="button"
                                         key={d.division}
-                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
+                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
                                         className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
                                     >
                                         {d.division}
@@ -118,7 +140,7 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
                                     <button
                                         type="button"
                                         key={d.division}
-                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}`)}
+                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
                                         className="text-left rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1.5 min-w-[74px] hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
                                     >
                                         <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{d.division}</p>
@@ -138,6 +160,65 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
                 )}
             </div>
         </div>
+    );
+}
+
+function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            className="w-full text-left rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all"
+        >
+            <div className="border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
+                <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
+                    <Map className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{journey.journey_title}</p>
+                    <p className="text-[11px] text-gray-400">{journey.total_completed} selesai</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-sky-400 shrink-0 ml-auto" />
+            </div>
+            <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
+                        <BookOpen className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_courses}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">course tersedia</p>
+                    </div>
+                </div>
+                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
+                        <Layers className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_modules}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">module tersedia</p>
+                    </div>
+                </div>
+                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
+                        <Users className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_users}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user terdaftar</p>
+                    </div>
+                </div>
+                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.divisions.length}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">divisi</p>
+                    </div>
+                </div>
+            </div>
+        </button>
     );
 }
 
@@ -232,16 +313,44 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function StudentsIndex({ my_team, scope_label, scope_value, status_date, division_count, course_count, my_activity }: Props) {
-    const [selectedCourseId, setSelectedCourseId] = useState<number | null>(my_activity.courses[0]?.course_id ?? null);
+export default function StudentsIndex({ my_team, scope_label, scope_value, status_date, course_count, my_activity }: Props) {
+    // Card journey di My Team & My Activity SELALU ditampilkan (tidak pernah disembunyikan
+    // meski cuma ada 1 journey) -- baru masuk ke daftar course-nya setelah journey diklik.
+    const teamJourneys = my_team.journeys;
+    const activityJourneys = my_activity.journeys;
+    const allActivityCourses = activityJourneys.flatMap((j) => j.courses);
+
+    const [selectedCourseId, setSelectedCourseId] = useState<number | null>(() => activityJourneys[0]?.courses[0]?.course_id ?? null);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityModules, setActivityModules] = useState<ModuleProgress[]>([]);
+
+    // Navigasi 2 level di My Team: null = tampilkan card Journey, terisi = tampilkan
+    // card-card Course di dalam journey tersebut (mirip My Learning).
+    // Kalau datang dari halaman detail course (tombol "Kembali ke Daftar Course" di
+    // /students/{course}) yang membawa ?journey=ID, langsung buka journey itu supaya
+    // tidak balik ke layar pilih-journey dari awal.
+    const [selectedJourneyId, setSelectedJourneyId] = useState<number | null>(() => {
+        if (typeof window === 'undefined') return null;
+        const journeyParam = new URLSearchParams(window.location.search).get('journey');
+        return journeyParam ? Number(journeyParam) : null;
+    });
+    const selectedJourney = teamJourneys.find((j) => j.journey_id === selectedJourneyId) ?? null;
+
+    // My Activity TIDAK terhubung ke selectedJourneyId milik My Team (independen) --
+    // defaultnya langsung buka journey pertama (kalau ada), sama seperti tampilan lama.
+    const [selectedActivityJourneyId, setSelectedActivityJourneyId] = useState<number | null>(
+        activityJourneys[0]?.journey_id ?? null,
+    );
+    const selectedActivityJourney = activityJourneys.find((j) => j.journey_id === selectedActivityJourneyId) ?? null;
+
+    // Course yang ditampilkan di panel "Course Saya": milik journey yang sedang dipilih di panel Journey.
+    const visibleActivityCourses = selectedActivityJourney?.courses ?? [];
 
     // Status "user active" per divisi, di-seed dari data awal lalu di-refresh sendiri lewat
     // polling ringan (lihat effect di bawah) supaya kerasa realtime tanpa reload manual.
     const [onlineByDivision, setOnlineByDivision] = useState<Record<string, number>>(() => {
         const map: Record<string, number> = {};
-        my_team.courses.forEach((c) => c.by_division.forEach((d) => { map[d.division] = d.online; }));
+        teamJourneys.forEach((j) => j.courses.forEach((c) => c.by_division.forEach((d) => { map[d.division] = d.online; })));
         return map;
     });
 
@@ -262,6 +371,20 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
         }
     };
 
+    // Pilih journey di panel kiri -> panel tengah otomatis tampilkan course-course journey
+    // itu, dan course pertamanya otomatis dipilih (modul course itu langsung dimuat).
+    const selectActivityJourney = (journey: MyActivityJourney) => {
+        setSelectedActivityJourneyId(journey.journey_id);
+        const firstCourseId = journey.courses[0]?.course_id;
+        if (firstCourseId) {
+            selectCourse(firstCourseId);
+        } else {
+            setSelectedCourseId(null);
+            setActivityModules([]);
+        }
+    };
+
+    // Muat modul untuk course yang sudah ter-default-pilih saat halaman pertama kali dibuka.
     useEffect(() => {
         if (selectedCourseId) {
             selectCourse(selectedCourseId);
@@ -338,7 +461,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Report</p>
                             <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">Summary</p>
                             <p className="text-xs text-gray-400 mt-0.5">
-                                {division_count} division &bull; {course_count} course dipantau
+                                {course_count} course dipantau
                             </p>
                         </div>
                     </div>
@@ -350,87 +473,152 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     </div>
                 </div>
 
-                {/* My Team: 1 card per course, breakdown user selesai per divisi */}
+                {/* My Team: level 1 = card Journey (selalu ditampilkan, tidak disembunyikan
+                    walau cuma 1 journey), diklik -> level 2 = card Course di dalam journey itu. */}
                 <div>
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">My Team</p>
-                    {my_team.courses.length === 0 ? (
+                    <div className="flex items-center gap-2 mb-3">
+                        {selectedJourney && (
+                            <button
+                                type="button"
+                                onClick={() => setSelectedJourneyId(null)}
+                                className="flex items-center gap-1 text-gray-400 hover:text-sky-500 dark:hover:text-sky-400 transition"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                        )}
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                            My Team{selectedJourney ? <span className="text-gray-400 font-normal"> &bull; {selectedJourney.journey_title}</span> : ''}
+                        </p>
+                    </div>
+
+                    {teamJourneys.length === 0 ? (
                         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-10 text-center text-sm text-gray-400">
-                            Belum ada course dengan journey yang bisa ditampilkan untuk tim Anda.
+                            Belum ada journey dengan course yang bisa ditampilkan untuk tim Anda.
+                        </div>
+                    ) : !selectedJourney ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {teamJourneys.map((j) => (
+                                <MyTeamJourneyCard key={j.journey_id} journey={j} onOpen={() => setSelectedJourneyId(j.journey_id)} />
+                            ))}
+                        </div>
+                    ) : selectedJourney.courses.length === 0 ? (
+                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-16 flex flex-col items-center gap-2 text-center">
+                            <Inbox className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                            <p className="text-sm text-gray-400">Belum ada course yang tersedia.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {my_team.courses.map((c) => (
+                            {selectedJourney.courses.map((c) => (
                                 <MyTeamCourseCard key={c.course_id} course={c} onlineByDivision={onlineByDivision} />
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* My Activity */}
+                {/* My Activity: 3 panel sejajar dalam SATU tampilan (bukan navigasi bertahap) --
+                    kiri = pilih Journey, tengah = daftar Course di journey itu, kanan = Detail Progress
+                    modul dari course yang dipilih. Journey pertama & course pertamanya otomatis
+                    terpilih saat halaman dibuka, sama seperti tampilan sebelumnya.
+                    Disembunyikan selama My Team sedang drill-in ke course-course sebuah journey,
+                    supaya saat journey di My Team diklik, yang tampil cuma course-nya My Team saja. */}
+                {!selectedJourney && (
                 <div>
                     <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">My Activity</p>
-                    <div className="grid lg:grid-cols-[340px_1fr] gap-4 items-start">
-                        {/* Left: mandatory course list */}
-                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-                            <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Course Saya" />
-                            <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
-                                {my_activity.courses.length === 0 ? (
-                                    <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada course mandatory.</p>
-                                ) : (
-                                    my_activity.courses.map((c) => {
-                                        const active = c.course_id === selectedCourseId;
-                                        const statusText =
-                                            c.status === 'completed' ? 'Selesai' : c.status === 'in_progress' ? 'Sedang dikerjakan' : 'Belum dimulai';
+
+                    {activityJourneys.length === 0 ? (
+                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-10 text-center text-sm text-gray-400">
+                            Tidak ada journey mandatory untuk divisi Anda.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-[220px_300px_1fr] gap-4 items-start">
+                            {/* Kiri: daftar Journey */}
+                            <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                                <ListCardHeader icon={<Map className="h-4 w-4" />} eyebrow="Mandatory" title="Journey" />
+                                <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
+                                    {activityJourneys.map((j) => {
+                                        const active = j.journey_id === selectedActivityJourneyId;
                                         return (
                                             <button
-                                                key={c.course_id}
+                                                key={j.journey_id}
                                                 type="button"
-                                                onClick={() => selectCourse(c.course_id)}
-                                                className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
+                                                onClick={() => selectActivityJourney(j)}
+                                                className={`w-full text-left px-4 py-3 transition-colors ${
                                                     active ? 'bg-sky-50 dark:bg-sky-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/20'
                                                 }`}
                                             >
-                                                <div className="min-w-0">
-                                                    <p className={`text-sm font-semibold truncate ${active ? 'text-sky-700 dark:text-sky-400' : 'text-gray-700 dark:text-gray-200'}`}>
-                                                        {c.title}
-                                                    </p>
-                                                    <p className="text-[11px] text-gray-400 mt-0.5">{statusText}</p>
-                                                </div>
-                                                <div className="shrink-0">
-                                                    {c.status === 'completed' ? (
-                                                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                                                    ) : c.status === 'in_progress' ? (
-                                                        <span className="text-xs font-bold text-amber-500">{c.progress_percentage}%</span>
-                                                    ) : (
-                                                        <span className="text-sm font-bold text-gray-300">&mdash;</span>
-                                                    )}
-                                                </div>
+                                                <p className={`text-sm font-semibold truncate ${active ? 'text-sky-700 dark:text-sky-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                                                    {j.journey_title}
+                                                </p>
+                                                <p className="text-[11px] text-gray-400 mt-0.5">{j.completed_count}/{j.total_courses} selesai</p>
                                             </button>
                                         );
-                                    })
-                                )}
+                                    })}
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Right: module detail of selected course */}
-                        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-                            <ListCardHeader
-                                icon={<LayoutGrid className="h-4 w-4" />}
-                                eyebrow="Detail Progress"
-                                title={my_activity.courses.find((c) => c.course_id === selectedCourseId)?.title ?? '-'}
-                            />
-                            <div className="p-4">
-                                {activityLoading ? (
-                                    <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
-                                        <Loader2 className="h-4 w-4 animate-spin" /> Memuat modul...
-                                    </div>
-                                ) : (
-                                    <ModulesDetail modules={activityModules} />
-                                )}
+                            {/* Tengah: daftar Course milik journey yang dipilih */}
+                            <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                                <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Course Saya" />
+                                <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
+                                    {visibleActivityCourses.length === 0 ? (
+                                        <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada course mandatory.</p>
+                                    ) : (
+                                        visibleActivityCourses.map((c) => {
+                                            const active = c.course_id === selectedCourseId;
+                                            const statusText =
+                                                c.status === 'completed' ? 'Selesai' : c.status === 'in_progress' ? 'Sedang dikerjakan' : 'Belum dimulai';
+                                            return (
+                                                <button
+                                                    key={c.course_id}
+                                                    type="button"
+                                                    onClick={() => selectCourse(c.course_id)}
+                                                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ${
+                                                        active ? 'bg-sky-50 dark:bg-sky-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/20'
+                                                    }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className={`text-sm font-semibold truncate ${active ? 'text-sky-700 dark:text-sky-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                                                            {c.title}
+                                                        </p>
+                                                        <p className="text-[11px] text-gray-400 mt-0.5">{statusText}</p>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        {c.status === 'completed' ? (
+                                                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                                        ) : c.status === 'in_progress' ? (
+                                                            <span className="text-xs font-bold text-amber-500">{c.progress_percentage}%</span>
+                                                        ) : (
+                                                            <span className="text-sm font-bold text-gray-300">&mdash;</span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Kanan: Detail Progress modul dari course yang dipilih */}
+                            <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                                <ListCardHeader
+                                    icon={<LayoutGrid className="h-4 w-4" />}
+                                    eyebrow="Detail Progress"
+                                    title={allActivityCourses.find((c) => c.course_id === selectedCourseId)?.title ?? '-'}
+                                />
+                                <div className="p-4">
+                                    {activityLoading ? (
+                                        <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
+                                            <Loader2 className="h-4 w-4 animate-spin" /> Memuat modul...
+                                        </div>
+                                    ) : (
+                                        <ModulesDetail modules={activityModules} />
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
+                )}
             </div>
         </AppLayout>
     );

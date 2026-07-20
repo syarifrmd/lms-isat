@@ -48,7 +48,7 @@ class StudentController extends Controller
             'scope_value'    => $scopeValue,
             'status_date'    => now()->timezone('Asia/Jakarta')->translatedFormat('d F Y'),
             'division_count' => count($visibleDivisions),
-            'course_count'   => count($myTeam['courses']),
+            'course_count'   => collect($myTeam['journeys'])->sum('total_courses'),
             'my_team'        => $myTeam,
             'my_activity'    => $myActivity,
         ]);
@@ -249,7 +249,7 @@ class StudentController extends Controller
         $totalCompleted = $students->filter(fn($s) => !is_null($s['completed_at']))->count();
 
         return Inertia::render('students/show', [
-            'course'             => $course->only('id', 'title', 'description', 'category', 'status'),
+            'course'             => $course->only('id', 'title', 'description', 'category', 'status', 'journey_id'),
             'students'           => $students,
             'total_enrollments'  => $totalEnrollments,
             'total_completed'    => $totalCompleted,
@@ -352,10 +352,27 @@ class StudentController extends Controller
             : $this->visibleDivisionsFor($user->division ?? '');
 
         if (empty($visibleDivisions)) {
-            return ['courses' => []];
+            return ['journeys' => []];
         }
 
-       
+        // Journey yang relevan untuk viewer diambil dari journey_divisions -- sumber yang
+        // sama dipakai halaman My Learning -- supaya daftar journey di Summary selalu
+        // konsisten dengan My Learning (sebelumnya bergantung ke course_division per-course
+        // yang bisa saja belum lengkap sehingga ada journey yang "hilang" di Summary).
+        $journeyDivisionRows = JourneyDivision::whereIn('target_division', $visibleDivisions)
+            ->get(['journey_id', 'target_division']);
+
+        $journeyIds = $journeyDivisionRows->pluck('journey_id')->unique()->values();
+
+        if ($journeyIds->isEmpty()) {
+            return ['journeys' => []];
+        }
+
+        $divisionsByJourneyId = $journeyDivisionRows
+            ->groupBy('journey_id')
+            ->map(fn($rows) => $rows->pluck('target_division')->unique()->values());
+
+        // Posisi course (hanya untuk urutan tampil course di dalam journey), tetap dari course_division.
         $courseDivisionRows = DB::table('course_division')
             ->whereIn('target_division', $visibleDivisions)
             ->get(['course_id', 'position']);
@@ -364,17 +381,10 @@ class StudentController extends Controller
             ->groupBy('course_id')
             ->map(fn($rows) => $rows->min('position'));
 
-        $courseIds = $positionByCourseId->keys();
-
-        $courses = Course::whereNotNull('journey_id')
-            ->whereIn('id', $courseIds)
+        $courses = Course::whereIn('journey_id', $journeyIds)
             ->get()
             ->sortBy(fn($course) => $positionByCourseId->get($course->id) ?? PHP_INT_MAX)
             ->values();
-
-        if ($courses->isEmpty()) {
-            return ['courses' => []];
-        }
 
        
         $peerUsersQuery = User::query();
@@ -395,7 +405,12 @@ class StudentController extends Controller
         
         $onlineCountByDivision = $this->onlineCountByDivision($user, $divisionOrder);
 
-        $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision) {
+        $moduleCountByCourseId = Module::whereIn('course_id', $courses->pluck('id'))
+            ->select('course_id', DB::raw('count(*) as total'))
+            ->groupBy('course_id')
+            ->pluck('total', 'course_id');
+
+        $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision, $moduleCountByCourseId) {
             $courseEnrollments = $allEnrollments->where('course_id', $course->id);
 
             $byDivision = $divisionOrder->map(function ($div) use ($courseEnrollments, $divisionByUserId, $onlineCountByDivision) {
@@ -413,14 +428,52 @@ class StudentController extends Controller
 
             return [
                 'course_id'       => $course->id,
+                'journey_id'      => $course->journey_id,
                 'title'           => $course->title,
                 'total_users'     => $courseEnrollments->count(),
                 'total_completed' => $courseEnrollments->whereNotNull('completed_at')->count(),
+                'total_modules'   => (int) ($moduleCountByCourseId->get($course->id) ?? 0),
                 'by_division'     => $byDivision,
             ];
         })->values();
 
-        return ['courses' => $courseCards];
+        // Kelompokkan course per journey_id (posisi journey ikut posisi course termuda di
+        // dalamnya, supaya urutan card journey tetap konsisten dengan urutan course sebelumnya).
+        $journeyTitleById = DB::table('journeys')
+            ->whereIn('id', $journeyIds)
+            ->get(['id', 'title'])
+            ->keyBy('id');
+
+        $courseCardsByJourney = $courseCards->groupBy('journey_id');
+
+        $journeyPositionById = $courseCardsByJourney
+            ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
+
+        // Bangun card dari SEMUA journey yang relevan buat viewer ($journeyIds, dari
+        // journey_divisions), bukan cuma journey yang kebetulan sudah punya course dengan
+        // journey_id terisi. Kalau tidak begini, journey yang belum ada course-nya (atau
+        // course-nya belum di-set journey_id-nya) akan hilang dari Summary walau journey
+        // itu sendiri valid dan tetap muncul di halaman My Learning/Journeys.
+        $journeys = $journeyIds
+            ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney) {
+                $rows = $courseCardsByJourney->get($journeyId, collect())->values();
+
+                return [
+                    'journey_id'      => (int) $journeyId,
+                    'journey_title'   => $journeyTitleById->get($journeyId)?->title
+                        ?? ('Journey #' . $journeyId),
+                    'total_courses'   => $rows->count(),
+                    'total_users'     => $rows->sum('total_users'),
+                    'total_completed' => $rows->sum('total_completed'),
+                    'total_modules'   => $rows->sum('total_modules'),
+                    'divisions'       => $divisionsByJourneyId->get((int) $journeyId, collect())->values(),
+                    'courses'         => $rows,
+                ];
+            })
+            ->sortBy(fn($j) => $journeyPositionById->get((string) $j['journey_id']) ?? PHP_INT_MAX)
+            ->values();
+
+        return ['journeys' => $journeys];
     }
 
   
@@ -446,7 +499,13 @@ class StudentController extends Controller
     {
         $mandatoryJourneyIds = JourneyDivision::where('target_division', $user->division ?? '')
             ->where('is_mandatory', true)
-            ->pluck('journey_id');
+            ->pluck('journey_id')
+            ->unique()
+            ->values();
+
+        if ($mandatoryJourneyIds->isEmpty()) {
+            return ['journeys' => []];
+        }
 
         
         $ownDivision = strtoupper(trim($user->division ?? ''));
@@ -478,13 +537,45 @@ class StudentController extends Controller
 
             return [
                 'course_id'           => $course->id,
+                'journey_id'          => $course->journey_id,
                 'title'               => $course->title,
                 'status'              => $status,
                 'progress_percentage' => $progress,
             ];
         })->values();
 
-        return ['courses' => $courseList];
+        // Kelompokkan course mandatory milik user ke dalam card journey, sama seperti My Team.
+        $journeyTitleById = DB::table('journeys')
+            ->whereIn('id', $mandatoryJourneyIds)
+            ->get(['id', 'title'])
+            ->keyBy('id');
+
+        $courseListByJourney = $courseList->groupBy('journey_id');
+
+        $journeyPositionById = $courseListByJourney
+            ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
+
+        // Bangun card dari SEMUA journey mandatory ($mandatoryJourneyIds), bukan cuma journey
+        // yang kebetulan sudah punya course dengan journey_id terisi -- sama seperti perbaikan
+        // di buildMyTeam, supaya journey mandatory yang belum ada course-nya tetap muncul.
+        $journeys = $mandatoryJourneyIds
+            ->map(function ($journeyId) use ($journeyTitleById, $courseListByJourney) {
+                $rows = $courseListByJourney->get($journeyId, collect())->values();
+
+                return [
+                    'journey_id'        => (int) $journeyId,
+                    'journey_title'     => $journeyTitleById->get($journeyId)?->title
+                        ?? ('Journey #' . $journeyId),
+                    'total_courses'     => $rows->count(),
+                    'completed_count'   => $rows->where('status', 'completed')->count(),
+                    'in_progress_count' => $rows->where('status', 'in_progress')->count(),
+                    'courses'           => $rows,
+                ];
+            })
+            ->sortBy(fn($j) => $journeyPositionById->get((string) $j['journey_id']) ?? PHP_INT_MAX)
+            ->values();
+
+        return ['journeys' => $journeys];
     }
 
     /**

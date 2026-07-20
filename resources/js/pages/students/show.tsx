@@ -55,6 +55,7 @@ interface Course {
     description?: string;
     category?: string;
     status?: string;
+    journey_id?: number;
 }
 
 interface Props {
@@ -311,7 +312,7 @@ export default function StudentsShow({ course, students, total_enrollments, tota
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
                 {/* Back */}
                 <button
-                    onClick={() => router.visit('/students')}
+                    onClick={() => router.visit(course.journey_id ? `/students?journey=${course.journey_id}` : '/students')}
                     className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
                 >
                     <ArrowLeft className="h-4 w-4" />
