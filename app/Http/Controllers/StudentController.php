@@ -26,7 +26,7 @@ class StudentController extends Controller
     {
         $user = Auth::user();
 
-        // Divisi DSE tidak diperbolehkan mengakses halaman My Progress / Summary ini.
+        // Divisi DSE tidak diperbolehkan mengakses 
         $this->denyIfRestrictedDivision($user);
 
         $scopeField = $this->groupFieldForDivision($user->division ?? '');
@@ -54,11 +54,7 @@ class StudentController extends Controller
         ]);
     }
 
-    /**
-     * JSON ringan: jumlah "user active" per divisi (sesuai scope viewer), untuk di-poll
-     * berkala dari frontend supaya status online terasa realtime tanpa perlu reload/refetch
-     * seluruh data My Team yang lebih berat.
-     */
+    
     public function onlineCounts(Request $request)
     {
         $user = Auth::user();
@@ -355,10 +351,6 @@ class StudentController extends Controller
             return ['journeys' => []];
         }
 
-        // Journey yang relevan untuk viewer diambil dari journey_divisions -- sumber yang
-        // sama dipakai halaman My Learning -- supaya daftar journey di Summary selalu
-        // konsisten dengan My Learning (sebelumnya bergantung ke course_division per-course
-        // yang bisa saja belum lengkap sehingga ada journey yang "hilang" di Summary).
         $journeyDivisionRows = JourneyDivision::whereIn('target_division', $visibleDivisions)
             ->get(['journey_id', 'target_division']);
 
@@ -437,8 +429,6 @@ class StudentController extends Controller
             ];
         })->values();
 
-        // Kelompokkan course per journey_id (posisi journey ikut posisi course termuda di
-        // dalamnya, supaya urutan card journey tetap konsisten dengan urutan course sebelumnya).
         $journeyTitleById = DB::table('journeys')
             ->whereIn('id', $journeyIds)
             ->get(['id', 'title'])
@@ -449,11 +439,6 @@ class StudentController extends Controller
         $journeyPositionById = $courseCardsByJourney
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
-        // Bangun card dari SEMUA journey yang relevan buat viewer ($journeyIds, dari
-        // journey_divisions), bukan cuma journey yang kebetulan sudah punya course dengan
-        // journey_id terisi. Kalau tidak begini, journey yang belum ada course-nya (atau
-        // course-nya belum di-set journey_id-nya) akan hilang dari Summary walau journey
-        // itu sendiri valid dan tetap muncul di halaman My Learning/Journeys.
         $journeys = $journeyIds
             ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney) {
                 $rows = $courseCardsByJourney->get($journeyId, collect())->values();
@@ -555,9 +540,7 @@ class StudentController extends Controller
         $journeyPositionById = $courseListByJourney
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
-        // Bangun card dari SEMUA journey mandatory ($mandatoryJourneyIds), bukan cuma journey
-        // yang kebetulan sudah punya course dengan journey_id terisi -- sama seperti perbaikan
-        // di buildMyTeam, supaya journey mandatory yang belum ada course-nya tetap muncul.
+    
         $journeys = $mandatoryJourneyIds
             ->map(function ($journeyId) use ($journeyTitleById, $courseListByJourney) {
                 $rows = $courseListByJourney->get($journeyId, collect())->values();

@@ -116,8 +116,6 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
                     <p className="text-[11px] text-gray-400 text-center py-2">Belum ada divisi dalam cakupan.</p>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {/* HOR & HOS: level manajemen, ditampilkan sebagai card/tile sendiri tanpa
-                            angka "selesai"/"user active" — cukup link langsung ke detail peserta. */}
                         {managementTiles.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {managementTiles.map((d) => (
@@ -314,8 +312,7 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
 // ---------------------------------------------------------------------------
 
 export default function StudentsIndex({ my_team, scope_label, scope_value, status_date, course_count, my_activity }: Props) {
-    // Card journey di My Team & My Activity SELALU ditampilkan (tidak pernah disembunyikan
-    // meski cuma ada 1 journey) -- baru masuk ke daftar course-nya setelah journey diklik.
+   
     const teamJourneys = my_team.journeys;
     const activityJourneys = my_activity.journeys;
     const allActivityCourses = activityJourneys.flatMap((j) => j.courses);
@@ -324,11 +321,6 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityModules, setActivityModules] = useState<ModuleProgress[]>([]);
 
-    // Navigasi 2 level di My Team: null = tampilkan card Journey, terisi = tampilkan
-    // card-card Course di dalam journey tersebut (mirip My Learning).
-    // Kalau datang dari halaman detail course (tombol "Kembali ke Daftar Course" di
-    // /students/{course}) yang membawa ?journey=ID, langsung buka journey itu supaya
-    // tidak balik ke layar pilih-journey dari awal.
     const [selectedJourneyId, setSelectedJourneyId] = useState<number | null>(() => {
         if (typeof window === 'undefined') return null;
         const journeyParam = new URLSearchParams(window.location.search).get('journey');
@@ -336,18 +328,13 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
     });
     const selectedJourney = teamJourneys.find((j) => j.journey_id === selectedJourneyId) ?? null;
 
-    // My Activity TIDAK terhubung ke selectedJourneyId milik My Team (independen) --
-    // defaultnya langsung buka journey pertama (kalau ada), sama seperti tampilan lama.
     const [selectedActivityJourneyId, setSelectedActivityJourneyId] = useState<number | null>(
         activityJourneys[0]?.journey_id ?? null,
     );
     const selectedActivityJourney = activityJourneys.find((j) => j.journey_id === selectedActivityJourneyId) ?? null;
 
-    // Course yang ditampilkan di panel "Course Saya": milik journey yang sedang dipilih di panel Journey.
     const visibleActivityCourses = selectedActivityJourney?.courses ?? [];
 
-    // Status "user active" per divisi, di-seed dari data awal lalu di-refresh sendiri lewat
-    // polling ringan (lihat effect di bawah) supaya kerasa realtime tanpa reload manual.
     const [onlineByDivision, setOnlineByDivision] = useState<Record<string, number>>(() => {
         const map: Record<string, number> = {};
         teamJourneys.forEach((j) => j.courses.forEach((c) => c.by_division.forEach((d) => { map[d.division] = d.online; })));
@@ -371,8 +358,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
         }
     };
 
-    // Pilih journey di panel kiri -> panel tengah otomatis tampilkan course-course journey
-    // itu, dan course pertamanya otomatis dipilih (modul course itu langsung dimuat).
+    
     const selectActivityJourney = (journey: MyActivityJourney) => {
         setSelectedActivityJourneyId(journey.journey_id);
         const firstCourseId = journey.courses[0]?.course_id;
@@ -389,14 +375,9 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
         if (selectedCourseId) {
             selectCourse(selectedCourseId);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+       
     }, []);
 
-    // Real-time "user active": fetch JSON kecil /students/online-counts tiap 5 detik dan
-    // update HANYA angka online-nya (tidak reload halaman/tidak refetch seluruh My Team),
-    // jadi terasa langsung berubah tanpa perlu reload manual. Otomatis berhenti kalau tab
-    // sedang tidak aktif dilihat (hemat request), lanjut lagi + langsung refresh begitu
-    // tab dibuka lagi.
     useEffect(() => {
         let interval: ReturnType<typeof setInterval> | null = null;
         let cancelled = false;
@@ -410,7 +391,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                 const data = await res.json();
                 setOnlineByDivision((prev) => ({ ...prev, ...data }));
             } catch {
-                // Abaikan error jaringan sesaat, coba lagi di polling berikutnya.
+               
             }
         };
 
@@ -473,8 +454,6 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     </div>
                 </div>
 
-                {/* My Team: level 1 = card Journey (selalu ditampilkan, tidak disembunyikan
-                    walau cuma 1 journey), diklik -> level 2 = card Course di dalam journey itu. */}
                 <div>
                     <div className="flex items-center gap-2 mb-3">
                         {selectedJourney && (
@@ -515,12 +494,6 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     )}
                 </div>
 
-                {/* My Activity: 3 panel sejajar dalam SATU tampilan (bukan navigasi bertahap) --
-                    kiri = pilih Journey, tengah = daftar Course di journey itu, kanan = Detail Progress
-                    modul dari course yang dipilih. Journey pertama & course pertamanya otomatis
-                    terpilih saat halaman dibuka, sama seperti tampilan sebelumnya.
-                    Disembunyikan selama My Team sedang drill-in ke course-course sebuah journey,
-                    supaya saat journey di My Team diklik, yang tampil cuma course-nya My Team saja. */}
                 {!selectedJourney && (
                 <div>
                     <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">My Activity</p>
