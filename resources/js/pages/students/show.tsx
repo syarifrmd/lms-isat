@@ -408,10 +408,11 @@ export default function StudentsShow({ course, students, total_enrollments, tota
 
                     {/* Header kolom (hanya tampil di desktop, mengikuti grid template yang sama dengan baris data) */}
                     {filteredStudents.length > 0 && (
-                        <div className="hidden sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_10rem_7rem_4rem_7rem_5.5rem] sm:items-center gap-4 px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
+                        <div className="hidden sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_8rem_8rem_7rem_4rem_7rem_5.5rem] sm:items-center gap-4 px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">No</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Peserta</span>
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Lokasi &amp; Divisi</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Lokasi</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Divisi</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Progress</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Gagal</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Status</span>
@@ -430,7 +431,7 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                     type="button"
                                     key={s.enrollment_id}
                                     onClick={() => openProfile(s)}
-                                    className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_10rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
+                                    className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_8rem_8rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
                                 >
                                     <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{idx + 1}</span>
 
@@ -439,8 +440,12 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                         <p className="text-[11px] text-gray-400 truncate">{s.employee_id} &bull; {s.email}</p>
                                     </div>
 
-                                    <div className="min-w-0 text-xs text-gray-400 truncate" title={`${s.location ?? '-'} \u2022 ${s.division ?? '-'}`}>
-                                        {s.location} &bull; {s.division}
+                                    <div className="min-w-0 text-xs text-gray-400 truncate" title={s.location ?? '-'}>
+                                        {s.location ?? '-'}
+                                    </div>
+
+                                    <div className="min-w-0 text-xs text-gray-400 truncate" title={s.division ?? '-'}>
+                                        {s.division ?? '-'}
                                     </div>
 
                                     <div className="min-w-0">
