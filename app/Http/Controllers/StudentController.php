@@ -26,7 +26,7 @@ class StudentController extends Controller
     {
         $user = Auth::user();
 
-        // Divisi DSE tidak diperbolehkan mengakses 
+        // Divisi DSE tidak diperbolehkan mengakses halaman My Progress / Summary ini.
         $this->denyIfRestrictedDivision($user);
 
         $scopeField = $this->groupFieldForDivision($user->division ?? '');
@@ -54,7 +54,6 @@ class StudentController extends Controller
         ]);
     }
 
-    
     public function onlineCounts(Request $request)
     {
         $user = Auth::user();
@@ -351,10 +350,17 @@ class StudentController extends Controller
             return ['journeys' => []];
         }
 
+
         $journeyDivisionRows = JourneyDivision::whereIn('target_division', $visibleDivisions)
             ->get(['journey_id', 'target_division']);
 
-        $journeyIds = $journeyDivisionRows->pluck('journey_id')->unique()->values();
+        $ownDivisionUpper = strtoupper(trim($user->division ?? ''));
+
+        $journeyIds = $journeyDivisionRows
+            ->where('target_division', $ownDivisionUpper)
+            ->pluck('journey_id')
+            ->unique()
+            ->values();
 
         if ($journeyIds->isEmpty()) {
             return ['journeys' => []];
@@ -439,6 +445,7 @@ class StudentController extends Controller
         $journeyPositionById = $courseCardsByJourney
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
+        
         $journeys = $journeyIds
             ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney) {
                 $rows = $courseCardsByJourney->get($journeyId, collect())->values();
@@ -540,7 +547,6 @@ class StudentController extends Controller
         $journeyPositionById = $courseListByJourney
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
-    
         $journeys = $mandatoryJourneyIds
             ->map(function ($journeyId) use ($journeyTitleById, $courseListByJourney) {
                 $rows = $courseListByJourney->get($journeyId, collect())->values();
