@@ -92,6 +92,12 @@ function ProgressBar({ value }: { value: number }) {
 export default function StudentsShow({ course, students, total_enrollments, total_completed, scope_label, scope_value, division_filter }: Props) {
     const [search, setSearch] = useState('');
     const [profileUser, setProfileUser] = useState<StudentRow | null>(null);
+    const [avatarError, setAvatarError] = useState(false);
+
+    const openProfile = (s: StudentRow) => {
+        setAvatarError(false);
+        setProfileUser(s);
+    };
 
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
@@ -126,10 +132,11 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                     {profileUser && (
                         <div className="flex flex-col gap-4">
                             <div className="flex flex-col items-center gap-2 pt-1">
-                                {profileUser.avatar ? (
+                                {profileUser.avatar && !avatarError ? (
                                     <img
                                         src={profileUser.avatar}
                                         alt={profileUser.name}
+                                        onError={() => setAvatarError(true)}
                                         className="h-16 w-16 rounded-full object-cover border border-sky-100 dark:border-sky-900 bg-gray-100 dark:bg-gray-700"
                                     />
                                 ) : (
@@ -409,7 +416,7 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                 <button
                                     type="button"
                                     key={s.enrollment_id}
-                                    onClick={() => setProfileUser(s)}
+                                    onClick={() => openProfile(s)}
                                     className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
                                 >
                                     <span className="w-full sm:w-8 shrink-0 text-xs text-gray-300">{idx + 1}</span>

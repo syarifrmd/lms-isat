@@ -123,6 +123,7 @@ export default function Profile() {
                                 <img
                                     src={preview}
                                     alt="Profile photo"
+                                    onError={() => setPreview(null)}
                                     className="h-20 w-20 rounded-full object-cover ring-2 ring-border"
                                 />
                             ) : (

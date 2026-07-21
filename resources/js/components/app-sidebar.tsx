@@ -135,6 +135,10 @@ export function AppSidebar() {
                                                 `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`
                                             }
                                             alt={user.name}
+                                            onError={(e) => {
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`;
+                                            }}
                                             className="h-10 w-10 shrink-0 rounded-full border-2 border-yellow-400 bg-gray-600 object-cover"
                                         />
                                         <div className="flex flex-col leading-tight min-w-0 group-data-[collapsible=icon]:hidden">
