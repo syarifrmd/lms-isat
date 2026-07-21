@@ -406,6 +406,19 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                         </div>
                     </div>
 
+                    {/* Header kolom (hanya tampil di desktop, mengikuti grid template yang sama dengan baris data) */}
+                    {filteredStudents.length > 0 && (
+                        <div className="hidden sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_10rem_7rem_4rem_7rem_5.5rem] sm:items-center gap-4 px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">No</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Peserta</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Lokasi &amp; Divisi</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Progress</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Gagal</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Status</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tanggal</span>
+                        </div>
+                    )}
+
                     <div className="divide-y divide-gray-50 dark:divide-gray-700">
                         {filteredStudents.length === 0 ? (
                             <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
@@ -417,31 +430,45 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                     type="button"
                                     key={s.enrollment_id}
                                     onClick={() => openProfile(s)}
-                                    className="w-full flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
+                                    className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_10rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
                                 >
-                                    <span className="w-full sm:w-8 shrink-0 text-xs text-gray-300">{idx + 1}</span>
-                                    <div className="flex-1 min-w-0">
+                                    <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{idx + 1}</span>
+
+                                    <div className="min-w-0">
                                         <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{s.name}</p>
                                         <p className="text-[11px] text-gray-400 truncate">{s.employee_id} &bull; {s.email}</p>
                                     </div>
-                                    <div className="w-full sm:w-40 text-xs text-gray-400 shrink-0 truncate">{s.location} &bull; {s.division}</div>
-                                    <div className="shrink-0">
+
+                                    <div className="min-w-0 text-xs text-gray-400 truncate" title={`${s.location ?? '-'} \u2022 ${s.division ?? '-'}`}>
+                                        {s.location} &bull; {s.division}
+                                    </div>
+
+                                    <div className="min-w-0">
                                         <ProgressBar value={s.progress_percentage} />
                                         <p className="text-[10px] text-gray-400 mt-1">{s.progress_percentage}%</p>
                                     </div>
-                                    {s.score_failed_count > 0 && (
-                                        <span className="text-[11px] text-red-500 shrink-0">&#8855; {s.score_failed_count}x</span>
-                                    )}
-                                    <span
-                                        className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                                            s.completed_at
-                                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                : 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
-                                        }`}
-                                    >
-                                        {s.completed_at ? 'Selesai' : 'Dalam Proses'}
-                                    </span>
-                                    <span className="w-full sm:w-20 text-[11px] text-gray-400 shrink-0">{s.enrollment_at ?? '-'}</span>
+
+                                    <div className="sm:text-center">
+                                        {s.score_failed_count > 0 ? (
+                                            <span className="text-[11px] text-red-500">&#8855; {s.score_failed_count}x</span>
+                                        ) : (
+                                            <span className="text-[11px] text-gray-300 dark:text-gray-600">&mdash;</span>
+                                        )}
+                                    </div>
+
+                                    <div className="sm:flex sm:justify-center">
+                                        <span
+                                            className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap ${
+                                                s.completed_at
+                                                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
+                                            }`}
+                                        >
+                                            {s.completed_at ? 'Selesai' : 'Dalam Proses'}
+                                        </span>
+                                    </div>
+
+                                    <span className="text-[11px] text-gray-400">{s.enrollment_at ?? '-'}</span>
                                 </button>
                             ))
                         )}
