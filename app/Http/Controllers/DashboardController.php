@@ -231,7 +231,8 @@ class DashboardController extends Controller
             ->whereHas('module.course', function ($q) {
                 $q->where('is_mandatory', 1)->whereNotNull('journey_id');
             })
-            ->count();
+            ->distinct('module_id')
+            ->count('module_id');
 
         // Active enrollments for dashboard cards (exclude completed/dropped)
         $activeCourses = Enrollment::where('user_id', $userId)
