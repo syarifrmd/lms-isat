@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle2, Clock, Mail, MapPin, CreditCard, Users, Search, PlayCircle, FileText, File as FileIcon, Award, XCircle, Trophy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface QuizResult {
     quiz_id: number;
@@ -31,7 +31,7 @@ interface ModuleProgress {
 }
 
 interface StudentRow {
-    enrollment_id: number;
+    enrollment_id?: number | null;
     user_id: string;
     name: string;
     username?: string;
@@ -58,14 +58,27 @@ interface Course {
     journey_id?: number;
 }
 
+interface AggregatedRow {
+    no: number;
+    group_value: string;
+    total_dse: number;
+    registered_count: number;
+    completed_count: number;
+    percentage: number;
+}
+
 interface Props {
     course: Course;
     students: StudentRow[];
     total_enrollments: number;
     total_completed: number;
+    total_dse?: number;
     scope_label: string;
     scope_value: string;
     division_filter?: string | null;
+    aggregated?: boolean;
+    aggregated_group_label?: string;
+    aggregated_rows?: AggregatedRow[];
 }
 
 function StatusCheckIcon({ done, label }: { done: boolean; label: string }) {
@@ -89,10 +102,24 @@ function ProgressBar({ value }: { value: number }) {
     );
 }
 
-export default function StudentsShow({ course, students, total_enrollments, total_completed, scope_label, scope_value, division_filter }: Props) {
+export default function StudentsShow({
+    course,
+    students,
+    total_enrollments,
+    total_completed,
+    total_dse,
+    scope_label,
+    scope_value,
+    division_filter,
+    aggregated,
+    aggregated_group_label,
+    aggregated_rows,
+}: Props) {
     const [search, setSearch] = useState('');
     const [profileUser, setProfileUser] = useState<StudentRow | null>(null);
     const [avatarError, setAvatarError] = useState(false);
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 15;
 
     const openProfile = (s: StudentRow) => {
         setAvatarError(false);
@@ -118,6 +145,31 @@ export default function StudentsShow({ course, students, total_enrollments, tota
     };
 
     const filteredStudents = students.filter(matchesSearch);
+
+    const groupLabel = aggregated_group_label ?? 'Region';
+    const aggregatedRows = aggregated_rows ?? [];
+    const filteredAggregatedRows = search
+        ? aggregatedRows.filter((r) => r.group_value.toLowerCase().includes(search.toLowerCase()))
+        : aggregatedRows;
+
+    // Pagination: Daftar Peserta bisa sangat panjang (semua DSE dalam scope), jadi ditampilkan
+    // 15 baris dulu per halaman.
+    useEffect(() => {
+        setPage(1);
+    }, [search, division_filter]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const paginatedStudents = filteredStudents.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+    // Pagination untuk tabel Rekap (per Region/Area/Branch/Micro Cluster) juga 15 baris per
+    // halaman, memakai state `page` yang sama (keduanya tidak pernah tampil bersamaan).
+    const aggTotalPages = Math.max(1, Math.ceil(filteredAggregatedRows.length / PAGE_SIZE));
+    const aggCurrentPage = Math.min(page, aggTotalPages);
+    const paginatedAggregatedRows = filteredAggregatedRows.slice(
+        (aggCurrentPage - 1) * PAGE_SIZE,
+        aggCurrentPage * PAGE_SIZE,
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -148,8 +200,10 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                     <p className="font-semibold text-gray-800 dark:text-gray-100">{profileUser.name}</p>
                                     {profileUser.completed_at ? (
                                         <span className="mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Selesai</span>
-                                    ) : (
+                                    ) : profileUser.enrollment_id ? (
                                         <span className="mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Dalam Proses</span>
+                                    ) : (
+                                        <span className="mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Belum Terdaftar</span>
                                     )}
                                 </div>
                             </div>
@@ -338,7 +392,9 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                     <span className="text-gray-300 dark:text-gray-600">&bull;</span>
                                 </>
                             )}
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{total_enrollments} user terdaftar</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {total_enrollments}{typeof total_dse === 'number' ? `/${total_dse}` : ''} user terdaftar
+                            </span>
                             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{scope_label}: {scope_value}</span>
                             {division_filter && (
@@ -366,7 +422,9 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Terdaftar</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_enrollments}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                                    {total_enrollments}{typeof total_dse === 'number' && <span className="text-sm font-medium text-gray-400">/{total_dse}</span>}
+                                </p>
                             </div>
                         </div>
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm">
@@ -375,7 +433,9 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Selesai</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_completed}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                                    {total_completed}{typeof total_dse === 'number' && <span className="text-sm font-medium text-gray-400">/{total_dse}</span>}
+                                </p>
                             </div>
                         </div>
                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 flex items-center gap-3 shadow-sm col-span-2 sm:col-span-1">
@@ -384,13 +444,101 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                             </div>
                             <div>
                                 <p className="text-xs text-gray-400 uppercase tracking-widest">Berjalan</p>
-                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{total_enrollments - total_completed}</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-gray-100">
+                                    {total_enrollments - total_completed}{typeof total_dse === 'number' && <span className="text-sm font-medium text-gray-400">/{total_dse}</span>}
+                                </p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* List Card (flat, simplified: nama, lokasi, progress) */}
+                {aggregated ? (
+                /* Rekap Card: 1 baris per Region/Area/Branch (klik HOR/HOS/BSM), bukan per peserta */
+                <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Rekap {groupLabel}</h2>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                            <input
+                                type="text"
+                                placeholder={`Cari ${groupLabel.toLowerCase()}...`}
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 pl-9 pr-4 py-2 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-sky-300 dark:focus:ring-sky-700 transition"
+                            />
+                        </div>
+                    </div>
+
+                    {filteredAggregatedRows.length > 0 && (
+                        <div className="hidden sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center gap-4 px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">No</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{groupLabel}</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Jumlah DSE</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Course Selesai</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Persentase</span>
+                        </div>
+                    )}
+
+                    <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                        {filteredAggregatedRows.length === 0 ? (
+                            <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                {search ? 'Tidak ada hasil yang cocok.' : `Belum ada ${groupLabel.toLowerCase()} dalam cakupan.`}
+                            </p>
+                        ) : (
+                            paginatedAggregatedRows.map((r, idx) => (
+                                <div
+                                    key={r.group_value}
+                                    className="flex flex-col gap-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 px-5 py-3"
+                                >
+                                    <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{(aggCurrentPage - 1) * PAGE_SIZE + idx + 1}</span>
+
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{r.group_value}</p>
+
+                                    <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.total_dse}</p>
+
+                                    <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.completed_count}</p>
+
+                                    <div className="sm:flex sm:justify-center">
+                                        <span className="inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                            {r.percentage}%
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {filteredAggregatedRows.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 dark:border-gray-700">
+                            <p className="text-[11px] text-gray-400">
+                                Menampilkan {(aggCurrentPage - 1) * PAGE_SIZE + 1}-{Math.min(aggCurrentPage * PAGE_SIZE, filteredAggregatedRows.length)} dari {filteredAggregatedRows.length} {groupLabel.toLowerCase()}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={aggCurrentPage <= 1}
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                                >
+                                    Sebelumnya
+                                </button>
+                                <span className="text-xs text-gray-400 px-1">
+                                    {aggCurrentPage} / {aggTotalPages}
+                                </span>
+                                <button
+                                    type="button"
+                                    disabled={aggCurrentPage >= aggTotalPages}
+                                    onClick={() => setPage((p) => Math.min(aggTotalPages, p + 1))}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                                >
+                                    Berikutnya
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                ) : (
+                /* List Card (flat, simplified: nama, lokasi, progress) */
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Daftar Peserta</h2>
@@ -426,14 +574,14 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                 {search ? 'Tidak ada hasil yang cocok.' : 'Belum ada peserta yang terdaftar.'}
                             </p>
                         ) : (
-                            filteredStudents.map((s, idx) => (
+                            paginatedStudents.map((s, idx) => (
                                 <button
                                     type="button"
-                                    key={s.enrollment_id}
+                                    key={s.enrollment_id ?? `u-${s.user_id}`}
                                     onClick={() => openProfile(s)}
                                     className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_11rem_5rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
                                 >
-                                    <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{idx + 1}</span>
+                                    <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{(currentPage - 1) * PAGE_SIZE + idx + 1}</span>
 
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{s.name}</p>
@@ -466,10 +614,12 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                                             className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap ${
                                                 s.completed_at
                                                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
+                                                    : s.enrollment_id
+                                                    ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
+                                                    : 'bg-gray-100 text-gray-500 dark:bg-gray-700/40 dark:text-gray-400'
                                             }`}
                                         >
-                                            {s.completed_at ? 'Selesai' : 'Dalam Proses'}
+                                            {s.completed_at ? 'Selesai' : s.enrollment_id ? 'Dalam Proses' : 'Belum Terdaftar'}
                                         </span>
                                     </div>
 
@@ -478,7 +628,37 @@ export default function StudentsShow({ course, students, total_enrollments, tota
                             ))
                         )}
                     </div>
+
+                    {filteredStudents.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 dark:border-gray-700">
+                            <p className="text-[11px] text-gray-400">
+                                Menampilkan {(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(currentPage * PAGE_SIZE, filteredStudents.length)} dari {filteredStudents.length} peserta
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                                >
+                                    Sebelumnya
+                                </button>
+                                <span className="text-xs text-gray-400 px-1">
+                                    {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                    type="button"
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                    className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700/40 transition"
+                                >
+                                    Berikutnya
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
+                )}
             </div>
         </AppLayout>
     );

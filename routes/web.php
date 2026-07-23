@@ -84,7 +84,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Journeys (All authenticated users can view)
     Route::get('/journeys', [\App\Http\Controllers\JourneyController::class, 'index'])->name('journeys.index');
-    Route::get('/journeys/{id}', [\App\Http\Controllers\JourneyController::class, 'show'])->name('journeys.show');
+    Route::get('/journeys/{id}', [\App\Http\Controllers\JourneyController::class, 'show'])
+        ->middleware(\App\Http\Middleware\MarkJourneyActive::class)
+        ->name('journeys.show');
+    Route::post('/journeys/{id}/ping-active', [\App\Http\Controllers\JourneyActivityPingController::class, 'ping'])
+        ->name('journeys.ping-active');
 
     // Courses (All authenticated users can view)
     Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
@@ -128,6 +132,8 @@ Route::middleware(['auth'])->group(function () {
     // Route literal ini WAJIB ada sebelum '/students/{courseId}' di bawah, kalau tidak
     // Laravel akan salah tangkap "online-counts" sebagai {courseId} dan error.
     Route::get('/students/online-counts', [StudentController::class, 'onlineCounts'])->name('students.online-counts');
+    Route::get('/students/journey-active-users/{journey}', [StudentController::class, 'journeyActiveUsers'])->name('students.journey-active-users');
+    Route::get('/students/journey-active-counts', [StudentController::class, 'journeyActiveCounts'])->name('students.journey-active-counts');
     Route::get('/students', [StudentController::class, 'index'])->name('students.index');
     Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
 });

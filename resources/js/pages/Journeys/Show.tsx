@@ -3,7 +3,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { BookOpen, ArrowLeft, Clock, Award, ShieldAlert, AlertCircle, Bookmark, Clock as ClockIcon, Lock, Trash } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EnrollmentModal } from '@/components/EnrollmentModal';
 import {
     AlertDialog,
@@ -80,6 +80,63 @@ export default function ShowJourney({ journey, auth }: ShowJourneyProps) {
             });
         }
     };
+
+    // Heartbeat "aktif di journey ini": kirim ping tiap 10 detik selagi halaman ini terbuka &
+    // terlihat, supaya status di StudentController (dseActiveUserIdsForJourney) benar-benar
+    // realtime. TTL di server 20 detik, jadi interval 10 detik cukup rapat untuk menjaganya
+    // tetap "hidup" tanpa celah. Begitu tab ditutup/pindah, ping berhenti dan statusnya otomatis
+    // hilang dalam hitungan detik.
+    useEffect(() => {
+        const getXsrfToken = () => {
+            const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        };
+
+        const sendPing = () => {
+            fetch(`/journeys/${journey.id}/ping-active`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': getXsrfToken(),
+                },
+            }).catch(() => {
+                
+            });
+        };
+
+        let interval: ReturnType<typeof setInterval> | null = null;
+
+        const startPinging = () => {
+            if (interval) return;
+            sendPing();
+            interval = setInterval(sendPing, 10000);
+        };
+
+        const stopPinging = () => {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                startPinging();
+            } else {
+                stopPinging();
+            }
+        };
+
+        startPinging();
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            stopPinging();
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
+    }, [journey.id]);
 
     return (
         <AppLayout breadcrumbs={[

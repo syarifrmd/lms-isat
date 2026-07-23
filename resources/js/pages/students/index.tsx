@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Users, Layers, Building2, Inbox } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Users, Layers, Building2, Inbox, UserCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,15 @@ interface MyTeamJourney {
     total_completed: number;
     total_modules: number;
     divisions: string[];
+    active_users: number;
     courses: MyTeamCourse[];
+}
+
+interface ActiveUser {
+    id: number;
+    name: string;
+    avatar: string | null;
+    location: string;
 }
 
 interface MyActivityCourse {
@@ -91,18 +99,14 @@ interface Props {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; onlineByDivision: Record<string, number> }) {
-    // HOR & HOS: level manajemen -> tile sendiri, tanpa angka selesai/user active.
-    const managementTiles = course.by_division.filter((d) => d.division === 'HOR' || d.division === 'HOS');
-    const statTiles = course.by_division.filter((d) => d.division !== 'HOR' && d.division !== 'HOS');
+function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
+    // Semua tile divisi (HOR, HOS, BSM, CSE, DSE) tampil seragam: hanya nama divisi,
+    // tanpa angka "selesai" / "user active".
+    const divisionTiles = course.by_division;
 
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
-            <button
-                type="button"
-                onClick={() => router.visit(`/students/${course.course_id}?journey=${course.journey_id}`)}
-                className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3 hover:brightness-95 transition"
-            >
+            <div className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
                     <BookOpen className="h-4 w-4" />
                 </div>
@@ -110,50 +114,23 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{course.title}</p>
                     <p className="text-[11px] text-gray-400">{course.total_completed} selesai</p>
                 </div>
-            </button>
+            </div>
             <div className="px-4 py-3">
-                {course.by_division.length === 0 ? (
+                {divisionTiles.length === 0 ? (
                     <p className="text-[11px] text-gray-400 text-center py-2">Belum ada divisi dalam cakupan.</p>
                 ) : (
-                    <div className="flex flex-col gap-2">
-                        {managementTiles.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {managementTiles.map((d) => (
-                                    <button
-                                        type="button"
-                                        key={d.division}
-                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
-                                        className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
-                                    >
-                                        {d.division}
-                                        <ChevronRight className="h-3 w-3" />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {statTiles.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {statTiles.map((d) => (
-                                    <button
-                                        type="button"
-                                        key={d.division}
-                                        onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
-                                        className="text-left rounded-lg bg-gray-50 dark:bg-gray-700/40 px-2.5 py-1.5 min-w-[74px] hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
-                                    >
-                                        <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide">{d.division}</p>
-                                        <div className="flex items-baseline gap-1 mt-0.5">
-                                            <span className="text-sm font-bold text-gray-700 dark:text-gray-200">{d.completed}</span>
-                                            <span className="text-[9px] text-gray-400">selesai</span>
-                                        </div>
-                                        <p className="flex items-center gap-1 mt-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                            {onlineByDivision[d.division] ?? d.online} user active
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                    <div className="flex flex-wrap gap-2">
+                        {divisionTiles.map((d) => (
+                            <button
+                                type="button"
+                                key={d.division}
+                                onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
+                                className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
+                            >
+                                {d.division}
+                                <ChevronRight className="h-3 w-3" />
+                            </button>
+                        ))}
                     </div>
                 )}
             </div>
@@ -161,14 +138,58 @@ function MyTeamCourseCard({ course, onlineByDivision }: { course: MyTeamCourse; 
     );
 }
 
-function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen: () => void }) {
+function MyTeamJourneyCard({
+    journey,
+    onOpen,
+    liveActiveCount,
+}: {
+    journey: MyTeamJourney;
+    onOpen: () => void;
+    liveActiveCount?: number;
+}) {
+    const [showActivePopup, setShowActivePopup] = useState(false);
+    const [activeUsersLoading, setActiveUsersLoading] = useState(false);
+    const [activeUsers, setActiveUsers] = useState<ActiveUser[] | null>(null);
+
+    const fetchActiveUsers = async () => {
+        setActiveUsersLoading(true);
+        try {
+            const res = await fetch(`/students/journey-active-users/${journey.journey_id}`, {
+                headers: { Accept: 'application/json' },
+            });
+            const data = await res.json();
+            setActiveUsers(data.users ?? []);
+        } catch {
+            setActiveUsers((prev) => prev ?? []);
+        } finally {
+            setActiveUsersLoading(false);
+        }
+    };
+
+    const openActivePopup = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setShowActivePopup(true);
+        // Selalu ambil data terbaru karena status "aktif di journey ini" bisa berubah kapan saja.
+        fetchActiveUsers();
+    };
+
+    // Selagi pop up terbuka, refresh daftarnya setiap 5 detik supaya benar-benar realtime.
+    useEffect(() => {
+        if (!showActivePopup) return;
+        const interval = setInterval(fetchActiveUsers, 5000);
+        return () => clearInterval(interval);
+    }, [showActivePopup]);
+
+    const baseActive = liveActiveCount !== undefined ? liveActiveCount : journey.active_users;
+    const totalActive = activeUsers !== null ? activeUsers.length : baseActive;
+
     return (
-        <button
-            type="button"
-            onClick={onOpen}
-            className="w-full text-left rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all"
-        >
-            <div className="border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
+        <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
+            <button
+                type="button"
+                onClick={onOpen}
+                className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3 hover:brightness-95 transition"
+            >
                 <div className="h-9 w-9 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-500 flex items-center justify-center shrink-0">
                     <Map className="h-4 w-4" />
                 </div>
@@ -177,9 +198,13 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                     <p className="text-[11px] text-gray-400">{journey.total_completed} selesai</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-sky-400 shrink-0 ml-auto" />
-            </div>
+            </button>
             <div className="px-4 py-3 grid grid-cols-2 gap-2">
-                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
+                >
                     <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
                         <BookOpen className="h-4 w-4" />
                     </div>
@@ -187,8 +212,12 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                         <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_courses}</p>
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">course tersedia</p>
                     </div>
-                </div>
-                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                </button>
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
+                >
                     <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
                         <Layers className="h-4 w-4" />
                     </div>
@@ -196,8 +225,12 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                         <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_modules}</p>
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">module tersedia</p>
                     </div>
-                </div>
-                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                </button>
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
+                >
                     <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
                         <Users className="h-4 w-4" />
                     </div>
@@ -205,18 +238,93 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                         <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_users}</p>
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user terdaftar</p>
                     </div>
-                </div>
-                <div className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
-                        <Building2 className="h-4 w-4" />
+                </button>
+                <button
+                    type="button"
+                    onClick={openActivePopup}
+                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:ring-1 hover:ring-emerald-200 dark:hover:ring-emerald-800 transition"
+                >
+                    <div className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center shrink-0">
+                        <UserCheck className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.divisions.length}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">divisi</p>
+                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{totalActive}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user active</p>
+                    </div>
+                </button>
+            </div>
+
+            {showActivePopup && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowActivePopup(false);
+                    }}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center shrink-0">
+                                <UserCheck className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-400 truncate">User Active</p>
+                                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{journey.journey_title}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowActivePopup(false)}
+                                className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition shrink-0"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="px-4 py-2.5 flex items-center gap-2 bg-gray-50/60 dark:bg-gray-900/30 border-b border-gray-50 dark:border-gray-700">
+                            <div className="h-6 w-6 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
+                                <Building2 className="h-3.5 w-3.5" />
+                            </div>
+                            <p className="text-xs font-bold text-gray-600 dark:text-gray-300">DSE</p>
+                            <p className="text-[11px] text-gray-400 ml-auto">{totalActive} user</p>
+                        </div>
+
+                        <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+                            {activeUsersLoading && activeUsers === null ? (
+                                <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-400">
+                                    <Loader2 className="h-4 w-4 animate-spin" /> Memuat user active...
+                                </div>
+                            ) : !activeUsers || activeUsers.length === 0 ? (
+                                <p className="px-4 py-8 text-center text-sm text-gray-400">Belum ada user DSE yang aktif di journey ini.</p>
+                            ) : (
+                                activeUsers.map((u) => (
+                                    <div key={u.id} className="flex items-center gap-3 px-4 py-2.5">
+                                        {u.avatar ? (
+                                            <img src={u.avatar} alt={u.name} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <div className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs font-bold shrink-0">
+                                                {u.name.charAt(0).toUpperCase()}
+                                            </div>
+                                        )}
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate">{u.name}</p>
+                                            <p className="text-[11px] text-gray-400 truncate">{u.location}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="px-4 py-3 border-t border-gray-50 dark:border-gray-700 flex items-center justify-between text-xs text-gray-400">
+                            <span>Total user active</span>
+                            <span className="font-bold text-gray-600 dark:text-gray-300">{totalActive}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </button>
+            )}
+        </div>
     );
 }
 
@@ -341,6 +449,12 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
         return map;
     });
 
+    const [activeUsersByJourney, setActiveUsersByJourney] = useState<Record<number, number>>(() => {
+        const map: Record<number, number> = {};
+        teamJourneys.forEach((j) => { map[j.journey_id] = j.active_users; });
+        return map;
+    });
+
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Summary', href: '/students' },
@@ -427,6 +541,58 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
         };
     }, []);
 
+    // Polling terpisah untuk "user active" per journey (berbasis kunjungan+ping ke halaman
+    // journey, bukan online biasa), supaya tile & pop up di My Team ikut update otomatis
+    // secara realtime.
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval> | null = null;
+        let cancelled = false;
+
+        const fetchActiveCounts = async () => {
+            try {
+                const res = await fetch('/students/journey-active-counts', {
+                    headers: { Accept: 'application/json' },
+                });
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                setActiveUsersByJourney((prev) => ({ ...prev, ...data }));
+            } catch {
+                
+            }
+        };
+
+        const startPolling = () => {
+            if (interval) return;
+            interval = setInterval(fetchActiveCounts, 5000);
+        };
+
+        const stopPolling = () => {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchActiveCounts();
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        };
+
+        fetchActiveCounts();
+        startPolling();
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            cancelled = true;
+            stopPolling();
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
+    }, []);
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Summary" />
@@ -477,7 +643,12 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     ) : !selectedJourney ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {teamJourneys.map((j) => (
-                                <MyTeamJourneyCard key={j.journey_id} journey={j} onOpen={() => setSelectedJourneyId(j.journey_id)} />
+                                <MyTeamJourneyCard
+                                    key={j.journey_id}
+                                    journey={j}
+                                    onOpen={() => setSelectedJourneyId(j.journey_id)}
+                                    liveActiveCount={activeUsersByJourney[j.journey_id]}
+                                />
                             ))}
                         </div>
                     ) : selectedJourney.courses.length === 0 ? (
@@ -488,7 +659,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {selectedJourney.courses.map((c) => (
-                                <MyTeamCourseCard key={c.course_id} course={c} onlineByDivision={onlineByDivision} />
+                                <MyTeamCourseCard key={c.course_id} course={c} />
                             ))}
                         </div>
                     )}

@@ -73,6 +73,67 @@ class StudentController extends Controller
         return response()->json($this->onlineCountByDivision($user, $divisionOrder));
     }
 
+   
+    /**
+     * JSON ringan: { journeyId: activeUsersCount } untuk semua journey yang muncul di My Team
+     * milik viewer. Dipakai untuk polling realtime di halaman Summary supaya angka "user active"
+     * ikut update otomatis tanpa perlu buka pop up atau reload halaman.
+     */
+    public function journeyActiveCounts(Request $request)
+    {
+        $user = Auth::user();
+        $this->denyIfRestrictedDivision($user);
+
+        $ownDivisionUpper = strtoupper(trim($user->division ?? ''));
+
+        $journeyIds = JourneyDivision::where('target_division', $ownDivisionUpper)
+            ->pluck('journey_id')
+            ->unique()
+            ->values();
+
+        $counts = [];
+        foreach ($journeyIds as $journeyId) {
+            $counts[$journeyId] = $this->dseActiveUserIdsForJourney($user, $journeyId)->count();
+        }
+
+        return response()->json($counts);
+    }
+
+    public function journeyActiveUsers($journeyId)
+    {
+        $user = Auth::user();
+        $this->denyIfRestrictedDivision($user);
+
+        $activeUserIds = $this->dseActiveUserIdsForJourney($user, $journeyId);
+
+        if ($activeUserIds->isEmpty()) {
+            return response()->json([
+                'division' => 'DSE',
+                'total'    => 0,
+                'users'    => [],
+            ]);
+        }
+
+        $users = User::whereIn('id', $activeUserIds)
+            ->get(['id', 'name', 'avatar', 'micro_cluster', 'branch', 'area', 'region', 'circle'])
+            ->map(function ($u) {
+                return [
+                    'id'       => $u->id,
+                    'name'     => $u->name,
+                    'avatar'   => $this->resolveAvatarUrl($u->avatar),
+                    'location' => $u->micro_cluster ?? $u->branch ?? $u->area ?? $u->region ?? $u->circle ?? '-',
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+
+        return response()->json([
+            'division' => 'DSE',
+            'total'    => $users->count(),
+            'users'    => $users,
+        ]);
+    }
+
     /**
      * JSON: detail modul untuk 1 course di My Activity milik user yang login.
      */
@@ -179,79 +240,264 @@ class StudentController extends Controller
             }
         }
 
+        $divisionFilter = strtoupper(trim((string) $request->query('division', '')));
+
+        // Statistik "Terdaftar/Selesai/Berjalan" di card atas selalu dihitung sebagai
+        // pecahan dari total DSE dalam scope viewer (bukan dari daftar peserta yang sedang
+        // ditampilkan), jadi angkanya konsisten di semua tampilan (rekap maupun per-divisi).
+        $dseStats = $this->buildDseCourseStats($user, $courseId);
+
+        // HOR/HOS/BSM/CSE: bukan daftar peserta satu per satu, tapi rekap per region/area/branch/micro-cluster
+        // (jumlah DSE di scope tsb + berapa yang sudah selesai course ini), diambil langsung dari data user.
+        if (in_array($divisionFilter, ['HOR', 'HOS', 'BSM', 'CSE'], true)) {
+            $agg = $this->buildAggregatedByDivision($user, $courseId, $divisionFilter);
+            $aggRows = collect($agg['rows']);
+
+            // PENTING: statistik header (Terdaftar/Selesai/Berjalan) HARUS dihitung dari
+            // penjumlahan baris rekap yang benar-benar tampil di bawah (di-scope per divisi
+            // yang diklik: HOR/HOS/BSM/CSE), BUKAN dari $dseStats yang mewakili total DSE se-
+            // circle milik viewer. Kalau pakai $dseStats, angka di header selalu jadi jumlah
+            // DSE se-circle (misal 1559) padahal rekap di bawahnya cuma menampilkan bagian yang
+            // relevan untuk divisi itu (misal CSE = 156, HOR = 3) — jadi tidak nyambung.
+            return Inertia::render('students/show', [
+                'course'                 => $course->only('id', 'title', 'description', 'category', 'status', 'journey_id'),
+                'students'               => [],
+                'total_enrollments'      => $aggRows->sum('registered_count'),
+                'total_completed'        => $aggRows->sum('completed_count'),
+                'total_dse'              => $aggRows->sum('total_dse'),
+                'scope_label'            => $this->scopeLabelForDivision($user->division ?? ''),
+                'scope_value'            => $user->{$this->groupFieldForDivision($user->division ?? '')} ?? '-',
+                'division_filter'        => $divisionFilter,
+                'aggregated'             => true,
+                'aggregated_group_label' => $agg['group_label'],
+                'aggregated_rows'        => $agg['rows'],
+            ]);
+        }
+
         // Load modules with quizzes for this course
         $modules = Module::where('course_id', $courseId)
             ->with('quizzes')
             ->orderBy('order_sequence', 'asc')
             ->get();
 
-        $enrollmentsQuery = Enrollment::where('course_id', $courseId)
-            ->with('user:id,name,username,email,avatar,division,region,area,branch,micro_cluster,circle,brand')
-            ->orderBy('enrollment_at', 'desc');
+        if ($divisionFilter === 'DSE') {
+            // Untuk level DSE, tampilkan SEMUA user DSE dalam scope (bukan cuma yang sudah
+            // terdaftar/enroll di course ini). User yang belum enroll tetap muncul dengan
+            // progress 0 / status belum terdaftar.
+            $dseQuery = User::query();
+            if ($user->role !== 'admin') {
+                $this->applyPeerScope($dseQuery, $user);
+            }
+            $dseQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
 
-       
-        if ($user->role !== 'admin') {
-            $enrollmentsQuery->whereHas('user', function ($q) use ($user) {
-                $this->applyPeerScope($q, $user);
-            });
+            $dseUsers = $dseQuery
+                ->get(['id', 'name', 'username', 'email', 'avatar', 'division', 'region', 'area', 'branch', 'micro_cluster', 'circle', 'brand'])
+                ->sortBy(fn($u) => strtolower($u->name ?? ''))
+                ->values();
+
+            $enrollmentsByUserId = Enrollment::where('course_id', $courseId)
+                ->whereIn('user_id', $dseUsers->pluck('id'))
+                ->get()
+                ->keyBy('user_id');
+
+            $students = $dseUsers->map(function ($u) use ($enrollmentsByUserId, $modules) {
+                /** @var Enrollment|null $enrollment */
+                $enrollment = $enrollmentsByUserId->get($u->id);
+
+                $allAttempts = $enrollment
+                    ? UserQuizAttempt::withTrashed()->where('user_id', $u->id)->where('course_id', $enrollment->course_id)->get()
+                    : collect();
+
+                $scoreFailed = $allAttempts->where('is_passed', false)->where('is_time_up', false)->count();
+                $timeFailed = $allAttempts->where('is_time_up', true)->count();
+
+                return [
+                    'enrollment_id'       => $enrollment?->id,
+                    'user_id'             => $u->id,
+                    'name'                => $u->name ?? '-',
+                    'username'            => $u->username ?? $u->email ?? '-',
+                    'email'               => $u->email ?? '-',
+                    'avatar'              => $this->resolveAvatarUrl($u->avatar),
+                    'employee_id'         => $u->id,
+                    'division'            => $u->division ?? '-',
+                    'location'            => $u->micro_cluster
+                        ?? $u->branch
+                        ?? $u->area
+                        ?? $u->region
+                        ?? $u->circle
+                        ?? '-',
+                    'status'              => $enrollment?->status,
+                    'progress_percentage' => (float) ($enrollment?->progress_percentage ?? 0),
+                    'enrollment_at'       => $enrollment?->enrollment_at?->format('d M Y'),
+                    'completed_at'        => $enrollment?->completed_at?->format('d M Y'),
+                    'modules_progress'    => $this->buildModulesProgress($modules, $enrollment),
+                    'score_failed_count'  => $scoreFailed,
+                    'time_failed_count'   => $timeFailed,
+                ];
+            })->values();
+        } else {
+            $enrollmentsQuery = Enrollment::where('course_id', $courseId)
+                ->with('user:id,name,username,email,avatar,division,region,area,branch,micro_cluster,circle,brand')
+                ->orderBy('enrollment_at', 'desc');
+
+            if ($user->role !== 'admin') {
+                $enrollmentsQuery->whereHas('user', function ($q) use ($user) {
+                    $this->applyPeerScope($q, $user);
+                });
+            }
+
+            if ($divisionFilter !== '') {
+                $enrollmentsQuery->whereHas('user', function ($q) use ($divisionFilter) {
+                    $q->whereRaw('UPPER(TRIM(division)) = ?', [$divisionFilter]);
+                });
+            }
+
+            $enrollments = $enrollmentsQuery->get();
+
+            $students = $enrollments->map(function ($enrollment) use ($modules) {
+                $allAttempts = UserQuizAttempt::withTrashed()
+                    ->where('user_id', $enrollment->user_id)
+                    ->where('course_id', $enrollment->course_id)
+                    ->get();
+
+                $scoreFailed = $allAttempts->where('is_passed', false)->where('is_time_up', false)->count();
+                $timeFailed = $allAttempts->where('is_time_up', true)->count();
+
+                return [
+                    'enrollment_id'       => $enrollment->id,
+                    'user_id'             => $enrollment->user_id,
+                    'name'                => $enrollment->user?->name ?? '-',
+                    'username'            => $enrollment->user?->username ?? $enrollment->user?->email ?? '-',
+                    'email'               => $enrollment->user?->email ?? '-',
+                    'avatar'              => $this->resolveAvatarUrl($enrollment->user?->avatar),
+                    'employee_id'         => $enrollment->user_id,
+                    'division'            => $enrollment->user?->division ?? '-',
+                    'location'            => $enrollment->user?->micro_cluster
+                        ?? $enrollment->user?->branch
+                        ?? $enrollment->user?->area
+                        ?? $enrollment->user?->region
+                        ?? $enrollment->user?->circle
+                        ?? '-',
+                    'status'              => $enrollment->status,
+                    'progress_percentage' => (float) ($enrollment->progress_percentage ?? 0),
+                    'enrollment_at'       => $enrollment->enrollment_at?->format('d M Y'),
+                    'completed_at'        => $enrollment->completed_at?->format('d M Y'),
+                    'modules_progress'    => $this->buildModulesProgress($modules, $enrollment),
+                    'score_failed_count'  => $scoreFailed,
+                    'time_failed_count'   => $timeFailed,
+                ];
+            })->values();
         }
 
-        
-        $divisionFilter = strtoupper(trim((string) $request->query('division', '')));
-        if ($divisionFilter !== '') {
-            $enrollmentsQuery->whereHas('user', function ($q) use ($divisionFilter) {
-                $q->whereRaw('UPPER(TRIM(division)) = ?', [$divisionFilter]);
-            });
-        }
-
-        $enrollments = $enrollmentsQuery->get();
-
-        $students = $enrollments->map(function ($enrollment) use ($modules) {
-            $allAttempts = UserQuizAttempt::withTrashed()
-                ->where('user_id', $enrollment->user_id)
-                ->where('course_id', $enrollment->course_id)
-                ->get();
-
-            $scoreFailed = $allAttempts->where('is_passed', false)->where('is_time_up', false)->count();
-            $timeFailed = $allAttempts->where('is_time_up', true)->count();
-
-            return [
-                'enrollment_id'       => $enrollment->id,
-                'user_id'             => $enrollment->user_id,
-                'name'                => $enrollment->user?->name ?? '-',
-                'username'            => $enrollment->user?->username ?? $enrollment->user?->email ?? '-',
-                'email'               => $enrollment->user?->email ?? '-',
-                'avatar'              => $this->resolveAvatarUrl($enrollment->user?->avatar),
-                'employee_id'         => $enrollment->user_id,
-                'division'            => $enrollment->user?->division ?? '-',
-                'location'            => $enrollment->user?->micro_cluster
-                    ?? $enrollment->user?->branch
-                    ?? $enrollment->user?->area
-                    ?? $enrollment->user?->region
-                    ?? $enrollment->user?->circle
-                    ?? '-',
-                'status'              => $enrollment->status,
-                'progress_percentage' => (float) ($enrollment->progress_percentage ?? 0),
-                'enrollment_at'       => $enrollment->enrollment_at?->format('d M Y'),
-                'completed_at'        => $enrollment->completed_at?->format('d M Y'),
-                'modules_progress'    => $this->buildModulesProgress($modules, $enrollment),
-                'score_failed_count'  => $scoreFailed,
-                'time_failed_count'   => $timeFailed,
-            ];
-        })->values();
-
-        $totalEnrollments = $students->count();
-        $totalCompleted = $students->filter(fn($s) => !is_null($s['completed_at']))->count();
+        $totalEnrollments = $dseStats['registered'];
+        $totalCompleted = $dseStats['completed'];
 
         return Inertia::render('students/show', [
             'course'             => $course->only('id', 'title', 'description', 'category', 'status', 'journey_id'),
             'students'           => $students,
             'total_enrollments'  => $totalEnrollments,
             'total_completed'    => $totalCompleted,
+            'total_dse'          => $dseStats['total_dse'],
             'scope_label'        => $this->scopeLabelForDivision($user->division ?? ''),
             'scope_value'        => $user->{$this->groupFieldForDivision($user->division ?? '')} ?? '-',
             'division_filter'    => $divisionFilter !== '' ? $divisionFilter : null,
+            'aggregated'         => false,
         ]);
+    }
+
+    /**
+     * Rekap agregat untuk klik card HOR/HOS/BSM di Summary: satu baris per region/area/branch
+     * (bukan satu baris per user), berisi jumlah DSE di scope tsb dan berapa yang sudah
+     * menyelesaikan course ini. Brand berbeda tidak saling terlihat kecuali viewer brand-nya IOH
+     * (aturan itu sudah ditangani oleh applyPeerScope()).
+     */
+    /**
+     * Statistik "Terdaftar/Selesai/Berjalan" untuk card atas halaman detail course.
+     * Selalu dihitung dari total populasi DSE dalam scope viewer (bukan dari daftar
+     * peserta yang lagi difilter), supaya angkanya konsisten di semua card divisi.
+     */
+    private function buildDseCourseStats($user, $courseId): array
+    {
+        $dseQuery = User::query();
+        if ($user->role !== 'admin') {
+            $this->applyPeerScope($dseQuery, $user);
+        }
+        $dseQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
+        $dseUserIds = $dseQuery->pluck('id');
+
+        $totalDse = $dseUserIds->count();
+
+        if ($totalDse === 0) {
+            return ['total_dse' => 0, 'registered' => 0, 'completed' => 0];
+        }
+
+        $enrollments = Enrollment::where('course_id', $courseId)
+            ->whereIn('user_id', $dseUserIds)
+            ->get(['id', 'completed_at']);
+
+        return [
+            'total_dse' => $totalDse,
+            'registered' => $enrollments->count(),
+            'completed'  => $enrollments->whereNotNull('completed_at')->count(),
+        ];
+    }
+
+    private function buildAggregatedByDivision($user, $courseId, string $divisionFilter): array
+    {
+        $groupFieldMap = ['HOR' => 'region', 'HOS' => 'area', 'BSM' => 'branch', 'CSE' => 'micro_cluster'];
+        $groupLabelMap = ['HOR' => 'Region', 'HOS' => 'Area', 'BSM' => 'Branch', 'CSE' => 'Micro Cluster'];
+
+        $groupField = $groupFieldMap[$divisionFilter] ?? null;
+        $groupLabel = $groupLabelMap[$divisionFilter] ?? 'Group';
+
+        if (!$groupField) {
+            return ['group_label' => $groupLabel, 'rows' => []];
+        }
+
+        // Ambil daftar region/area/branch yang unik dari peer divisi ini (HOR/HOS/BSM),
+        // masih dalam scope circle/region/area/branch milik viewer + scope brand-nya.
+        $peerQuery = User::query();
+        $this->applyPeerScope($peerQuery, $user);
+        $peerQuery->whereRaw('UPPER(TRIM(division)) = ?', [$divisionFilter]);
+        $peerQuery->whereNotNull($groupField)->where($groupField, '!=', '');
+
+        $groupValues = $peerQuery->distinct()->orderBy($groupField)->pluck($groupField);
+
+        $rows = $groupValues->values()->map(function ($value, $idx) use ($user, $groupField, $courseId) {
+            $dseQuery = User::query();
+            $this->applyPeerScope($dseQuery, $user);
+            $dseQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
+            $dseQuery->whereRaw('LOWER(TRIM(' . $groupField . ')) = ?', [strtolower(trim((string) $value))]);
+            $dseUserIds = $dseQuery->pluck('id');
+
+            $totalDse = $dseUserIds->count();
+
+            $registeredCount = $totalDse > 0
+                ? Enrollment::where('course_id', $courseId)
+                    ->whereIn('user_id', $dseUserIds)
+                    ->count()
+                : 0;
+
+            $completedCount = $totalDse > 0
+                ? Enrollment::where('course_id', $courseId)
+                    ->whereIn('user_id', $dseUserIds)
+                    ->whereNotNull('completed_at')
+                    ->count()
+                : 0;
+
+            $percentage = $totalDse > 0 ? round(($completedCount / $totalDse) * 100, 1) : 0.0;
+
+            return [
+                'no'               => $idx + 1,
+                'group_value'      => $value,
+                'total_dse'        => $totalDse,
+                'registered_count' => $registeredCount,
+                'completed_count'  => $completedCount,
+                'percentage'       => $percentage,
+            ];
+        })->values();
+
+        return ['group_label' => $groupLabel, 'rows' => $rows];
     }
 
    
@@ -394,7 +640,11 @@ class StudentController extends Controller
 
         
         $ownDivision = strtoupper(trim($user->division ?? ''));
-        $divisionOrder = collect($visibleDivisions)->unique()->reject(fn($div) => $div === $ownDivision)->values();
+        $divisionOrder = collect($visibleDivisions)->unique()
+            ->reject(fn($div) => $div === $ownDivision)
+            // Card DSE hanya relevan untuk divisi CSE (yang memang membawahi DSE langsung).
+            ->reject(fn($div) => $div === 'DSE' && $ownDivision !== 'CSE')
+            ->values();
 
         $allEnrollments = Enrollment::whereIn('course_id', $courses->pluck('id'))
             ->whereIn('user_id', $peerUserIds)
@@ -447,7 +697,7 @@ class StudentController extends Controller
 
         
         $journeys = $journeyIds
-            ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney) {
+            ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney, $user) {
                 $rows = $courseCardsByJourney->get($journeyId, collect())->values();
 
                 return [
@@ -459,6 +709,7 @@ class StudentController extends Controller
                     'total_completed' => $rows->sum('total_completed'),
                     'total_modules'   => $rows->sum('total_modules'),
                     'divisions'       => $divisionsByJourneyId->get((int) $journeyId, collect())->values(),
+                    'active_users'    => $this->dseActiveUserIdsForJourney($user, $journeyId)->count(),
                     'courses'         => $rows,
                 ];
             })
@@ -466,6 +717,23 @@ class StudentController extends Controller
             ->values();
 
         return ['journeys' => $journeys];
+    }
+
+    
+    private function dseActiveUserIdsForJourney($user, $journeyId): \Illuminate\Support\Collection
+    {
+        $peerUsersQuery = User::query();
+        $this->applyPeerScope($peerUsersQuery, $user);
+        $peerUsersQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
+        $peerUserIds = $peerUsersQuery->pluck('id');
+
+        if ($peerUserIds->isEmpty()) {
+            return collect();
+        }
+
+        return $peerUserIds
+            ->filter(fn($id) => Cache::has('active-journey-' . $journeyId . '-' . $id))
+            ->values();
     }
 
   

@@ -84,6 +84,67 @@ export default function CoursesIndex({
                 // Diamkan saja, overlay akan otomatis fallback ke ikon gembok default
             });
     }, []);
+
+    // Heartbeat "aktif di journey ini": halaman Available Courses ini yang sebenarnya dipakai
+    // user untuk "masuk journey" (bukan /journeys/{id}), makanya ping dipasang di sini juga.
+    // Kirim ping tiap 10 detik selagi halaman terbuka & terlihat, dengan journey_id dari filter
+    // (?journey_id=... di URL). TTL di server 20 detik, jadi interval 10 detik cukup rapat untuk
+    // menjaganya tetap "hidup" tanpa celah. Begitu tab ditutup/pindah, ping berhenti dan
+    // statusnya otomatis hilang dalam hitungan detik.
+    useEffect(() => {
+        const journeyId = filters?.journey_id;
+        if (!journeyId) return;
+
+        const getXsrfToken = () => {
+            const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        };
+
+        const sendPing = () => {
+            fetch(`/journeys/${journeyId}/ping-active`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': getXsrfToken(),
+                },
+            }).catch(() => {
+                
+            });
+        };
+
+        let interval: ReturnType<typeof setInterval> | null = null;
+
+        const startPinging = () => {
+            if (interval) return;
+            sendPing();
+            interval = setInterval(sendPing, 10000);
+        };
+
+        const stopPinging = () => {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                startPinging();
+            } else {
+                stopPinging();
+            }
+        };
+
+        startPinging();
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            stopPinging();
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
+    }, [filters?.journey_id]);
     
     const [search, setSearch] = useState(filters?.search || '');
     const [category, setCategory] = useState(filters?.category || 'all');
