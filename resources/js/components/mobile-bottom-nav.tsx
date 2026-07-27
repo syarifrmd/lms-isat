@@ -55,11 +55,11 @@ export function MobileBottomNav() {
                 ];
             case 'user':
                 return [
-                    { title: 'Settings', href: dashboard().url, icon: Settings },
-                    { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     // Divisi DSE tidak boleh mengakses My Progress.
                     ...(division !== 'DSE' ? [{ title: 'Dashboard', href: '/students', icon: LayoutDashboard }] : []),
+                    { title: 'My Learning', href: '/journeys', icon: BookOpen },
                     { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+                    { title: 'Settings', href: dashboard().url, icon: Settings },
                 ];
             default:
                 return [
