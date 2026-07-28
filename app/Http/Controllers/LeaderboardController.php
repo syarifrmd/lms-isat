@@ -6,121 +6,128 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LeaderboardController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. Ambil daftar kuis untuk dropdown (Hanya yang memiliki modul, course, dan journey)
-        $quizzes = \App\Models\Quiz::whereHas('course', function ($q) {
-                $q->whereNotNull('journey_id');
-            })
-            ->whereNotNull('module_id')
-            ->with(['course.journey:id,title', 'course:id,title,journey_id', 'module:id,title'])
+        // 1. Ambil daftar course untuk dropdown (hanya yang punya journey dan punya quiz)
+        $courses = \App\Models\Course::whereNotNull('journey_id')
+            ->whereHas('quizzes')
+            ->with(['journey:id,title'])
             ->get()
-            ->map(function ($quiz) {
-                $journeyName = $quiz->course && $quiz->course->journey ? $quiz->course->journey->title : 'Tanpa Journey';
-                $courseName = $quiz->course ? $quiz->course->title : 'Tanpa Course';
-                $moduleName = $quiz->module ? $quiz->module->title : 'Tanpa Modul';
-                
+            ->map(function ($course) {
+                $journeyName = $course->journey ? $course->journey->title : 'Tanpa Journey';
                 return [
-                    'id' => $quiz->id,
-                    'name' => "{$journeyName} - {$courseName} - {$moduleName}"
+                    'id'   => $course->id,
+                    'name' => "{$journeyName} - {$course->title}",
                 ];
             });
 
-        $selectedQuizId = $request->input('quiz_id');
+        $selectedCourseId = $request->input('course_id');
 
-        $leaderboardData = [];
-        $currentUserRank = null;
-        $currentUserData = null;
+        $leaderboardData  = [];
+        $currentUserRank  = null;
+        $currentUserData  = null;
+        $totalQuizzesInCourse = 0;
 
-        if ($selectedQuizId) {
-            // 2. Ambil attempt kuis yang terpilih (hanya yang sudah disubmit/selesai)
-            // Ambil semua attempt termasuk yang dihapus (soft-deleted) untuk menghitung total waktu
-            $allAttemptsForQuiz = \App\Models\UserQuizAttempt::withTrashed()
-                ->where('quiz_id', $selectedQuizId)
-                ->whereNotNull('submitted_at')
-                ->get();
-            
-            $totalDurations = [];
-            foreach ($allAttemptsForQuiz as $a) {
-                if ($a->created_at && $a->submitted_at) {
-                    $diff = abs(\Carbon\Carbon::parse($a->submitted_at)->diffInSeconds(\Carbon\Carbon::parse($a->created_at)));
-                    if (!isset($totalDurations[$a->user_id])) {
-                        $totalDurations[$a->user_id] = 0;
+        if ($selectedCourseId) {
+            // 2. Ambil semua quiz yang ada di course ini
+            $quizIds = \App\Models\Quiz::where('course_id', $selectedCourseId)
+                ->pluck('id');
+
+            $totalQuizzesInCourse = $quizIds->count();
+
+            if ($quizIds->isNotEmpty()) {
+                // 3. Semua attempt (termasuk soft-deleted) untuk menghitung total durasi per user
+                $allAttempts = \App\Models\UserQuizAttempt::withTrashed()
+                    ->whereIn('quiz_id', $quizIds)
+                    ->whereNotNull('submitted_at')
+                    ->get();
+
+                // Hitung total durasi per user (akumulasi dari semua quiz)
+                $totalDurations = [];
+                foreach ($allAttempts as $a) {
+                    if ($a->created_at && $a->submitted_at) {
+                        $diff = abs(\Carbon\Carbon::parse($a->submitted_at)->diffInSeconds(\Carbon\Carbon::parse($a->created_at)));
+                        $totalDurations[$a->user_id] = ($totalDurations[$a->user_id] ?? 0) + $diff;
                     }
-                    $totalDurations[$a->user_id] += $diff;
                 }
-            }
 
-            $attempts = \App\Models\UserQuizAttempt::with(['user:id,name,avatar,role', 'quiz:id,module_id'])
-                ->where('quiz_id', $selectedQuizId)
-                ->whereNotNull('submitted_at')
-                ->where('is_passed', true)
-                ->get()
-                ->filter(function ($attempt) {
-                    return $attempt->user && $attempt->user->role === 'user';
-                })
-                ->map(function ($attempt) use ($totalDurations) {
-                    $durationSeconds = $totalDurations[$attempt->user_id] ?? 0;
+                // 4. Ambil attempt yang sudah selesai (submitted) untuk tiap quiz per user
+                //    Gunakan attempt manapun (tidak harus is_passed) untuk menghitung benar & quiz dikerjakan
+                $attempts = \App\Models\UserQuizAttempt::with(['user:id,name,avatar,role'])
+                    ->whereIn('quiz_id', $quizIds)
+                    ->whereNotNull('submitted_at')
+                    ->get()
+                    ->filter(fn($a) => $a->user && $a->user->role === 'user');
 
-                    $correctCount = \DB::table('user_answers')
-                        ->where('attempt_id', $attempt->id)
+                // 5. Group per user → hitung total benar & jumlah quiz yang dikerjakan (distinct quiz_id)
+                $grouped = $attempts->groupBy('user_id');
+
+                $rows = $grouped->map(function ($userAttempts) use ($totalDurations, $totalQuizzesInCourse) {
+                    $user = $userAttempts->first()->user;
+
+                    // Total jawaban benar dari semua attempt di course ini
+                    $attemptIds   = $userAttempts->pluck('id');
+                    $totalCorrect = DB::table('user_answers')
+                        ->whereIn('attempt_id', $attemptIds)
                         ->where('is_correct', true)
                         ->count();
-                    
+
+                    // Jumlah quiz berbeda yang sudah dikerjakan
+                    $quizzesDone = $userAttempts->pluck('quiz_id')->unique()->count();
+
+                    $durationSeconds = $totalDurations[$user->id] ?? 0;
+
                     return [
-                        'id' => $attempt->id,
-                        'user_id' => $attempt->user->id,
-                        'name' => $attempt->user->name,
-                        'avatar' => $attempt->user->avatar,
-                        'score' => $correctCount,
+                        'user_id'          => $user->id,
+                        'name'             => $user->name,
+                        'avatar'           => $user->avatar,
+                        'score'            => $totalCorrect,
+                        'quizzes_done'     => $quizzesDone,
+                        'total_quizzes'    => $totalQuizzesInCourse,
                         'duration_seconds' => $durationSeconds,
-                        'is_current_user' => $attempt->user->id === Auth::id(),
+                        'is_current_user'  => $user->id === Auth::id(),
                     ];
-                });
+                })->values();
 
-            // Urutkan collection: score descending, duration_seconds ascending
-            $sortedAttempts = $attempts->sort(function ($a, $b) {
-                if ($a['score'] == $b['score']) {
-                    return $a['duration_seconds'] <=> $b['duration_seconds'];
-                }
-                return $b['score'] <=> $a['score'];
-            })->values();
+                // 6. Urutkan: total benar desc, durasi asc
+                $sorted = $rows->sort(function ($a, $b) {
+                    if ($a['score'] === $b['score']) {
+                        return $a['duration_seconds'] <=> $b['duration_seconds'];
+                    }
+                    return $b['score'] <=> $a['score'];
+                })->values();
 
-            // Format data untuk mempermudah frontend (tambah ranking)
-            $leaderboardData = $sortedAttempts->map(function ($attempt, $index) use (&$currentUserRank, &$currentUserData) {
-                $rank = $index + 1;
-                $formattedAttempt = [
-                    'rank' => $rank,
-                    'user_id' => $attempt['user_id'],
-                    'name' => $attempt['name'],
-                    'avatar' => $attempt['avatar'],
-                    'score' => $attempt['score'],
-                    'duration_seconds' => $attempt['duration_seconds'],
-                    'is_current_user' => $attempt['is_current_user'],
-                ];
+                // 7. Tambahkan ranking
+                $leaderboardData = $sorted->map(function ($row, $index) use (&$currentUserRank, &$currentUserData) {
+                    $rank = $index + 1;
+                    $formatted = array_merge($row, ['rank' => $rank]);
 
-                if ($attempt['is_current_user']) {
-                    $currentUserRank = $rank;
-                    $currentUserData = $formattedAttempt;
-                }
+                    if ($row['is_current_user']) {
+                        $currentUserRank = $rank;
+                        $currentUserData = $formatted;
+                    }
 
-                return $formattedAttempt;
-            })->take(50); // Batasi top 50 jika perlu
+                    return $formatted;
+                })->take(50);
+            }
         }
 
         return Inertia::render('leaderboard/leaderboard', [
-            'quizzes' => $quizzes,
-            'selectedQuizId' => $selectedQuizId ? (int)$selectedQuizId : null,
-            'leaderboard' => $leaderboardData,
-            'currentUser' => $currentUserData ? [
-                'data' => Auth::user(),
-                'rank' => $currentUserRank,
-                'score' => $currentUserData['score'],
-                'duration_seconds' => $currentUserData['duration_seconds']
-            ] : null
+            'courses'         => $courses,
+            'selectedCourseId' => $selectedCourseId ? (int)$selectedCourseId : null,
+            'leaderboard'     => $leaderboardData,
+            'currentUser'     => $currentUserData ? [
+                'data'             => Auth::user(),
+                'rank'             => $currentUserRank,
+                'score'            => $currentUserData['score'],
+                'quizzes_done'     => $currentUserData['quizzes_done'],
+                'total_quizzes'    => $currentUserData['total_quizzes'],
+                'duration_seconds' => $currentUserData['duration_seconds'],
+            ] : null,
         ]);
     }
 }

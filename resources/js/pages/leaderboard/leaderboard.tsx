@@ -55,11 +55,11 @@ const podiumCardBorder = [
     'ring-2 ring-orange-300',
 ];
 
-export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard, currentUser }: any) {
+export default function Leaderboard({ auth, courses, selectedCourseId, leaderboard, currentUser }: any) {
     const top3 = leaderboard.slice(0, 3);
 
-    const handleQuizChange = (quizId: string) => {
-        router.get('/leaderboard', { quiz_id: quizId }, { preserveState: true, replace: true });
+    const handleCourseChange = (courseId: string) => {
+        router.get('/leaderboard', { course_id: courseId }, { preserveState: true, replace: true });
     };
 
     return (
@@ -71,18 +71,18 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                 {/* Filter Dropdown */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Pilih Modul Kuiz</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Lihat peringkat berdasarkan skor dan waktu tercepat</p>
+                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Pilih Course</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Lihat peringkat berdasarkan total benar dan waktu tercepat dalam satu course</p>
                     </div>
                     <div className="w-full sm:w-[500px]">
-                        <Select value={selectedQuizId ? selectedQuizId.toString() : undefined} onValueChange={handleQuizChange}>
+                        <Select value={selectedCourseId ? selectedCourseId.toString() : undefined} onValueChange={handleCourseChange}>
                             <SelectTrigger className="w-full h-auto min-h-10 py-2 text-left [&>span]:line-clamp-none [&>span]:whitespace-normal [&>span]:break-words items-start">
-                                <SelectValue placeholder="Pilih modul..." />
+                                <SelectValue placeholder="Pilih course..." />
                             </SelectTrigger>
                             <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-[500px]">
-                                {quizzes.map((quiz: any) => (
-                                    <SelectItem key={quiz.id} value={quiz.id.toString()} className="whitespace-normal break-words py-2 text-left items-start">
-                                        {quiz.name}
+                                {courses.map((course: any) => (
+                                    <SelectItem key={course.id} value={course.id.toString()} className="whitespace-normal break-words py-2 text-left items-start">
+                                        {course.name}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -100,11 +100,12 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                                 <p className="mt-0.5 text-2xl font-bold text-sky-600">#{currentUser.rank}</p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">
-                                Nilai Benar
-                            </p>
+                        <div className="text-right flex flex-col gap-0.5">
+                            <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total Benar</p>
                             <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{currentUser.score}</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                                Quiz: {currentUser.quizzes_done}/{currentUser.total_quizzes} dikerjakan
+                            </p>
                             <p className="text-xs text-gray-400 dark:text-gray-500">Waktu: {formatDuration(currentUser.duration_seconds)}</p>
                         </div>
                     </div>
@@ -120,7 +121,7 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                                     {podiumOrder.map((idx) => {
                                         const user = top3[idx];
                                         return (
-                                            <div key={user.id} className="flex flex-col items-center gap-2 flex-1">
+                                            <div key={user.user_id} className="flex flex-col items-center gap-2 flex-1">
                                                 {/* Badge */}
                                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rankBadge[idx]}`}>
                                                     {rankLabel[idx]}
@@ -136,6 +137,9 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                                                 </p>
                                                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                                     Benar: {user.score}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Quiz: {user.quizzes_done}/{user.total_quizzes}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">Waktu: {formatDuration(user.duration_seconds)}</p>
                                                 {/* Podium block */}
@@ -156,7 +160,7 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
 
                             {leaderboard.length === 0 ? (
                                 <div className="py-16 text-center text-sm text-gray-400">
-                                    {selectedQuizId ? 'Belum ada yang mengerjakan kuis di modul ini!' : 'Silakan pilih modul terlebih dahulu untuk melihat leaderboard.'}
+                                    {selectedCourseId ? 'Belum ada yang mengerjakan quiz di course ini!' : 'Silakan pilih course terlebih dahulu untuk melihat leaderboard.'}
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-gray-50 dark:divide-gray-700 overflow-y-auto flex-1 max-h-[500px]">
@@ -178,6 +182,9 @@ export default function Leaderboard({ auth, quizzes, selectedQuizId, leaderboard
                                                     <p className={`truncate text-sm font-medium ${isMe ? 'text-sky-600 dark:text-sky-400' : 'text-gray-800 dark:text-gray-100'}`}>
                                                         {user.name}
                                                         {isMe && <span className="ml-1.5 text-xs text-sky-400 font-normal">(Anda)</span>}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                                                        Quiz dikerjakan: {user.quizzes_done}/{user.total_quizzes}
                                                     </p>
                                                 </div>
                                                 <div className="text-right shrink-0 flex flex-col items-end">
