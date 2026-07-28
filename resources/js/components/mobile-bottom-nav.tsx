@@ -54,13 +54,21 @@ export function MobileBottomNav() {
                     ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
                 ];
             case 'user':
-                return [
-                    // Divisi DSE tidak boleh mengakses My Progress.
-                    ...(division !== 'DSE' ? [{ title: 'Dashboard', href: '/students', icon: LayoutDashboard }] : []),
-                    { title: 'My Learning', href: '/journeys', icon: BookOpen },
-                    { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-                    { title: 'Settings', href: dashboard().url, icon: Settings },
-                ];
+                // Divisi DSE tidak boleh mengakses My Progress (/students),
+                // jadi menu "Settings" diganti jadi "Dashboard" (ke dashboard().url)
+                // dan ditaruh paling atas. Samakan dengan AppSidebar.
+                return division === 'DSE'
+                    ? [
+                        { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
+                        { title: 'My Learning', href: '/journeys', icon: BookOpen },
+                        { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+                    ]
+                    : [
+                        { title: 'Dashboard', href: '/students', icon: LayoutDashboard },
+                        { title: 'My Learning', href: '/journeys', icon: BookOpen },
+                        { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+                        { title: 'Settings', href: dashboard().url, icon: Settings },
+                    ];
             default:
                 return [
                     { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },

@@ -306,6 +306,18 @@ class DashboardController extends Controller
                 'color_index' => $idx % 6,
             ]);
 
+        // Khusus divisi DSE: tombol "Jelajahi Journey" di dashboard langsung
+        // menuju course dari journey DSE yang tidak terkunci (is_locked = 0),
+        // bukan ke halaman daftar journey (/journeys).
+        $dseJourneyId = null;
+        if ($divisionUpper === 'DSE') {
+            $dseJourneyId = DB::table('journey_divisions')
+                ->where('target_division', 'DSE')
+                ->where('is_mandatory', 1)
+                ->where('is_locked', 0)
+                ->value('journey_id');
+        }
+
         return Inertia::render('dashboard', [
             'userData' => [
                 'stats' => [
@@ -324,6 +336,7 @@ class DashboardController extends Controller
                 'recent_attempts'  => $recentAttempts,
                 'weekly_progress'  => $weeklyProgress,
                 'course_calendar'  => $enrolledCourses,
+                'dse_journey_id'   => $dseJourneyId,
             ],
             'youtube_connected' => $youtubeConnected,
         ]);

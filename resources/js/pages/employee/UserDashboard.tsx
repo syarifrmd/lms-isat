@@ -56,6 +56,16 @@ export default function UserDashboard({ data }: UserDashboardProps) {
     // Label & nilai wilayah kerja mengikuti level division:
     // HOC -> Circle, HOR -> Region, HOS -> Area, BSM -> Branch, CSE/RSE/DSE -> Micro Cluster
     const divisionUpper = String(user.division ?? '').toUpperCase();
+
+    // Khusus DSE: tombol "Jelajahi Journey" langsung masuk ke course dari
+    // journey DSE yang tidak terkunci (dikirim backend sebagai dse_journey_id).
+    // Divisi lain tetap ke /journeys seperti biasa.
+    const dseJourneyId = (data as unknown as { dse_journey_id?: number | null })?.dse_journey_id;
+    const exploreHref =
+        divisionUpper === 'DSE' && dseJourneyId
+            ? `/courses?journey_id=${dseJourneyId}`
+            : '/journeys';
+
     const scopeField =
         divisionUpper === 'HOC' ? { label: 'Circle',         value: user.circle }
         : divisionUpper === 'HOR' ? { label: 'Region',        value: user.region }
@@ -123,11 +133,11 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 Jelajahi kursus yang tersedia dan daftar untuk mulai melacak progresmu.
                             </p>
                         </div>
-                        <Link href="/journeys"
+                        <Link href={exploreHref}
                               className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-2.5
                                          text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
                             <BookOpen className="h-4 w-4" />
-                            Jelajahi Journey
+                            Jelajahi Courses
                         </Link>
                     </div>
                 )}
