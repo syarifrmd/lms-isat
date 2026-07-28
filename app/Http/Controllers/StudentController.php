@@ -598,12 +598,16 @@ class StudentController extends Controller
 
 
         $journeyDivisionRows = JourneyDivision::whereIn('target_division', $visibleDivisions)
-            ->get(['journey_id', 'target_division']);
+            ->get(['journey_id', 'target_division', 'is_locked']);
 
         $ownDivisionUpper = strtoupper(trim($user->division ?? ''));
 
+        // Journey ditampilkan kalau ada baris journey_divisions untuk divisi sendiri DAN
+        // baris itu tidak terkunci (is_locked = 0). Ini sumber kebenaran "terkunci/tidak",
+        // bukan dihitung dari ada/tidaknya course.
         $journeyIds = $journeyDivisionRows
             ->where('target_division', $ownDivisionUpper)
+            ->where('is_locked', false)
             ->pluck('journey_id')
             ->unique()
             ->values();
@@ -638,6 +642,10 @@ class StudentController extends Controller
         $peerUserIds = $peerUsers->pluck('id');
         $divisionByUserId = $peerUsers->keyBy('id');
 
+        // Populasi total DSE dalam scope viewer (bukan cuma yang sudah enroll), dipakai untuk
+        // progress bar "X dari Y DSE selesai" di card course pada My Team.
+        $dsePopulationCount = $peerUsers->filter(fn($u) => strtoupper(trim($u->division ?? '')) === 'DSE')->count();
+
         
         $ownDivision = strtoupper(trim($user->division ?? ''));
         $divisionOrder = collect($visibleDivisions)->unique()
@@ -658,7 +666,7 @@ class StudentController extends Controller
             ->groupBy('course_id')
             ->pluck('total', 'course_id');
 
-        $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision, $moduleCountByCourseId) {
+        $courseCards = $courses->map(function ($course) use ($allEnrollments, $divisionByUserId, $divisionOrder, $onlineCountByDivision, $moduleCountByCourseId, $dsePopulationCount) {
             $courseEnrollments = $allEnrollments->where('course_id', $course->id);
 
             $byDivision = $divisionOrder->map(function ($div) use ($courseEnrollments, $divisionByUserId, $onlineCountByDivision) {
@@ -682,6 +690,9 @@ class StudentController extends Controller
                 'total_completed' => $courseEnrollments->whereNotNull('completed_at')->count(),
                 'total_modules'   => (int) ($moduleCountByCourseId->get($course->id) ?? 0),
                 'by_division'     => $byDivision,
+                // Populasi total DSE dalam scope (bukan hanya yang enroll), untuk progress bar
+                // "X dari Y DSE selesai" pada card DSE di My Team.
+                'dse_population'  => $dsePopulationCount,
             ];
         })->values();
 
@@ -759,6 +770,7 @@ class StudentController extends Controller
     {
         $mandatoryJourneyIds = JourneyDivision::where('target_division', $user->division ?? '')
             ->where('is_mandatory', true)
+            ->where('is_locked', false)
             ->pluck('journey_id')
             ->unique()
             ->values();
@@ -816,7 +828,7 @@ class StudentController extends Controller
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
         $journeys = $mandatoryJourneyIds
-            ->map(function ($journeyId) use ($journeyTitleById, $courseListByJourney) {
+            ->map(function ($journeyId) use ($journeyTitleById, $courseListByJourney, $user) {
                 $rows = $courseListByJourney->get($journeyId, collect())->values();
 
                 return [
@@ -826,6 +838,9 @@ class StudentController extends Controller
                     'total_courses'     => $rows->count(),
                     'completed_count'   => $rows->where('status', 'completed')->count(),
                     'in_progress_count' => $rows->where('status', 'in_progress')->count(),
+                    // Dipakai untuk tile "user active" yang ditampilkan di bawah Detail
+                    // Progress per e-learning (dipindahkan dari My Team).
+                    'active_users'      => $this->dseActiveUserIdsForJourney($user, $journeyId)->count(),
                     'courses'           => $rows,
                 ];
             })
