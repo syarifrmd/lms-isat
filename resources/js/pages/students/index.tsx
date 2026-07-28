@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Users, Layers, Building2, Inbox, UserCheck, X } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Layers, Building2, Inbox, UserCheck, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,7 @@ interface MyTeamCourse {
     total_users: number;
     total_completed: number;
     by_division: DivisionBreakdown[];
+    dse_population: number;
 }
 
 interface MyTeamJourney {
@@ -56,6 +57,7 @@ interface MyActivityJourney {
     total_courses: number;
     completed_count: number;
     in_progress_count: number;
+    active_users: number;
     courses: MyActivityCourse[];
 }
 
@@ -104,6 +106,12 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
     // tanpa angka "selesai" / "user active".
     const divisionTiles = course.by_division;
 
+    // Progress penyelesaian DSE (jumlah DSE / sudah selesai / persentase), dipindahkan dari
+    // halaman detail course ke sini supaya langsung terlihat di card-nya.
+    const dseDivision = divisionTiles.find((d) => d.division === 'DSE');
+    const dsePopulation = course.dse_population ?? 0;
+    const dsePercentage = dseDivision && dsePopulation > 0 ? (dseDivision.completed / dsePopulation) * 100 : 0;
+
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <div className="w-full text-left border-b border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 px-4 py-3.5 flex items-center gap-3">
@@ -133,56 +141,41 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                         ))}
                     </div>
                 )}
+
+                {dseDivision && dsePopulation > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700">
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Progress DSE</p>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                            <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
+                                <p className="text-[10px] text-gray-400 leading-tight">Jumlah DSE</p>
+                                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-tight">{dsePopulation}</p>
+                            </div>
+                            <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
+                                <p className="text-[10px] text-gray-400 leading-tight">Selesai Course</p>
+                                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dseDivision.completed}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-2 flex-1 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-emerald-500 transition-all"
+                                    style={{ width: `${Math.min(100, Math.max(0, dsePercentage))}%` }}
+                                />
+                            </div>
+                            <span className="shrink-0 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                {dsePercentage.toFixed(1)}%
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
-function MyTeamJourneyCard({
-    journey,
-    onOpen,
-    liveActiveCount,
-}: {
-    journey: MyTeamJourney;
-    onOpen: () => void;
-    liveActiveCount?: number;
-}) {
-    const [showActivePopup, setShowActivePopup] = useState(false);
-    const [activeUsersLoading, setActiveUsersLoading] = useState(false);
-    const [activeUsers, setActiveUsers] = useState<ActiveUser[] | null>(null);
-
-    const fetchActiveUsers = async () => {
-        setActiveUsersLoading(true);
-        try {
-            const res = await fetch(`/students/journey-active-users/${journey.journey_id}`, {
-                headers: { Accept: 'application/json' },
-            });
-            const data = await res.json();
-            setActiveUsers(data.users ?? []);
-        } catch {
-            setActiveUsers((prev) => prev ?? []);
-        } finally {
-            setActiveUsersLoading(false);
-        }
-    };
-
-    const openActivePopup = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowActivePopup(true);
-        // Selalu ambil data terbaru karena status "aktif di journey ini" bisa berubah kapan saja.
-        fetchActiveUsers();
-    };
-
-    // Selagi pop up terbuka, refresh daftarnya setiap 5 detik supaya benar-benar realtime.
-    useEffect(() => {
-        if (!showActivePopup) return;
-        const interval = setInterval(fetchActiveUsers, 5000);
-        return () => clearInterval(interval);
-    }, [showActivePopup]);
-
-    const baseActive = liveActiveCount !== undefined ? liveActiveCount : journey.active_users;
-    const totalActive = activeUsers !== null ? activeUsers.length : baseActive;
-
+function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen: () => void }) {
+    // "user terdaftar" dihilangkan, dan "user active" dipindah ke My Activity (di bawah
+    // Detail Progress per e-learning) -> card ini tinggal menyisakan course & module tersedia.
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <button
@@ -226,41 +219,78 @@ function MyTeamJourneyCard({
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">module tersedia</p>
                     </div>
                 </button>
-                <button
-                    type="button"
-                    onClick={onOpen}
-                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:ring-1 hover:ring-sky-200 dark:hover:ring-sky-800 transition"
-                >
-                    <div className="h-8 w-8 rounded-full bg-sky-50 dark:bg-sky-900/40 text-sky-500 flex items-center justify-center shrink-0">
-                        <Users className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_users}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user terdaftar</p>
-                    </div>
-                </button>
-                <button
-                    type="button"
-                    onClick={openActivePopup}
-                    className="text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:ring-1 hover:ring-emerald-200 dark:hover:ring-emerald-800 transition"
-                >
-                    <div className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center shrink-0">
-                        <UserCheck className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{totalActive}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user active</p>
-                    </div>
-                </button>
             </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// "User Active" untuk My Activity: tile + pop up daftar user, ditampilkan di
+// bawah panel Detail Progress untuk journey (e-learning) yang sedang dipilih.
+// ---------------------------------------------------------------------------
+
+function ActivityJourneyActiveUsers({ journey, liveActiveCount }: { journey: MyActivityJourney; liveActiveCount?: number }) {
+    const [showActivePopup, setShowActivePopup] = useState(false);
+    const [activeUsersLoading, setActiveUsersLoading] = useState(false);
+    const [activeUsers, setActiveUsers] = useState<ActiveUser[] | null>(null);
+
+    const fetchActiveUsers = async () => {
+        setActiveUsersLoading(true);
+        try {
+            const res = await fetch(`/students/journey-active-users/${journey.journey_id}`, {
+                headers: { Accept: 'application/json' },
+            });
+            const data = await res.json();
+            setActiveUsers(data.users ?? []);
+        } catch {
+            setActiveUsers((prev) => prev ?? []);
+        } finally {
+            setActiveUsersLoading(false);
+        }
+    };
+
+    const openActivePopup = () => {
+        setShowActivePopup(true);
+        // Selalu ambil data terbaru karena status "aktif di journey ini" bisa berubah kapan saja.
+        fetchActiveUsers();
+    };
+
+    // Reset daftar tiap kali journey yang dipilih berubah, biar tidak nampilkan data journey lama.
+    useEffect(() => {
+        setActiveUsers(null);
+        setShowActivePopup(false);
+    }, [journey.journey_id]);
+
+    // Selagi pop up terbuka, refresh daftarnya setiap 5 detik supaya benar-benar realtime.
+    useEffect(() => {
+        if (!showActivePopup) return;
+        const interval = setInterval(fetchActiveUsers, 5000);
+        return () => clearInterval(interval);
+    }, [showActivePopup]);
+
+    const baseActive = liveActiveCount !== undefined ? liveActiveCount : journey.active_users;
+    const totalActive = activeUsers !== null ? activeUsers.length : baseActive;
+
+    return (
+        <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button
+                type="button"
+                onClick={openActivePopup}
+                className="w-full text-left rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:ring-1 hover:ring-emerald-200 dark:hover:ring-emerald-800 transition"
+            >
+                <div className="h-8 w-8 rounded-full bg-emerald-50 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center shrink-0">
+                    <UserCheck className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{totalActive}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user active</p>
+                </div>
+            </button>
 
             {showActivePopup && (
                 <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setShowActivePopup(false);
-                    }}
+                    onClick={() => setShowActivePopup(false)}
                 >
                     <div
                         className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-xl overflow-hidden"
@@ -452,6 +482,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
     const [activeUsersByJourney, setActiveUsersByJourney] = useState<Record<number, number>>(() => {
         const map: Record<number, number> = {};
         teamJourneys.forEach((j) => { map[j.journey_id] = j.active_users; });
+        activityJourneys.forEach((j) => { map[j.journey_id] = j.active_users; });
         return map;
     });
 
@@ -647,7 +678,6 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                                     key={j.journey_id}
                                     journey={j}
                                     onOpen={() => setSelectedJourneyId(j.journey_id)}
-                                    liveActiveCount={activeUsersByJourney[j.journey_id]}
                                 />
                             ))}
                         </div>
@@ -756,6 +786,13 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                                         </div>
                                     ) : (
                                         <ModulesDetail modules={activityModules} />
+                                    )}
+
+                                    {selectedActivityJourney && (
+                                        <ActivityJourneyActiveUsers
+                                            journey={selectedActivityJourney}
+                                            liveActiveCount={activeUsersByJourney[selectedActivityJourney.journey_id]}
+                                        />
                                     )}
                                 </div>
                             </div>
