@@ -656,7 +656,7 @@ class StudentController extends Controller
 
         $allEnrollments = Enrollment::whereIn('course_id', $courses->pluck('id'))
             ->whereIn('user_id', $peerUserIds)
-            ->get(['id', 'course_id', 'user_id', 'completed_at']);
+            ->get(['id', 'course_id', 'user_id', 'completed_at', 'progress_percentage']);
 
         
         $onlineCountByDivision = $this->onlineCountByDivision($user, $divisionOrder);
@@ -682,17 +682,31 @@ class StudentController extends Controller
                 ];
             });
 
+            $dseCourseEnrollments = $courseEnrollments->filter(
+                fn($e) => strtoupper($divisionByUserId->get($e->user_id)?->division ?? '') === 'DSE'
+            );
+
+            // Progres Training: hitung user DSE yang minimal sudah menyelesaikan 1 modul.
+            // Dipakai progress_percentage dari enrollment (sumber yang sama dengan "PROGRESS
+            // BELAJAR" di halaman course milik user, yang naik begitu 1 modul selesai),
+            // bukan evaluasi ulang ModuleProgress per modul supaya tidak beda hasil dgn UI course.
+            $trainingProgressCount = $dseCourseEnrollments
+                ->filter(fn($e) => (float) ($e->progress_percentage ?? 0) > 0)
+                ->count();
+
             return [
-                'course_id'       => $course->id,
-                'journey_id'      => $course->journey_id,
-                'title'           => $course->title,
-                'total_users'     => $courseEnrollments->count(),
-                'total_completed' => $courseEnrollments->whereNotNull('completed_at')->count(),
-                'total_modules'   => (int) ($moduleCountByCourseId->get($course->id) ?? 0),
-                'by_division'     => $byDivision,
+                'course_id'               => $course->id,
+                'journey_id'              => $course->journey_id,
+                'title'                   => $course->title,
+                'total_users'             => $courseEnrollments->count(),
+                'total_completed'         => $courseEnrollments->whereNotNull('completed_at')->count(),
+                'total_modules'           => (int) ($moduleCountByCourseId->get($course->id) ?? 0),
+                'by_division'             => $byDivision,
                 // Populasi total DSE dalam scope (bukan hanya yang enroll), untuk progress bar
                 // "X dari Y DSE selesai" pada card DSE di My Team.
-                'dse_population'  => $dsePopulationCount,
+                'dse_population'          => $dsePopulationCount,
+                // Jumlah user DSE yang sudah menyelesaikan minimal 1 modul pembelajaran di course ini.
+                'training_progress_count' => $trainingProgressCount,
             ];
         })->values();
 

@@ -22,6 +22,7 @@ interface MyTeamCourse {
     total_completed: number;
     by_division: DivisionBreakdown[];
     dse_population: number;
+    training_progress_count: number;
 }
 
 interface MyTeamJourney {
@@ -101,6 +102,13 @@ interface Props {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
+// Nama journey di database biasanya "E-Learning DSE" / "E-Learning CSE"; di tampilan
+// cukup tampilkan nama divisinya saja (DSE / CSE) tanpa awalan "E-Learning".
+function displayJourneyName(title: string): string {
+    const stripped = title.replace(/^e[-\s]?learning\s*/i, '').trim();
+    return stripped || title;
+}
+
 function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
     // Semua tile divisi (HOR, HOS, BSM, CSE, DSE) tampil seragam: hanya nama divisi,
     // tanpa angka "selesai" / "user active".
@@ -145,13 +153,17 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                 {dseDivision && dsePopulation > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700">
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Progress DSE</p>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div className="grid grid-cols-3 gap-2 mb-2">
                             <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
                                 <p className="text-[10px] text-gray-400 leading-tight">Jumlah DSE</p>
                                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-tight">{dsePopulation}</p>
                             </div>
                             <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
-                                <p className="text-[10px] text-gray-400 leading-tight">Selesai Course</p>
+                                <p className="text-[10px] text-gray-400 leading-tight">Progres Training</p>
+                                <p className="text-sm font-bold text-sky-600 dark:text-sky-400 leading-tight">{course.training_progress_count ?? 0}</p>
+                            </div>
+                            <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
+                                <p className="text-[10px] text-gray-400 leading-tight">Modul Selesai</p>
                                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dseDivision.completed}</p>
                             </div>
                         </div>
@@ -175,7 +187,7 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
 
 function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen: () => void }) {
     // "user terdaftar" dihilangkan, dan "user active" dipindah ke My Activity (di bawah
-    // Detail Progress per e-learning) -> card ini tinggal menyisakan course & module tersedia.
+    // Detail Progress per e-learning) -> card ini tinggal menyisakan modul & materi training tersedia.
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <button
@@ -187,7 +199,7 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                     <Map className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{journey.journey_title}</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{displayJourneyName(journey.journey_title)}</p>
                     <p className="text-[11px] text-gray-400">{journey.total_completed} selesai</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-sky-400 shrink-0 ml-auto" />
@@ -203,7 +215,7 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                     </div>
                     <div className="min-w-0">
                         <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_courses}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">course tersedia</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">modul tersedia</p>
                     </div>
                 </button>
                 <button
@@ -216,7 +228,7 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                     </div>
                     <div className="min-w-0">
                         <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{journey.total_modules}</p>
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">module tersedia</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">materi training tersedia</p>
                     </div>
                 </button>
             </div>
@@ -283,7 +295,7 @@ function ActivityJourneyActiveUsers({ journey, liveActiveCount }: { journey: MyA
                 </div>
                 <div className="min-w-0">
                     <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{totalActive}</p>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user active</p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight mt-1">user active dse</p>
                 </div>
             </button>
 
@@ -301,8 +313,8 @@ function ActivityJourneyActiveUsers({ journey, liveActiveCount }: { journey: MyA
                                 <UserCheck className="h-4 w-4" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-400 truncate">User Active</p>
-                                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{journey.journey_title}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-400 truncate">User Active DSE</p>
+                                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{displayJourneyName(journey.journey_title)}</p>
                             </div>
                             <button
                                 type="button"
@@ -376,7 +388,7 @@ function ListCardHeader({ icon, eyebrow, title }: { icon: React.ReactNode; eyebr
 
 function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
     if (!modules || modules.length === 0) {
-        return <p className="text-sm text-gray-400 py-6 text-center">Belum ada modul untuk course ini.</p>;
+        return <p className="text-sm text-gray-400 py-6 text-center">Belum ada materi training untuk modul ini.</p>;
     }
 
     return (
@@ -639,7 +651,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Report</p>
                             <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">Summary</p>
                             <p className="text-xs text-gray-400 mt-0.5">
-                                {course_count} course dipantau
+                                {course_count} modul dipantau
                             </p>
                         </div>
                     </div>
@@ -663,13 +675,13 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                             </button>
                         )}
                         <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                            My Team{selectedJourney ? <span className="text-gray-400 font-normal"> &bull; {selectedJourney.journey_title}</span> : ''}
+                            My Team{selectedJourney ? <span className="text-gray-400 font-normal"> &bull; {displayJourneyName(selectedJourney.journey_title)}</span> : ''}
                         </p>
                     </div>
 
                     {teamJourneys.length === 0 ? (
                         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-10 text-center text-sm text-gray-400">
-                            Belum ada journey dengan course yang bisa ditampilkan untuk tim Anda.
+                            Belum ada journey dengan modul yang bisa ditampilkan untuk tim Anda.
                         </div>
                     ) : !selectedJourney ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -684,7 +696,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     ) : selectedJourney.courses.length === 0 ? (
                         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm px-4 py-16 flex flex-col items-center gap-2 text-center">
                             <Inbox className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                            <p className="text-sm text-gray-400">Belum ada course yang tersedia.</p>
+                            <p className="text-sm text-gray-400">Belum ada modul yang tersedia.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -721,7 +733,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                                                 }`}
                                             >
                                                 <p className={`text-sm font-semibold truncate ${active ? 'text-sky-700 dark:text-sky-400' : 'text-gray-700 dark:text-gray-200'}`}>
-                                                    {j.journey_title}
+                                                    {displayJourneyName(j.journey_title)}
                                                 </p>
                                                 <p className="text-[11px] text-gray-400 mt-0.5">{j.completed_count}/{j.total_courses} selesai</p>
                                             </button>
@@ -732,10 +744,10 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
 
                             {/* Tengah: daftar Course milik journey yang dipilih */}
                             <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
-                                <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Course Saya" />
+                                <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Modul Saya" />
                                 <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
                                     {visibleActivityCourses.length === 0 ? (
-                                        <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada course mandatory.</p>
+                                        <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada modul mandatory.</p>
                                     ) : (
                                         visibleActivityCourses.map((c) => {
                                             const active = c.course_id === selectedCourseId;
@@ -782,7 +794,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                                 <div className="p-4">
                                     {activityLoading ? (
                                         <div className="flex items-center justify-center py-16 text-gray-400 text-sm gap-2">
-                                            <Loader2 className="h-4 w-4 animate-spin" /> Memuat modul...
+                                            <Loader2 className="h-4 w-4 animate-spin" /> Memuat materi training...
                                         </div>
                                     ) : (
                                         <ModulesDetail modules={activityModules} />

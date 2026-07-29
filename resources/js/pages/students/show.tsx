@@ -239,7 +239,7 @@ export default function StudentsShow({
                             </div>
                             <div className="rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3 flex flex-col gap-2">
                                 <div className="flex justify-between text-xs text-gray-500">
-                                    <span>Progress Kursus</span>
+                                    <span>Progress Modul</span>
                                     <span className="font-semibold text-sky-600 dark:text-sky-400">{profileUser.progress_percentage ?? 0}%</span>
                                 </div>
                                 <div className="h-2 w-full rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
@@ -272,10 +272,10 @@ export default function StudentsShow({
                                 </div>
                             </div>
 
-                            {/* Detail per Modul */}
+                            {/* Detail per Materi Training */}
                             {profileUser.modules_progress && profileUser.modules_progress.length > 0 && (
                                 <div className="rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3">
-                                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Detail Modul &amp; Kuis</p>
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">Detail Materi Training &amp; Kuis</p>
                                     <div className="space-y-3">
                                         {profileUser.modules_progress.map((mod) => {
                                             const totalItems = [mod.has_video, mod.has_document].filter(Boolean).length;
@@ -377,13 +377,13 @@ export default function StudentsShow({
                     className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Kembali ke Daftar Course
+                    Kembali ke Daftar Modul
                 </button>
 
                 {/* Header Card */}
                 <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                     <div>
-                        <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Detail Kursus</p>
+                        <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Detail Modul</p>
                         <h1 className="mt-0.5 text-xl font-bold text-gray-800 dark:text-gray-100">{course.title}</h1>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {course.category && (
@@ -474,7 +474,7 @@ export default function StudentsShow({
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">No</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{groupLabel}</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Jumlah DSE</span>
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Course Selesai</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Modul Selesai</span>
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-center">Persentase</span>
                         </div>
                     )}
