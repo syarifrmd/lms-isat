@@ -319,7 +319,7 @@ export default function JourneysIndex({
                                                             disabled={isLocked}
                                                             className={`inline-flex items-center px-2.5 py-1 rounded-xl text-white text-xs font-semibold transition-colors shadow-sm ${isLocked ? 'bg-sky-600' : 'bg-sky-600 hover:bg-sky-700'}`}
                                                         >
-                                                            Lihat Course
+                                                            Lihat Modul
                                                         </button>
                                                     )}
                                                 </div>

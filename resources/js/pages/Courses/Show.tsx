@@ -840,7 +840,7 @@ const OfficeViewer = memo(
                     </div>
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Preview dokumen dimuat saat dibutuhkan</p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500">Ini mengurangi beban halaman agar tidak freeze saat membuka course.</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Ini mengurangi beban halaman agar tidak freeze saat membuka modul.</p>
                     </div>
                     <Button size="sm" onClick={() => setPreviewModuleId(moduleId)}>
                         Tampilkan Preview
@@ -965,7 +965,7 @@ const OfficeViewer = memo(
                     data = await res.json();
                 } catch (parseErr) {
                     // Response bukan JSON (mis. halaman error/redirect login) -> jangan diam-diam gagal.
-                    throw new Error(`Server tidak mengembalikan JSON (status ${res.status}). Kemungkinan sesi berakhir atau tidak terdaftar di course ini — coba refresh halaman.`);
+                    throw new Error(`Server tidak mengembalikan JSON (status ${res.status}). Kemungkinan sesi berakhir atau tidak terdaftar di modul ini — coba refresh halaman.`);
                 }
                 if (!res.ok || !data?.success) {
                     throw new Error(data?.message || `Gagal menyimpan progres (status ${res.status}).`);
@@ -1276,9 +1276,9 @@ const evaluateDocument = () => {
                                     <FileIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                                 </div>
                                 <div className="min-w-0">
-    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Modul</p>
+    <p className="font-medium text-sm text-gray-800 dark:text-gray-100">Dokumen Materi Training</p>
     <p className="text-xs text-gray-400 truncate">
-        {module.title ? `${module.title}.pdf` : 'Dokumen Modul.pdf'}
+        {module.title ? `${module.title}.pdf` : 'Dokumen Materi Training.pdf'}
     </p>
 </div>
                             </div>
@@ -1293,7 +1293,7 @@ const evaluateDocument = () => {
                             <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-900/10 px-4 py-8 text-center">
                                 <Lock className="h-5 w-5 text-amber-500" />
                                 <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Dokumen terkunci</p>
-                                <p className="text-xs text-amber-600/80 dark:text-amber-400/70">Selesaikan dan lulus kuis modul ini terlebih dahulu untuk membuka dokumen.</p>
+                                <p className="text-xs text-amber-600/80 dark:text-amber-400/70">Selesaikan dan lulus kuis materi training ini terlebih dahulu untuk membuka dokumen.</p>
                             </div>
                         ) : (
                         <>
@@ -1514,7 +1514,7 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp, userId }: ModuleTime
             <div className="flex flex-col gap-2 mb-4 animate-pulse">
                 <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm font-bold shadow-sm">
                     <AlertCircle className="h-5 w-5 text-red-500" />
-                    <span>Waktu telah habis, progres modul ini direset otomatis...</span>
+                    <span>Waktu telah habis, progres materi training ini direset otomatis...</span>
                 </div>
                 {expiredCount > 0 && (
                     <p className="text-[11px] text-red-500 font-medium pl-1">
@@ -1535,7 +1535,7 @@ function ModuleTimer({ moduleId, durationMinutes, onTimeUp, userId }: ModuleTime
                         : 'bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-700 dark:text-amber-400'
             }`}>
                 <Clock className="h-4 w-4" />
-                <span>Sisa waktu modul: {formatTime(secondsLeft)}</span>
+                <span>Sisa waktu materi training: {formatTime(secondsLeft)}</span>
             </div>
             {expiredCount > 0 && (
                 <p className="text-[11px] text-red-500 font-medium pl-1">
@@ -1650,7 +1650,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
     return (
         <AppLayout 
             breadcrumbs={[
-                { title: auth.user.role === 'user' ? 'Modul' : 'Courses', href: auth.user.role === 'user' ? undefined : '/courses' }, 
+                { title: 'Modul', href: auth.user.role === 'user' ? undefined : '/courses' }, 
                 { title: course.title, href: `/courses/${course.id}` }
             ]}
         >
@@ -1676,7 +1676,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-linear-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 shadow-sm px-6 py-5">
                     <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Course</p>
+                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Modul</p>
                             <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{course.title}</h1>
                             <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{course.description}</p>
                         </div>
@@ -1684,7 +1684,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5">
                                 <Link href={`/courses/${course.id}/edit`}>
                                     <Edit className="w-3.5 h-3.5" />
-                                    Edit Course
+                                    Edit Modul
                                 </Link>
                             </Button>
                         )}
@@ -1703,7 +1703,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                         {/* Section header row */}
                         <div className="flex items-center justify-between">
                             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-                                Course Modules
+                                Materi Training
                                 <span className="ml-2 text-gray-300 dark:text-gray-600 normal-case tracking-normal font-normal">
                                     ({localModules.length})
                                 </span>
@@ -1712,7 +1712,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                 <Button asChild size="sm">
                                     <Link href={`/courses/${course.id}/modules/create`}>
                                         <Plus className="w-4 h-4 mr-1.5" />
-                                        Add Module
+                                        Add Training Material
                                     </Link>
                                 </Button>
                             )}
@@ -1941,10 +1941,10 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                         style={{ width: `${currentProgress}%` }}
                                     />
                                 </div>
-                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{currentProgress < 100 ? 'Selesaikan semua modul untuk membuka course selanjutnya' : ''}</p>
+                                <p className="mt-1.5 text-[11px] sm:text-xs text-sky-400">{currentProgress < 100 ? 'Selesaikan semua materi training untuk membuka modul selanjutnya' : ''}</p>
                                 {currentProgress === 100 && (
                                     <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-semibold flex items-center gap-1.5">
-                                        <CheckCircle className="w-4 h-4" /> Kursus Selesai!
+                                        <CheckCircle className="w-4 h-4" /> Modul Selesai!
                                     </p>
                                 )}
                             </div>
@@ -1959,7 +1959,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <p className="font-semibold text-sm lg:text-sm text-gray-800 dark:text-gray-100 truncate">{trainerName}</p>
-                                    <p className="text-[11px] sm:text-xs text-gray-400">Pembuat Kursus</p>
+                                    <p className="text-[11px] sm:text-xs text-gray-400">Pembuat Modul</p>
                                     <p className="text-[11px] sm:text-xs text-gray-400">ID: {trainerId}</p>
                                 </div>
                             </div>
@@ -1968,7 +1968,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                         {/* Rating card */}
                         {/* <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm p-4 lg:p-5 space-y-3 lg:space-y-4">
                             <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
-                                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> Course Rating
+                                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> Rating Modul
                             </p> */}
 
                             {/* Average */}
@@ -2014,7 +2014,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             {/* {!isTrainer && isEnrolled && (
                                 <div className="border-t border-gray-100 dark:border-gray-700 pt-3 lg:pt-4 space-y-3">
                                     <p className="text-[13px] sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        {ratingData?.user_rating ? 'Rating Anda' : 'Beri Rating Kursus'}
+                                        {ratingData?.user_rating ? 'Rating Anda' : 'Beri Rating Modul'}
                                     </p>
                                     <form onSubmit={submitRating} className="space-y-3">
                                         <div className="flex gap-1">
@@ -2062,7 +2062,7 @@ export default function CourseShow({ course, userProgress = 0, isEnrolled = fals
                             {/* {!isTrainer && !isEnrolled && (
                                 <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-3 py-2.5 text-xs text-gray-400">
                                     <MessageSquare className="w-4 h-4 shrink-0" />
-                                    Daftar kursus untuk memberi rating
+                                    Daftar modul untuk memberi rating
                                 </div>
                             )} */}
                         </div>
