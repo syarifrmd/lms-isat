@@ -114,8 +114,10 @@ class CourseController extends Controller
         
         $search = $request->input('search');
         $category = $request->input('category');
-        // Dropdown Mandatory/Non-Mandatory sudah dihapus di frontend, course_type dikunci permanen ke 'mandatory'
-        $courseType = 'mandatory';
+        // Dropdown Mandatory/Non-Mandatory: full akses untuk admin (semua nilai dihormati).
+        // Untuk role lain yang tidak menampilkan dropdown ini di frontend, default tetap
+        // 'mandatory' seperti sebelumnya supaya perilakunya tidak berubah.
+        $courseType = $request->input('course_type', 'mandatory');
         $progressStatus = $request->input('progress_status');
         $divisionFilter = $request->input('division'); 
         $journeyId = $request->input('journey_id');
@@ -164,8 +166,14 @@ class CourseController extends Controller
                   ->where('course_division.target_division', $user->division);
         }
         
-        // Hanya course mandatory yang ditampilkan (filter non-mandatory sudah tidak diperlukan)
-        $query->where('courses.is_mandatory', true);
+        // Filter mandatory / non-mandatory sesuai pilihan dropdown (khusus admin di
+        // frontend). Nilai lain selain 'non_mandatory'/'all' dianggap 'mandatory'
+        // supaya perilaku lama (sebelum dropdown ini dibuka lagi) tetap sama.
+        if ($courseType === 'non_mandatory') {
+            $query->where('courses.is_mandatory', false);
+        } elseif ($courseType !== 'all') {
+            $query->where('courses.is_mandatory', true);
+        }
        
         if ($search) {
             $query->where(function($q) use ($search) {

@@ -152,9 +152,13 @@ export default function CoursesIndex({
     // State untuk menyimpan nilai dropdown divisi yang dipilih (Default ke 'all')
     const [division, setDivision] = useState(filters?.division || 'all');
 
+    // State dropdown Mandatory/Non-Mandatory (khusus admin). Default tetap 'mandatory'
+    // supaya perilaku untuk role lain (yang tidak menampilkan dropdown ini) tidak berubah.
+    const [courseType, setCourseType] = useState(filters?.course_type || 'mandatory');
+
     useEffect(() => {
         if (!filters?.course_type) {
-            updateFilters(search, category, division);
+            updateFilters(search, category, division, courseType);
         }
     }, []);
 
@@ -163,19 +167,18 @@ export default function CoursesIndex({
         if (search === (filters?.search || '')) return;
 
         const delayDebounceFn = setTimeout(() => {
-            updateFilters(search, category, division);
+            updateFilters(search, category, division, courseType);
         }, 500); 
 
         return () => clearTimeout(delayDebounceFn);
     }, [search]);
 
-    // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
-    // course_type selalu dikirim sebagai 'mandatory'
-    const updateFilters = (newSearch: string, newCategory: string, newDivision: string) => {
+    // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision & newCourseType ke backend
+    const updateFilters = (newSearch: string, newCategory: string, newDivision: string, newCourseType: string) => {
         const queryParams: any = {};
         if (newSearch) queryParams.search = newSearch;
         if (newCategory !== 'all') queryParams.category = newCategory;
-        queryParams.course_type = 'mandatory';
+        queryParams.course_type = newCourseType;
         if (newDivision !== 'all') queryParams.division = newDivision;
         if (filters?.journey_id) queryParams.journey_id = filters.journey_id;
 
@@ -195,13 +198,19 @@ export default function CoursesIndex({
 
     const handleCategoryChange = (val: string) => {
         setCategory(val);
-        updateFilters(search, val, division);
+        updateFilters(search, val, division, courseType);
     };
 
     // Fungsi handler ketika dropdown divisi berubah di frontend
     const handleDivisionChange = (val: string) => {
         setDivision(val);
-        updateFilters(search, category, val);
+        updateFilters(search, category, val, courseType);
+    };
+
+    // Fungsi handler ketika dropdown Mandatory/Non-Mandatory berubah di frontend
+    const handleCourseTypeChange = (val: string) => {
+        setCourseType(val);
+        updateFilters(search, category, division, val);
     };
 
     const handleEnrollClick = (course: Course) => {
@@ -229,8 +238,22 @@ export default function CoursesIndex({
     };
 
     const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
-    // Dropdown kategori sekarang hanya untuk admin, disembunyikan untuk semua user biasa (semua divisi)
-    const showDropdown = isAdmin;
+    const userRole = auth?.user?.role?.toLowerCase();
+
+    // Hierarki divisi dari yang paling tinggi ke paling rendah, dipakai untuk aturan
+    // "divisi CSE ke atas" di bawah. Sinkron dengan hierarki di UserDashboard:
+    // HOC (Circle) > HOR (Region) > HOS (Area) > BSM (Branch) > CSE/RSE/DSE (Micro Cluster).
+    const DIVISION_HIERARCHY = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE', 'RSE', 'DSE'];
+    const userDivisionRank = DIVISION_HIERARCHY.indexOf(String(auth?.user?.division ?? '').toUpperCase());
+    const isCseOrAbove = userDivisionRank !== -1 && userDivisionRank <= DIVISION_HIERARCHY.indexOf('CSE');
+
+    // Admin: tampilkan semua filter (search, kategori, mandatory/non-mandatory, divisi).
+    // Role "user" dengan divisi CSE ke atas: hanya search + dropdown kategori.
+    // Selain itu (trainer, atau user di bawah CSE): tetap disembunyikan seperti sebelumnya.
+    const showSearch = isAdmin || (userRole === 'user' && isCseOrAbove);
+    const showCategoryDropdown = isAdmin || (userRole === 'user' && isCseOrAbove);
+    const showCourseTypeDropdown = isAdmin;
+    const showDivisionDropdown = isAdmin;
 
     return (
         <AppLayout breadcrumbs={[{ title: 'Modul', href: '/courses' }]}>
@@ -268,8 +291,7 @@ export default function CoursesIndex({
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto flex-wrap">
-                        {/* Search hanya tampil untuk admin, disembunyikan untuk user biasa */}
-                        {isAdmin && (
+                        {showSearch && (
                             <div className="relative w-full sm:w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
@@ -280,7 +302,7 @@ export default function CoursesIndex({
                                 />
                             </div>
                         )}
-                        {showDropdown && (
+                        {showCategoryDropdown && (
                             <Select value={category} onValueChange={handleCategoryChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue placeholder="Semua Kategori" />
@@ -294,8 +316,22 @@ export default function CoursesIndex({
                             </Select>
                         )}
 
-                        {/* FILTER DROPDOWN DIVISI  */}
-                        {/* {auth?.user?.role === 'admin' && (
+                        {/* FILTER DROPDOWN MANDATORY / NON-MANDATORY (khusus admin) */}
+                        {showCourseTypeDropdown && (
+                            <Select value={courseType} onValueChange={handleCourseTypeChange}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue placeholder="Semua Tipe" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Tipe</SelectItem>
+                                    <SelectItem value="mandatory">Mandatory</SelectItem>
+                                    <SelectItem value="non_mandatory">Non-Mandatory</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+
+                        {/* FILTER DROPDOWN DIVISI (khusus admin) */}
+                        {showDivisionDropdown && (
                             <Select value={division} onValueChange={handleDivisionChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue>
@@ -309,7 +345,7 @@ export default function CoursesIndex({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        )} */}
+                        )}
                     </div>
 
                     {canCreateCourse && (
