@@ -198,6 +198,15 @@ class DashboardController extends Controller
             ->count();
         $xp = $user->xp ?? 0;
 
+        // Total jawaban benar dari seluruh attempt kuis user
+        $totalCorrect = DB::table('user_answers')
+            ->join('user_quiz_attempts', 'user_answers.attempt_id', '=', 'user_quiz_attempts.id')
+            ->join('courses', 'user_quiz_attempts.course_id', '=', 'courses.id')
+            ->where('user_quiz_attempts.user_id', $userId)
+            ->where('user_answers.is_correct', true)
+            ->where('courses.is_mandatory', 1)
+            ->count();
+
         // Peringkat: ranking TERBAIK (tertinggi/angka terkecil) milik user di antara
         // seluruh modul (kuis) yang pernah ia lulus, dihitung dengan logika yang sama
         // seperti LeaderboardController (urutan berdasarkan skor tertinggi, lalu
@@ -388,6 +397,7 @@ class DashboardController extends Controller
                     'passed_quizzes'    => $passedQuizCount,
                     'certificates'      => $completedCount,
                     'xp'                => $xp,
+                    'total_correct'     => $totalCorrect,
                     'rank'              => $leaderboardRank,
                     'courses_available' => $coursesAvailableCount,
                     'modules_available' => $modulesAvailableCount,

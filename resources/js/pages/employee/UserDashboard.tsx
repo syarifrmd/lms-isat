@@ -214,7 +214,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                                 <ClipboardList className="h-3.5 w-3.5 text-orange-400" /> Point
                             </span>
                             <span className="text-xs font-bold text-orange-600 dark:text-orange-400">
-                                {stats?.quiz_attempts?.toLocaleString('id-ID') ?? 0}
+                                {stats?.total_correct?.toLocaleString('id-ID') ?? 0}
                             </span>
                         </div>
                         <Link href="/leaderboard"
