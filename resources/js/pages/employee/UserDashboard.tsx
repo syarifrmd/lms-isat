@@ -44,10 +44,10 @@ export default function UserDashboard({ data }: UserDashboardProps) {
     const recentAttempts = data?.recent_attempts  ?? [];
 
     const statCards = [
-        { label: 'Course Tersedia', value: stats?.courses_available ?? 0, icon: BookOpen,     color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-100 dark:border-blue-800/40' },
-        { label: 'Modul Tersedia',  value: stats?.modules_available ?? 0, icon: Layers,        color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800/40' },
-        { label: 'Modul Selesai',   value: stats?.modules_completed ?? 0, icon: CheckCircle2,  color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-100 dark:border-violet-800/40' },
-        { label: 'Stamp',           value: stats?.certificates      ?? 0, icon: GraduationCap, color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-100 dark:border-amber-800/40' },
+        { label: 'Modul Tersedia',           value: stats?.courses_available ?? 0, icon: BookOpen,     color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20',     border: 'border-blue-100 dark:border-blue-800/40' },
+        { label: 'Materi Training Tersedia', value: stats?.modules_available ?? 0, icon: Layers,        color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800/40' },
+        { label: 'Materi Training Selesai',  value: stats?.modules_completed ?? 0, icon: CheckCircle2,  color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-100 dark:border-violet-800/40' },
+        { label: 'Stamp',                    value: stats?.certificates      ?? 0, icon: GraduationCap, color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-900/20',   border: 'border-amber-100 dark:border-amber-800/40' },
     ];
 
     const jam  = new Date().getHours();
@@ -65,6 +65,16 @@ export default function UserDashboard({ data }: UserDashboardProps) {
         divisionUpper === 'DSE' && dseJourneyId
             ? `/courses?journey_id=${dseJourneyId}`
             : '/journeys';
+
+    // Materi training yang sedang berjalan (dipakai untuk tombol "Lanjutkan Modul
+    // Training" — langsung menuju materi yang sedang dikerjakan, bukan ke daftar).
+    const activeCourses = data?.active_courses ?? [];
+    const hasActiveCourse = activeCourses.length > 0;
+    // NOTE: sesuaikan pola URL berikut (`/courses/{id}`) dengan route detail
+    // materi training yang sebenarnya dipakai di aplikasi.
+    const continueHref = hasActiveCourse
+        ? `/courses/${activeCourses[0].course_id}`
+        : exploreHref;
 
     const scopeField =
         divisionUpper === 'HOC' ? { label: 'Circle',         value: user.circle }
@@ -120,8 +130,8 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                     ))}
                 </div>
 
-                {/* Empty state untuk pengguna baru */}
-                {(stats?.enrolled_courses ?? 0) === 0 && (
+                {/* Ajakan belajar: state awal (belum pernah mulai) vs sedang berjalan */}
+                {(stats?.enrolled_courses ?? 0) === 0 ? (
                     <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-orange-200
                                     bg-orange-50/50 dark:border-orange-800/30 dark:bg-orange-950/10 px-6 py-10 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/30">
@@ -130,14 +140,33 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                         <div>
                             <p className="text-base font-semibold text-foreground">Mulai perjalanan belajarmu</p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Jelajahi kursus yang tersedia dan daftar untuk mulai melacak progresmu.
+                                Jelajahi modul yang tersedia dan daftar untuk mulai melacak progresmu.
                             </p>
                         </div>
                         <Link href={exploreHref}
                               className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-2.5
                                          text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
                             <BookOpen className="h-4 w-4" />
-                            Jelajahi Courses
+                            Jelajahi Modul
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-orange-200
+                                    bg-orange-50/50 dark:border-orange-800/30 dark:bg-orange-950/10 px-6 py-10 text-center">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900/30">
+                            <BookOpen className="h-7 w-7 text-orange-500" />
+                        </div>
+                        <div>
+                            <p className="text-base font-semibold text-foreground">Lanjutkan belajarmu</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Ada materi training yang sedang berjalan, lanjutkan progresmu sekarang.
+                            </p>
+                        </div>
+                        <Link href={continueHref}
+                              className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-6 py-2.5
+                                         text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
+                            <BookOpen className="h-4 w-4" />
+                            Lanjutkan Modul Training
                         </Link>
                     </div>
                 )}
@@ -183,7 +212,7 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                         )}
                         <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <Flame className="h-3.5 w-3.5 text-orange-400" /> XP
+                                <Flame className="h-3.5 w-3.5 text-orange-400" /> Point
                             </span>
                             <span className="text-xs font-bold text-orange-600 dark:text-orange-400">
                                 {stats?.xp?.toLocaleString('id-ID') ?? 0}

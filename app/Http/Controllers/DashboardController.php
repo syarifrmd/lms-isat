@@ -196,11 +196,72 @@ class DashboardController extends Controller
             ->where('is_passed', true)
             ->whereHas('course', fn ($q) => $q->where('is_mandatory', 1))
             ->count();
-        $xp               = $user->xp ?? 0;
-        $leaderboardRank  = DB::table('users')
-            ->where('role', 'user')
-            ->where('xp', '>', $xp)
-            ->count() + 1;
+        $xp = $user->xp ?? 0;
+
+        // Peringkat: ranking TERBAIK (tertinggi/angka terkecil) milik user di antara
+        // seluruh modul (kuis) yang pernah ia lulus, dihitung dengan logika yang sama
+        // seperti LeaderboardController (urutan berdasarkan skor tertinggi, lalu
+        // durasi pengerjaan tercepat). Jika user belum pernah lulus kuis apa pun,
+        // peringkat akan bernilai null (ditampilkan "—" di frontend).
+        $leaderboardRank = null;
+
+        $attemptedQuizIds = UserQuizAttempt::where('user_id', $userId)
+            ->whereNotNull('submitted_at')
+            ->where('is_passed', true)
+            ->pluck('quiz_id')
+            ->unique();
+
+        foreach ($attemptedQuizIds as $quizId) {
+            // Durasi total per user untuk kuis ini (termasuk attempt yang sudah
+            // dihapus/soft-deleted), sama seperti perhitungan di LeaderboardController.
+            $allAttemptsForQuiz = UserQuizAttempt::withTrashed()
+                ->where('quiz_id', $quizId)
+                ->whereNotNull('submitted_at')
+                ->get();
+
+            $totalDurations = [];
+            foreach ($allAttemptsForQuiz as $a) {
+                if ($a->created_at && $a->submitted_at) {
+                    $diff = abs(\Carbon\Carbon::parse($a->submitted_at)->diffInSeconds(\Carbon\Carbon::parse($a->created_at)));
+                    $totalDurations[$a->user_id] = ($totalDurations[$a->user_id] ?? 0) + $diff;
+                }
+            }
+
+            $rankedAttempts = UserQuizAttempt::with('user:id,role')
+                ->where('quiz_id', $quizId)
+                ->whereNotNull('submitted_at')
+                ->where('is_passed', true)
+                ->get()
+                ->filter(fn ($attempt) => $attempt->user && $attempt->user->role === 'user')
+                ->map(function ($attempt) use ($totalDurations) {
+                    $correctCount = DB::table('user_answers')
+                        ->where('attempt_id', $attempt->id)
+                        ->where('is_correct', true)
+                        ->count();
+
+                    return [
+                        'user_id'          => $attempt->user_id,
+                        'score'            => $correctCount,
+                        'duration_seconds' => $totalDurations[$attempt->user_id] ?? 0,
+                    ];
+                })
+                ->sort(function ($a, $b) {
+                    if ($a['score'] == $b['score']) {
+                        return $a['duration_seconds'] <=> $b['duration_seconds'];
+                    }
+                    return $b['score'] <=> $a['score'];
+                })
+                ->values();
+
+            $positionInQuiz = $rankedAttempts->search(fn ($row) => $row['user_id'] === $userId);
+
+            if ($positionInQuiz !== false) {
+                $rankInQuiz = $positionInQuiz + 1;
+                if ($leaderboardRank === null || $rankInQuiz < $leaderboardRank) {
+                    $leaderboardRank = $rankInQuiz;
+                }
+            }
+        }
 
         // Course Tersedia / Modul Tersedia: course yang punya journey, DAN journey itu
         // di-assign ke DIVISION SENDIRI SAJA (lewat journey_divisions.target_division)

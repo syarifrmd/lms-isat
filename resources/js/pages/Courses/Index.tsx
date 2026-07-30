@@ -69,7 +69,7 @@ export default function CoursesIndex({
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
     const [showEnrollModal, setShowEnrollModal] = useState(false);
 
-    // Ambil gambar stempel yang sedang aktif, dipakai untuk menggantikan ikon gembok di card kursus terkunci
+    // Ambil gambar stempel yang sedang aktif, dipakai untuk menggantikan ikon gembok di card modul terkunci
     const [stampUrl, setStampUrl] = useState<string | null>(null);
 
     useEffect(() => {
@@ -85,7 +85,7 @@ export default function CoursesIndex({
             });
     }, []);
 
-    // Heartbeat "aktif di journey ini": halaman Available Courses ini yang sebenarnya dipakai
+    // Heartbeat "aktif di journey ini": halaman Available Modules ini yang sebenarnya dipakai
     // user untuk "masuk journey" (bukan /journeys/{id}), makanya ping dipasang di sini juga.
     // Kirim ping tiap 10 detik selagi halaman terbuka & terlihat, dengan journey_id dari filter
     // (?journey_id=... di URL). TTL di server 20 detik, jadi interval 10 detik cukup rapat untuk
@@ -152,9 +152,13 @@ export default function CoursesIndex({
     // State untuk menyimpan nilai dropdown divisi yang dipilih (Default ke 'all')
     const [division, setDivision] = useState(filters?.division || 'all');
 
+    // State dropdown Mandatory/Non-Mandatory (khusus admin). Default tetap 'mandatory'
+    // supaya perilaku untuk role lain (yang tidak menampilkan dropdown ini) tidak berubah.
+    const [courseType, setCourseType] = useState(filters?.course_type || 'mandatory');
+
     useEffect(() => {
         if (!filters?.course_type) {
-            updateFilters(search, category, division);
+            updateFilters(search, category, division, courseType);
         }
     }, []);
 
@@ -163,19 +167,18 @@ export default function CoursesIndex({
         if (search === (filters?.search || '')) return;
 
         const delayDebounceFn = setTimeout(() => {
-            updateFilters(search, category, division);
+            updateFilters(search, category, division, courseType);
         }, 500); 
 
         return () => clearTimeout(delayDebounceFn);
     }, [search]);
 
-    // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision ke backend
-    // course_type selalu dikirim sebagai 'mandatory'
-    const updateFilters = (newSearch: string, newCategory: string, newDivision: string) => {
+    // updateFilters dimodifikasi untuk ikut serta mengirim parameter newDivision & newCourseType ke backend
+    const updateFilters = (newSearch: string, newCategory: string, newDivision: string, newCourseType: string) => {
         const queryParams: any = {};
         if (newSearch) queryParams.search = newSearch;
         if (newCategory !== 'all') queryParams.category = newCategory;
-        queryParams.course_type = 'mandatory';
+        queryParams.course_type = newCourseType;
         if (newDivision !== 'all') queryParams.division = newDivision;
         if (filters?.journey_id) queryParams.journey_id = filters.journey_id;
 
@@ -195,18 +198,24 @@ export default function CoursesIndex({
 
     const handleCategoryChange = (val: string) => {
         setCategory(val);
-        updateFilters(search, val, division);
+        updateFilters(search, val, division, courseType);
     };
 
     // Fungsi handler ketika dropdown divisi berubah di frontend
     const handleDivisionChange = (val: string) => {
         setDivision(val);
-        updateFilters(search, category, val);
+        updateFilters(search, category, val, courseType);
+    };
+
+    // Fungsi handler ketika dropdown Mandatory/Non-Mandatory berubah di frontend
+    const handleCourseTypeChange = (val: string) => {
+        setCourseType(val);
+        updateFilters(search, category, division, val);
     };
 
     const handleEnrollClick = (course: Course) => {
         // Modal konfirmasi pendaftaran dinonaktifkan sementara.
-        // Sekarang klik "Daftar Kursus" langsung: (1) submit enroll ke backend,
+        // Sekarang klik "Daftar Modul" langsung: (1) submit enroll ke backend,
         // lalu (2) pindah ke halaman course pakai navigasi SPA Inertia (bukan reload penuh).
         // setSelectedCourse(course);
         // setShowEnrollModal(true);
@@ -229,12 +238,26 @@ export default function CoursesIndex({
     };
 
     const isAdmin = auth?.user?.role?.toLowerCase() === 'admin';
-    // Dropdown kategori sekarang hanya untuk admin, disembunyikan untuk semua user biasa (semua divisi)
-    const showDropdown = isAdmin;
+    const userRole = auth?.user?.role?.toLowerCase();
+
+    // Hierarki divisi dari yang paling tinggi ke paling rendah, dipakai untuk aturan
+    // "divisi CSE ke atas" di bawah. Sinkron dengan hierarki di UserDashboard:
+    // HOC (Circle) > HOR (Region) > HOS (Area) > BSM (Branch) > CSE/RSE/DSE (Micro Cluster).
+    const DIVISION_HIERARCHY = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE', 'RSE', 'DSE'];
+    const userDivisionRank = DIVISION_HIERARCHY.indexOf(String(auth?.user?.division ?? '').toUpperCase());
+    const isCseOrAbove = userDivisionRank !== -1 && userDivisionRank <= DIVISION_HIERARCHY.indexOf('CSE');
+
+    // Admin: tampilkan semua filter (search, kategori, mandatory/non-mandatory, divisi).
+    // Role "user" dengan divisi CSE ke atas: hanya search + dropdown kategori.
+    // Selain itu (trainer, atau user di bawah CSE): tetap disembunyikan seperti sebelumnya.
+    const showSearch = isAdmin || (userRole === 'user' && isCseOrAbove);
+    const showCategoryDropdown = isAdmin || (userRole === 'user' && isCseOrAbove);
+    const showCourseTypeDropdown = isAdmin;
+    const showDivisionDropdown = isAdmin;
 
     return (
-        <AppLayout breadcrumbs={[{ title: 'Courses', href: '/courses' }]}>
-            <Head title="Courses" />
+        <AppLayout breadcrumbs={[{ title: 'Modul', href: '/courses' }]}>
+            <Head title="Modul" />
 
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
 
@@ -246,20 +269,20 @@ export default function CoursesIndex({
                         </div>
                         <div>
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Learning Portal</p>
-                            <p className="mt-0.5 text-2xl font-bold text-sky-600">Available Courses</p>
+                            <p className="mt-0.5 text-2xl font-bold text-sky-600">Available Modules</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-6">
                         <div className="text-right">
                             <p className="text-xs font-medium uppercase tracking-widest text-sky-400">Total</p>
                             <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{courses.total}</p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">courses available</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">modules available</p>
                         </div>
                         {filters?.journey_id && (
                             <div className="text-right border-l border-sky-100 dark:border-sky-900 pl-6">
                                 <p className="text-xs font-medium uppercase tracking-widest text-sky-400">TOTAL</p>
                                 <p className="mt-0.5 text-2xl font-bold text-gray-800 dark:text-gray-100">{totalModules ?? 0}</p>
-                                <p className="text-xs text-gray-400 dark:text-gray-500">modules available</p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">training materials available</p>
                             </div>
                         )}
                     </div>
@@ -268,19 +291,18 @@ export default function CoursesIndex({
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto flex-wrap">
-                        {/* Search hanya tampil untuk admin, disembunyikan untuk user biasa */}
-                        {isAdmin && (
+                        {showSearch && (
                             <div className="relative w-full sm:w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <Input
-                                    placeholder="Cari kursus..."
+                                    placeholder="Cari modul..."
                                     value={search}
                                     onChange={handleSearchChange}
                                     className="pl-9"
                                 />
                             </div>
                         )}
-                        {showDropdown && (
+                        {showCategoryDropdown && (
                             <Select value={category} onValueChange={handleCategoryChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue placeholder="Semua Kategori" />
@@ -294,8 +316,22 @@ export default function CoursesIndex({
                             </Select>
                         )}
 
-                        {/* FILTER DROPDOWN DIVISI  */}
-                        {/* {auth?.user?.role === 'admin' && (
+                        {/* FILTER DROPDOWN MANDATORY / NON-MANDATORY (khusus admin) */}
+                        {showCourseTypeDropdown && (
+                            <Select value={courseType} onValueChange={handleCourseTypeChange}>
+                                <SelectTrigger className="w-full sm:w-48">
+                                    <SelectValue placeholder="Semua Tipe" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Tipe</SelectItem>
+                                    <SelectItem value="mandatory">Mandatory</SelectItem>
+                                    <SelectItem value="non_mandatory">Non-Mandatory</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        )}
+
+                        {/* FILTER DROPDOWN DIVISI (khusus admin) */}
+                        {showDivisionDropdown && (
                             <Select value={division} onValueChange={handleDivisionChange}>
                                 <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue>
@@ -309,7 +345,7 @@ export default function CoursesIndex({
                                     ))}
                                 </SelectContent>
                             </Select>
-                        )} */}
+                        )}
                     </div>
 
                     {canCreateCourse && (
@@ -319,22 +355,22 @@ export default function CoursesIndex({
                                 className="inline-flex items-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium px-4 py-2 transition-colors shadow-sm"
                             >
                                 <PlusCircle className="h-4 w-4" />
-                                Create Course
+                                Create Module
                             </Link>
                         </div>
                     )}
                 </div>
 
-                {/* Course Grid */}
+                {/* Module Grid */}
                 <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">All Courses</h2>
-                        <span className="text-xs text-gray-300 dark:text-gray-600">{courses.total} courses</span>
+                        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">All Modules</h2>
+                        <span className="text-xs text-gray-300 dark:text-gray-600">{courses.total} modules</span>
                     </div>
 
                     {courses.data.length === 0 ? (
                         <div className="py-16 text-center text-sm text-gray-400">
-                            No courses available yet for this selection.
+                            No modules available yet for this selection.
                         </div>
                     ) : (
                         <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -361,7 +397,7 @@ export default function CoursesIndex({
                                             </div>
                                         )}
 
-                                        {/* Stempel "Selesai" tampil besar menutupi seluruh card jika kursus sudah diselesaikan user. pointer-events-none supaya card tetap bisa diklik untuk masuk kursus */}
+                                        {/* Stempel "Selesai" tampil besar menutupi seluruh card jika modul sudah diselesaikan user. pointer-events-none supaya card tetap bisa diklik untuk masuk modul */}
                                         {!canCreateCourse && course.is_completed && stampUrl && (
                                             <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                                                 <img
@@ -478,7 +514,7 @@ export default function CoursesIndex({
                                                 {course.title}
                                             </p>
                                             <p className="text-xs text-gray-400 dark:text-gray-500 line-clamp-3 flex-1">
-                                                {course.description || 'No description available for this course.'}
+                                                {course.description || 'No description available for this module.'}
                                             </p>
 
                                             {/* Footer */}
@@ -526,7 +562,7 @@ export default function CoursesIndex({
                                                             onClick={() => handleEnrollClick(course)}
                                                             className="inline-flex items-center px-2.5 py-1 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold transition-colors shadow-sm"
                                                         >
-                                                            Daftar Kursus
+                                                            Daftar Modul
                                                         </button>
                                                     )}
                                                 </div>
@@ -563,7 +599,7 @@ export default function CoursesIndex({
 
             </div>
 
-            {/* Modal konfirmasi pendaftaran dinonaktifkan sementara, klik "Daftar Kursus" langsung masuk ke halaman kursus */}
+            {/* Modal konfirmasi pendaftaran dinonaktifkan sementara, klik "Daftar Modul" langsung masuk ke halaman modul */}
             {/* {selectedCourse && (
                 <EnrollmentModal
                     open={showEnrollModal}
@@ -580,7 +616,7 @@ export default function CoursesIndex({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Apakah anda yakin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Ini akan menghapus kursus secara permanen beserta semua data modul dan progres di dalamnya.
+                            Ini akan menghapus modul secara permanen beserta semua data materi training dan progres di dalamnya.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
