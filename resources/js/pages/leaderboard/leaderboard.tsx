@@ -71,13 +71,13 @@ export default function Leaderboard({ auth, courses, selectedCourseId, leaderboa
                 {/* Filter Dropdown */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Pilih Course</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Lihat peringkat berdasarkan total benar dan waktu tercepat dalam satu course</p>
+                        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Pilih Modul</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Lihat peringkat berdasarkan total benar dan waktu tercepat dalam satu modul</p>
                     </div>
                     <div className="w-full sm:w-[500px]">
                         <Select value={selectedCourseId ? selectedCourseId.toString() : undefined} onValueChange={handleCourseChange}>
                             <SelectTrigger className="w-full h-auto min-h-10 py-2 text-left [&>span]:line-clamp-none [&>span]:whitespace-normal [&>span]:break-words items-start">
-                                <SelectValue placeholder="Pilih course..." />
+                                <SelectValue placeholder="Pilih modul..." />
                             </SelectTrigger>
                             <SelectContent className="max-w-[calc(100vw-2rem)] sm:max-w-[500px]">
                                 {courses.map((course: any) => (
@@ -160,7 +160,7 @@ export default function Leaderboard({ auth, courses, selectedCourseId, leaderboa
 
                             {leaderboard.length === 0 ? (
                                 <div className="py-16 text-center text-sm text-gray-400">
-                                    {selectedCourseId ? 'Belum ada yang mengerjakan quiz di course ini!' : 'Silakan pilih course terlebih dahulu untuk melihat leaderboard.'}
+                                    {selectedCourseId ? 'Belum ada yang mengerjakan quiz di modul ini!' : 'Silakan pilih modul terlebih dahulu untuk melihat leaderboard.'}
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-gray-50 dark:divide-gray-700 overflow-y-auto flex-1 max-h-[500px]">

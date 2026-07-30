@@ -5,7 +5,6 @@ import {
     BookOpen,
     CheckCircle2,
     ClipboardList,
-    Flame,
     GraduationCap,
     Layers,
     MapPin,
@@ -212,10 +211,10 @@ export default function UserDashboard({ data }: UserDashboardProps) {
                         )}
                         <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                <Flame className="h-3.5 w-3.5 text-orange-400" /> Point
+                                <ClipboardList className="h-3.5 w-3.5 text-orange-400" /> Point
                             </span>
                             <span className="text-xs font-bold text-orange-600 dark:text-orange-400">
-                                {stats?.xp?.toLocaleString('id-ID') ?? 0}
+                                {stats?.quiz_attempts?.toLocaleString('id-ID') ?? 0}
                             </span>
                         </div>
                         <Link href="/leaderboard"
