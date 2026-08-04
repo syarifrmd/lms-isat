@@ -19,7 +19,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, logout } from '@/routes';
+import { dashboard, logout, setting } from '@/routes';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -43,6 +43,7 @@ export function AppSidebar() {
     const role = auth.user.role?.toLowerCase();
     const user = auth.user;
     const division = (user.division || '').toString().trim().toUpperCase();
+    const usesSettingRoute = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE'].includes(division);
 
     // Helper to check active route
     const isActive = (path: string) => {
@@ -72,10 +73,9 @@ export function AppSidebar() {
                     ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
                 ];
             case 'user':
-                // Divisi DSE tidak boleh mengakses My Progress (/students),
-                // jadi menu "Setting" diganti jadi "Dashboard" (ke dashboard().url)
-                // dan ditaruh paling atas.
-                return division === 'DSE'
+                // Only the requested divisions use the Setting route; DSE
+                // and any other division keep the Dashboard route.
+                return !usesSettingRoute
                     ? [
                         { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                         { title: 'My Learning', href: '/journeys', icon: BookOpen },
@@ -86,7 +86,7 @@ export function AppSidebar() {
                         { title: 'My Learning', href: '/journeys', icon: BookOpen },
                         // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                         { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-                        { title: 'Setting', href: dashboard().url, icon: Settings },
+                        { title: 'Setting', href: setting().url, icon: Settings },
                     ];
             default:
                 return [

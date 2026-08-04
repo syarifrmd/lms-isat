@@ -77,6 +77,7 @@ Route::middleware(['auth', 'role:trainer'])->group(function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('setting', [DashboardController::class, 'index'])->name('setting');
 
     // Heartbeat aktivitas belajar (dipanggil frontend setiap 60 detik)
     Route::post('/session/ping', [SessionPingController::class, 'ping'])->name('session.ping');

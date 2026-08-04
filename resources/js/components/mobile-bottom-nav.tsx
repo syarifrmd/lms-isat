@@ -1,4 +1,4 @@
-import { dashboard } from '@/routes';
+import { dashboard, setting } from '@/routes';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
@@ -22,6 +22,7 @@ export function MobileBottomNav() {
     const { props, url } = usePage<SharedData>();
     const role = props.auth.user.role?.toLowerCase();
     const division = (props.auth.user.division || '').toString().trim().toUpperCase();
+    const usesSettingRoute = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE'].includes(division);
 
     // Same active-route logic as the desktop sidebar (AppSidebar), so an
     // item highlights the same way on mobile as it does on desktop.
@@ -54,10 +55,9 @@ export function MobileBottomNav() {
                     ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
                 ];
             case 'user':
-                // Divisi DSE tidak boleh mengakses My Progress (/students),
-                // jadi menu "Settings" diganti jadi "Dashboard" (ke dashboard().url)
-                // dan ditaruh paling atas. Samakan dengan AppSidebar.
-                return division === 'DSE'
+                // Only the requested divisions use the Setting route; DSE
+                // and any other division keep the Dashboard route. Keep in sync with AppSidebar.
+                return !usesSettingRoute
                     ? [
                         { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                         { title: 'My Learning', href: '/journeys', icon: BookOpen },
@@ -67,7 +67,7 @@ export function MobileBottomNav() {
                         { title: 'Dashboard', href: '/students', icon: LayoutDashboard },
                         { title: 'My Learning', href: '/journeys', icon: BookOpen },
                         { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-                        { title: 'Settings', href: dashboard().url, icon: Settings },
+                        { title: 'Setting', href: setting().url, icon: Settings },
                     ];
             default:
                 return [

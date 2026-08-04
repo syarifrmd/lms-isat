@@ -15,11 +15,25 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
+    private const SETTING_DIVISIONS = ['HOC', 'HOR', 'HOS', 'BSM', 'CSE'];
+
     public function index(Request $request)
     {
         $user = $request->user();
         $role = $user->role;
         $youtubeConnected = Storage::disk('local')->exists('google-token.json');
+        $usesSettingRoute = $role === 'user'
+            && in_array(strtoupper(trim((string) $user->division)), self::SETTING_DIVISIONS, true);
+
+        // The employee overview is called "Setting" for the listed divisions.
+        // Keep DSE (and non-employee roles) on the existing dashboard URL.
+        if ($usesSettingRoute && $request->routeIs('dashboard')) {
+            return redirect()->route('setting');
+        }
+
+        if (!$usesSettingRoute && $request->routeIs('setting')) {
+            return redirect()->route('dashboard');
+        }
 
         // ── Admin Dashboard 
         if ($role === 'admin') {
@@ -379,7 +393,7 @@ class DashboardController extends Controller
                 ->value('journey_id');
         }
 
-        return Inertia::render('dashboard', [
+        return Inertia::render($usesSettingRoute ? 'setting' : 'dashboard', [
             'userData' => [
                 'stats' => [
                     'enrolled_courses'  => $enrolledCount,
