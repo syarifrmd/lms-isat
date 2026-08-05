@@ -67,6 +67,12 @@ interface AggregatedRow {
     percentage: number;
 }
 
+interface ScopeFilter {
+    field: string;
+    label: string;
+    value: string;
+}
+
 interface Props {
     course: Course;
     students: StudentRow[];
@@ -76,8 +82,11 @@ interface Props {
     scope_label: string;
     scope_value: string;
     division_filter?: string | null;
+    scope_filter?: ScopeFilter | null;
+    from_division?: string | null;
     aggregated?: boolean;
     aggregated_group_label?: string;
+    aggregated_group_field?: string | null;
     aggregated_rows?: AggregatedRow[];
 }
 
@@ -111,8 +120,11 @@ export default function StudentsShow({
     scope_label,
     scope_value,
     division_filter,
+    scope_filter,
+    from_division,
     aggregated,
     aggregated_group_label,
+    aggregated_group_field,
     aggregated_rows,
 }: Props) {
     const [search, setSearch] = useState('');
@@ -156,7 +168,7 @@ export default function StudentsShow({
     // 15 baris dulu per halaman.
     useEffect(() => {
         setPage(1);
-    }, [search, division_filter]);
+    }, [search, division_filter, scope_filter]);
 
     const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
     const currentPage = Math.min(page, totalPages);
@@ -372,13 +384,26 @@ export default function StudentsShow({
 
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
                 {/* Back */}
-                <button
-                    onClick={() => router.visit(course.journey_id ? `/students?journey=${course.journey_id}` : '/students')}
-                    className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Kembali ke Daftar Modul
-                </button>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {scope_filter && (
+                        <button
+                            onClick={() =>
+                                router.visit(`/students/${course.id}?division=${from_division ?? 'CSE'}&journey=${course.journey_id ?? ''}`)
+                            }
+                            className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Kembali
+                        </button>
+                    )}
+                    <button
+                        onClick={() => router.visit(course.journey_id ? `/students?journey=${course.journey_id}` : '/students')}
+                        className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Kembali ke Daftar Modul
+                    </button>
+                </div>
 
                 {/* Header Card */}
                 <div className="rounded-2xl border border-sky-100 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-white dark:from-sky-950 dark:to-gray-900 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
@@ -402,13 +427,14 @@ export default function StudentsShow({
                                     <span className="text-gray-300 dark:text-gray-600">&bull;</span>
                                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 rounded-full px-2.5 py-0.5">
                                         Divisi: {division_filter}
-                                        <button
-                                            type="button"
-                                            onClick={() => router.visit(`/students/${course.id}`)}
-                                            className="text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
-                                        >
-                                            &times;
-                                        </button>
+                                    </span>
+                                </>
+                            )}
+                            {scope_filter && (
+                                <>
+                                    <span className="text-gray-300 dark:text-gray-600">&bull;</span>
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 rounded-full px-2.5 py-0.5">
+                                        {scope_filter.label}: {scope_filter.value}
                                     </span>
                                 </>
                             )}
@@ -485,26 +511,56 @@ export default function StudentsShow({
                                 {search ? 'Tidak ada hasil yang cocok.' : `Belum ada ${groupLabel.toLowerCase()} dalam cakupan.`}
                             </p>
                         ) : (
-                            paginatedAggregatedRows.map((r, idx) => (
-                                <div
-                                    key={r.group_value}
-                                    className="flex flex-col gap-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 px-5 py-3"
-                                >
-                                    <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{(aggCurrentPage - 1) * PAGE_SIZE + idx + 1}</span>
+                            paginatedAggregatedRows.map((r, idx) => {
+                                // Baris rekap di level manapun (HOR/HOS/BSM/CSE) bisa di-drill ke
+                                // daftar peserta DSE untuk region/area/branch/micro cluster tsb
+                                // (mirip gambar 5), selama backend mengirim group_field-nya.
+                                const isDrillable = !!aggregated_group_field;
 
-                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{r.group_value}</p>
+                                const rowContent = (
+                                    <>
+                                        <span className="w-full sm:w-auto shrink-0 text-xs text-gray-300">{(aggCurrentPage - 1) * PAGE_SIZE + idx + 1}</span>
 
-                                    <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.total_dse}</p>
+                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200 truncate">{r.group_value}</p>
 
-                                    <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.completed_count}</p>
+                                        <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.total_dse}</p>
 
-                                    <div className="sm:flex sm:justify-center">
-                                        <span className="inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
-                                            {r.percentage}%
-                                        </span>
+                                        <p className="sm:text-center text-sm text-gray-600 dark:text-gray-300">{r.completed_count}</p>
+
+                                        <div className="sm:flex sm:justify-center">
+                                            <span className="inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                                {r.percentage}%
+                                            </span>
+                                        </div>
+                                    </>
+                                );
+
+                                if (isDrillable) {
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={r.group_value}
+                                            onClick={() =>
+                                                router.visit(
+                                                    `/students/${course.id}?division=DSE&journey=${course.journey_id ?? ''}&${aggregated_group_field}=${encodeURIComponent(r.group_value)}&from_division=${division_filter ?? ''}`,
+                                                )
+                                            }
+                                            className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"
+                                        >
+                                            {rowContent}
+                                        </button>
+                                    );
+                                }
+
+                                return (
+                                    <div
+                                        key={r.group_value}
+                                        className="flex flex-col gap-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 px-5 py-3"
+                                    >
+                                        {rowContent}
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
 

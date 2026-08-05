@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { Head, router } from '@inertiajs/react';
-import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Layers, Building2, Inbox, UserCheck, X } from 'lucide-react';
+import { LayoutGrid, CheckCircle2, Loader2, PlayCircle, FileText, File as FileIcon, Trophy, BookOpen, ChevronRight, ArrowLeft, Map, Layers, Building2, Inbox, UserCheck, X, Smartphone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,14 @@ interface MyTeamCourse {
     total_completed: number;
     by_division: DivisionBreakdown[];
     dse_population: number;
+    dse_completed: number;
     training_progress_count: number;
+}
+
+interface BrandBreakdown {
+    brand: string;
+    total_dse: number;
+    modul_selesai: number;
 }
 
 interface MyTeamJourney {
@@ -35,6 +42,7 @@ interface MyTeamJourney {
     divisions: string[];
     active_users: number;
     courses: MyTeamCourse[];
+    brand_summary: BrandBreakdown[];
 }
 
 interface ActiveUser {
@@ -109,16 +117,39 @@ function displayJourneyName(title: string): string {
     return stripped || title;
 }
 
+// Infinite-scroll ringan berbasis "visible count": mulai dari `step` item, nambah `step`
+// item lagi tiap kali listnya di-scroll sampai mendekati bawah. Reset ke `step` setiap kali
+// panjang datanya berubah (mis. ganti journey / hasil search berubah).
+function useVisibleCount(totalLength: number, step: number) {
+    const [visibleCount, setVisibleCount] = useState(step);
+
+    useEffect(() => {
+        setVisibleCount(step);
+    }, [totalLength, step]);
+
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const el = e.currentTarget;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) {
+            setVisibleCount((prev) => Math.min(totalLength, prev + step));
+        }
+    };
+
+    return { visibleCount, handleScroll };
+}
+
 function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
     // Semua tile divisi (HOR, HOS, BSM, CSE, DSE) tampil seragam: hanya nama divisi,
     // tanpa angka "selesai" / "user active".
     const divisionTiles = course.by_division;
 
     // Progress penyelesaian DSE (jumlah DSE / sudah selesai / persentase), dipindahkan dari
-    // halaman detail course ke sini supaya langsung terlihat di card-nya.
-    const dseDivision = divisionTiles.find((d) => d.division === 'DSE');
+    // halaman detail course ke sini supaya langsung terlihat di card-nya. Dihitung dari
+    // course.dse_completed (bukan dari by_division) supaya tetap muncul untuk viewer manapun
+    // yang membawahi DSE secara tidak langsung (mis. BSM membawahi banyak CSE/micro cluster),
+    // bukan cuma saat viewer-nya persis CSE.
     const dsePopulation = course.dse_population ?? 0;
-    const dsePercentage = dseDivision && dsePopulation > 0 ? (dseDivision.completed / dsePopulation) * 100 : 0;
+    const dseCompleted = course.dse_completed ?? 0;
+    const dsePercentage = dsePopulation > 0 ? (dseCompleted / dsePopulation) * 100 : 0;
 
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
@@ -150,8 +181,12 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                     </div>
                 )}
 
-                {dseDivision && dsePopulation > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700">
+                {dsePopulation > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => router.visit(`/students/${course.course_id}?division=DSE&journey=${course.journey_id}`)}
+                        className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-700 w-full text-left hover:opacity-80 transition"
+                    >
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Progress DSE</p>
                         <div className="grid grid-cols-3 gap-2 mb-2">
                             <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
@@ -164,7 +199,7 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                             </div>
                             <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 px-2.5 py-1.5">
                                 <p className="text-[10px] text-gray-400 leading-tight">Modul Selesai</p>
-                                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dseDivision.completed}</p>
+                                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 leading-tight">{dseCompleted}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -178,9 +213,28 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                                 {dsePercentage.toFixed(1)}%
                             </span>
                         </div>
-                    </div>
+                    </button>
                 )}
             </div>
+        </div>
+    );
+}
+
+// Icon brand 3ID / IM3: pakai icon generik (bukan hasil trace logo resmi) dengan warna
+// khas masing-masing brand, gaya sama seperti tile "modul tersedia" / "materi training tersedia".
+// Nama brand-nya sendiri ditampilkan sebagai teks di sebelah angka (lihat brandLabel di bawah).
+function ThreeIdBadge() {
+    return (
+        <div className="h-8 w-8 rounded-full bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 flex items-center justify-center shrink-0">
+            <Smartphone className="h-4 w-4" />
+        </div>
+    );
+}
+
+function Im3Badge() {
+    return (
+        <div className="h-8 w-8 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Smartphone className="h-4 w-4" />
         </div>
     );
 }
@@ -188,6 +242,8 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
 function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen: () => void }) {
     // "user terdaftar" dihilangkan, dan "user active" dipindah ke My Activity (di bawah
     // Detail Progress per e-learning) -> card ini tinggal menyisakan modul & materi training tersedia.
+    const brands = journey.brand_summary ?? [];
+
     return (
         <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden hover:shadow-md transition-all">
             <button
@@ -200,7 +256,6 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                 </div>
                 <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{displayJourneyName(journey.journey_title)}</p>
-                    <p className="text-[11px] text-gray-400">{journey.total_completed} selesai</p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-sky-400 shrink-0 ml-auto" />
             </button>
@@ -232,6 +287,28 @@ function MyTeamJourneyCard({ journey, onOpen }: { journey: MyTeamJourney; onOpen
                     </div>
                 </button>
             </div>
+
+            {brands.length > 0 && (
+                <div className="px-4 pb-3">
+                    <div className="grid grid-cols-2 gap-2">
+                        {brands.map((b) => {
+                            const brandLabel = b.brand === '3ID' ? '3ID' : 'IM3';
+                            return (
+                            <div key={b.brand} className="rounded-2xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 px-3 py-2.5 flex items-center gap-2.5">
+                                {b.brand === '3ID' ? <ThreeIdBadge /> : <Im3Badge />}
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-base font-bold text-gray-800 dark:text-gray-100 leading-none">{b.modul_selesai}</p>
+                                        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{brandLabel}</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 leading-tight mt-1">modul selesai &bull; {b.total_dse} DSE</p>
+                                </div>
+                            </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -485,6 +562,11 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
 
     const visibleActivityCourses = selectedActivityJourney?.courses ?? [];
 
+    // Scroll list Journey & Modul Saya di My Activity: tampilkan 6 data awal, tambah 6 lagi
+    // tiap kali di-scroll mendekati bawah.
+    const journeyListScroll = useVisibleCount(activityJourneys.length, 6);
+    const courseListScroll = useVisibleCount(visibleActivityCourses.length, 6);
+
     const [onlineByDivision, setOnlineByDivision] = useState<Record<string, number>>(() => {
         const map: Record<string, number> = {};
         teamJourneys.forEach((j) => j.courses.forEach((c) => c.by_division.forEach((d) => { map[d.division] = d.online; })));
@@ -720,8 +802,11 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                             {/* Kiri: daftar Journey */}
                             <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                                 <ListCardHeader icon={<Map className="h-4 w-4" />} eyebrow="Mandatory" title="Journey" />
-                                <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
-                                    {activityJourneys.map((j) => {
+                                <div
+                                    className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto"
+                                    onScroll={journeyListScroll.handleScroll}
+                                >
+                                    {activityJourneys.slice(0, journeyListScroll.visibleCount).map((j) => {
                                         const active = j.journey_id === selectedActivityJourneyId;
                                         return (
                                             <button
@@ -745,11 +830,14 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                             {/* Tengah: daftar Course milik journey yang dipilih */}
                             <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                                 <ListCardHeader icon={<CheckCircle2 className="h-4 w-4" />} eyebrow="Journey Mandatory" title="Modul Saya" />
-                                <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto">
+                                <div
+                                    className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[480px] overflow-y-auto"
+                                    onScroll={courseListScroll.handleScroll}
+                                >
                                     {visibleActivityCourses.length === 0 ? (
                                         <p className="px-4 py-8 text-center text-sm text-gray-400">Tidak ada modul mandatory.</p>
                                     ) : (
-                                        visibleActivityCourses.map((c) => {
+                                        visibleActivityCourses.slice(0, courseListScroll.visibleCount).map((c) => {
                                             const active = c.course_id === selectedCourseId;
                                             const statusText =
                                                 c.status === 'completed' ? 'Selesai' : c.status === 'in_progress' ? 'Sedang dikerjakan' : 'Belum dimulai';
