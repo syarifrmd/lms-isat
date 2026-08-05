@@ -43,7 +43,8 @@ class StudentController extends Controller
             ? ['HOC', 'HOR', 'HOS', 'BSM', 'CSE', 'RSE', 'DSE']
             : $this->visibleDivisionsFor($user->division ?? '');
 
-        return Inertia::render('students/index', [
+        return Inertia::render('summary/index', [
+            'summary_url'    => $request->routeIs('dashboard') ? '/dashboard' : '/summary',
             'scope_label'    => $scopeLabel,
             'scope_value'    => $scopeValue,
             'status_date'    => now()->timezone('Asia/Jakarta')->translatedFormat('d F Y'),
@@ -259,7 +260,8 @@ class StudentController extends Controller
             // circle milik viewer. Kalau pakai $dseStats, angka di header selalu jadi jumlah
             // DSE se-circle (misal 1559) padahal rekap di bawahnya cuma menampilkan bagian yang
             // relevan untuk divisi itu (misal CSE = 156, HOR = 3) — jadi tidak nyambung.
-            return Inertia::render('students/show', [
+            return Inertia::render('summary/show', [
+                'summary_url'           => $request->routeIs('dashboard.*') ? '/dashboard' : '/summary',
                 'course'                 => $course->only('id', 'title', 'description', 'category', 'status', 'journey_id'),
                 'students'               => [],
                 'total_enrollments'      => $aggRows->sum('registered_count'),
@@ -392,7 +394,8 @@ class StudentController extends Controller
         $totalEnrollments = $dseStats['registered'];
         $totalCompleted = $dseStats['completed'];
 
-        return Inertia::render('students/show', [
+        return Inertia::render('summary/show', [
+            'summary_url'        => $request->routeIs('dashboard.*') ? '/dashboard' : '/summary',
             'course'             => $course->only('id', 'title', 'description', 'category', 'status', 'journey_id'),
             'students'           => $students,
             'total_enrollments'  => $totalEnrollments,

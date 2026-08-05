@@ -89,6 +89,7 @@ interface ModuleProgress {
 }
 
 interface Props {
+    summary_url: string;
     scope_label: string;
     scope_value: string;
     status_date: string;
@@ -109,7 +110,7 @@ function displayJourneyName(title: string): string {
     return stripped || title;
 }
 
-function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
+function MyTeamCourseCard({ course, summaryUrl }: { course: MyTeamCourse; summaryUrl: string }) {
     // Semua tile divisi (HOR, HOS, BSM, CSE, DSE) tampil seragam: hanya nama divisi,
     // tanpa angka "selesai" / "user active".
     const divisionTiles = course.by_division;
@@ -140,7 +141,7 @@ function MyTeamCourseCard({ course }: { course: MyTeamCourse }) {
                             <button
                                 type="button"
                                 key={d.division}
-                                onClick={() => router.visit(`/students/${course.course_id}?division=${d.division}&journey=${course.journey_id}`)}
+                                onClick={() => router.visit(summaryUrl + '/' + course.course_id + '?division=' + d.division + '&journey=' + course.journey_id)}
                                 className="flex items-center gap-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-300 px-3 py-2 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition"
                             >
                                 {d.division}
@@ -249,7 +250,7 @@ function ActivityJourneyActiveUsers({ journey, liveActiveCount }: { journey: MyA
     const fetchActiveUsers = async () => {
         setActiveUsersLoading(true);
         try {
-            const res = await fetch(`/students/journey-active-users/${journey.journey_id}`, {
+            const res = await fetch('/summary/journey-active-users/' + journey.journey_id, {
                 headers: { Accept: 'application/json' },
             });
             const data = await res.json();
@@ -461,7 +462,7 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
 // Main page
 // ---------------------------------------------------------------------------
 
-export default function StudentsIndex({ my_team, scope_label, scope_value, status_date, course_count, my_activity }: Props) {
+export default function StudentsIndex({ summary_url, my_team, scope_label, scope_value, status_date, course_count, my_activity }: Props) {
    
     const teamJourneys = my_team.journeys;
     const activityJourneys = my_activity.journeys;
@@ -500,14 +501,14 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
 
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Summary', href: '/students' },
+        { title: 'Summary', href: summary_url },
     ];
 
     const selectCourse = async (courseId: number) => {
         setSelectedCourseId(courseId);
         setActivityLoading(true);
         try {
-            const res = await fetch(`/students/my-activity/${courseId}`);
+            const res = await fetch('/summary/my-activity/' + courseId);
             const data = await res.json();
             setActivityModules(data.modules_progress ?? []);
         } finally {
@@ -541,7 +542,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
 
         const fetchOnlineCounts = async () => {
             try {
-                const res = await fetch('/students/online-counts', {
+                const res = await fetch('/summary/online-counts', {
                     headers: { Accept: 'application/json' },
                 });
                 if (!res.ok || cancelled) return;
@@ -593,7 +594,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
 
         const fetchActiveCounts = async () => {
             try {
-                const res = await fetch('/students/journey-active-counts', {
+                const res = await fetch('/summary/journey-active-counts', {
                     headers: { Accept: 'application/json' },
                 });
                 if (!res.ok || cancelled) return;
@@ -701,7 +702,7 @@ export default function StudentsIndex({ my_team, scope_label, scope_value, statu
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {selectedJourney.courses.map((c) => (
-                                <MyTeamCourseCard key={c.course_id} course={c} />
+                                <MyTeamCourseCard key={c.course_id} course={c} summaryUrl={summary_url} />
                             ))}
                         </div>
                     )}

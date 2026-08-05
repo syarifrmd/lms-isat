@@ -68,6 +68,7 @@ interface AggregatedRow {
 }
 
 interface Props {
+    summary_url: string;
     course: Course;
     students: StudentRow[];
     total_enrollments: number;
@@ -103,6 +104,7 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 export default function StudentsShow({
+    summary_url,
     course,
     students,
     total_enrollments,
@@ -128,8 +130,8 @@ export default function StudentsShow({
 
     const breadcrumbs = [
         { title: 'Dashboard', href: '/dashboard' },
-        { title: 'Summary', href: '/students' },
-        { title: course.title, href: `/students/${course.id}` },
+        { title: 'Summary', href: summary_url },
+        { title: course.title, href: summary_url + '/' + course.id },
     ];
 
     const matchesSearch = (e: StudentRow) => {
@@ -373,7 +375,7 @@ export default function StudentsShow({
             <div className="mx-auto max-w-8xl px-4 py-6 flex flex-col gap-6">
                 {/* Back */}
                 <button
-                    onClick={() => router.visit(course.journey_id ? `/students?journey=${course.journey_id}` : '/students')}
+                    onClick={() => router.visit(course.journey_id ? summary_url + '?journey=' + course.journey_id : summary_url)}
                     className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -404,7 +406,7 @@ export default function StudentsShow({
                                         Divisi: {division_filter}
                                         <button
                                             type="button"
-                                            onClick={() => router.visit(`/students/${course.id}`)}
+                                            onClick={() => router.visit(summary_url + '/' + course.id)}
                                             className="text-sky-400 hover:text-sky-600 dark:hover:text-sky-300"
                                         >
                                             &times;

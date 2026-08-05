@@ -128,15 +128,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/courses/{course}/ratings', [CourseRatingController::class, 'store'])->name('courses.ratings.store');
     Route::delete('/courses/{course}/ratings', [CourseRatingController::class, 'destroy'])->name('courses.ratings.destroy');
 
-    Route::get('/students/profile/{enrollmentId}', [StudentController::class, 'profile'])->name('students.profile');
-    Route::get('/students/my-activity/{courseId}', [StudentController::class, 'myActivityDetail'])->name('students.my-activity-detail');
-    // Route literal ini WAJIB ada sebelum '/students/{courseId}' di bawah, kalau tidak
+    Route::get('/summary/profile/{enrollmentId}', [StudentController::class, 'profile'])->name('summary.profile');
+    Route::get('/summary/my-activity/{courseId}', [StudentController::class, 'myActivityDetail'])->name('summary.my-activity-detail');
+    // Route literal ini WAJIB ada sebelum '/summary/{courseId}' di bawah, kalau tidak
     // Laravel akan salah tangkap "online-counts" sebagai {courseId} dan error.
-    Route::get('/students/online-counts', [StudentController::class, 'onlineCounts'])->name('students.online-counts');
-    Route::get('/students/journey-active-users/{journey}', [StudentController::class, 'journeyActiveUsers'])->name('students.journey-active-users');
-    Route::get('/students/journey-active-counts', [StudentController::class, 'journeyActiveCounts'])->name('students.journey-active-counts');
-    Route::get('/students', [StudentController::class, 'index'])->name('students.index');
-    Route::get('/students/{courseId}', [StudentController::class, 'show'])->name('students.show');
+    Route::get('/summary/online-counts', [StudentController::class, 'onlineCounts'])->name('summary.online-counts');
+    Route::get('/summary/journey-active-users/{journey}', [StudentController::class, 'journeyActiveUsers'])->name('summary.journey-active-users');
+    Route::get('/summary/journey-active-counts', [StudentController::class, 'journeyActiveCounts'])->name('summary.journey-active-counts');
+    Route::get('/summary', [StudentController::class, 'index'])->name('summary.index');
+    Route::get('/summary/{courseId}', [StudentController::class, 'show'])->name('summary.show');
+    Route::get('/dashboard/{courseId}', [StudentController::class, 'show'])
+        ->whereNumber('courseId')
+        ->name('dashboard.summary.show');
 });
 
 

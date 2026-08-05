@@ -70,7 +70,7 @@ export function AppSidebar() {
                     { title: 'My Journeys', href: '/journeys', icon: BookOpen },
                     { title: 'Assessments', href: '/assessments', icon: Award },
                     // Divisi DSE tidak boleh mengakses Summary (My Progress).
-                    ...(division !== 'DSE' ? [{ title: 'Summary', href: '/students', icon: Users }] : []),
+                    ...(division !== 'DSE' ? [{ title: 'Summary', href: '/summary', icon: Users }] : []),
                 ];
             case 'user':
                 // Only the requested divisions use the Setting route; DSE
@@ -82,7 +82,7 @@ export function AppSidebar() {
                         { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
                     ]
                     : [
-                        { title: 'Dashboard', href: '/students', icon: LayoutDashboard },
+                        { title: 'Dashboard', href: dashboard().url, icon: LayoutDashboard },
                         { title: 'My Learning', href: '/journeys', icon: BookOpen },
                         // { title: 'Certificates', href: '/certificates', icon: GraduationCap },
                         { title: 'Leaderboard', href: '/leaderboard', icon: Trophy },
