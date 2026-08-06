@@ -390,7 +390,9 @@ export default function StudentsShow({
                     {scope_filter && (
                         <button
                             onClick={() =>
-                                router.visit(`/students/${course.id}?division=${from_division ?? 'CSE'}&journey=${course.journey_id ?? ''}`)
+                                router.visit(
+                                    `${summary_url}/${course.id}?division=${from_division ?? 'CSE'}&journey=${course.journey_id ?? ''}`,
+                                )
                             }
                             className="flex items-center gap-1.5 text-sm text-gray-400 dark:text-gray-500 hover:text-sky-500 dark:hover:text-sky-400 transition w-fit"
                         >
@@ -544,7 +546,7 @@ export default function StudentsShow({
                                             key={r.group_value}
                                             onClick={() =>
                                                 router.visit(
-                                                    `/students/${course.id}?division=DSE&journey=${course.journey_id ?? ''}&${aggregated_group_field}=${encodeURIComponent(r.group_value)}&from_division=${division_filter ?? ''}`,
+                                                    `${summary_url}/${course.id}?division=DSE&journey=${course.journey_id ?? ''}&${aggregated_group_field}=${encodeURIComponent(r.group_value)}&from_division=${division_filter ?? ''}`,
                                                 )
                                             }
                                             className="w-full flex flex-col gap-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 px-5 py-3 text-left hover:bg-gray-50/60 dark:hover:bg-gray-700/20 transition-colors"

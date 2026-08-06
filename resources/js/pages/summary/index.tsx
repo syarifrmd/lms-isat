@@ -228,7 +228,7 @@ function MyTeamCourseCard({
                         type="button"
                         onClick={() =>
                             router.visit(
-                                `/students/${course.course_id}?division=DSE&journey=${course.journey_id}`,
+                                `${summaryUrl}/${course.course_id}?division=DSE&journey=${course.journey_id}`,
                             )
                         }
                         className="mt-3 w-full border-t border-gray-50 pt-3 text-left transition hover:opacity-80 dark:border-gray-700"
