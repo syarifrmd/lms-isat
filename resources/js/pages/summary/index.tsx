@@ -652,7 +652,7 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
                             </span>
                         </div>
 
-                        <div className="mb-2 flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
+                        <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
                             {m.has_video && (
                                 <span
                                     className={`flex items-center gap-1 ${m.is_video_watched ? 'text-emerald-500' : 'text-gray-400'}`}
@@ -679,7 +679,7 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
                         {m.quizzes.map((q) => (
                             <div
                                 key={q.quiz_id}
-                                className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 ${
+                                className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 sm:flex-col sm:items-start 2xl:flex-row 2xl:items-center ${
                                     q.is_passed
                                         ? 'bg-emerald-50 dark:bg-emerald-950/20'
                                         : q.attempts_count > 0
@@ -687,7 +687,7 @@ function ModulesDetail({ modules }: { modules: ModuleProgress[] }) {
                                           : 'bg-gray-100 dark:bg-gray-700/40'
                                 }`}
                             >
-                                <div className="flex min-w-0 items-center gap-1.5">
+                                <div className="flex min-w-0 items-center gap-1.5 lg:w-full 2xl:w-auto">
                                     <Trophy className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                                     <span className="truncate text-[11px] text-gray-600 dark:text-gray-300">
                                         {q.quiz_title}
