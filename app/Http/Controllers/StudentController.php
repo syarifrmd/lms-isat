@@ -243,10 +243,32 @@ class StudentController extends Controller
 
         $divisionFilter = strtoupper(trim((string) $request->query('division', '')));
 
+        // Dipakai saat drill-down dari baris Rekap Region/Area/Branch/Micro Cluster (klik baris
+        // pada tabel HOR/HOS/BSM/CSE) -> hanya tampilkan DSE dari region/area/branch/micro
+        // cluster tsb, bukan seluruh DSE dalam scope viewer. Field-nya bergantung level yang
+        // diklik (HOR->region, HOS->area, BSM->branch, CSE->micro_cluster).
+        $scopeFieldLabelMap = ['region' => 'Region', 'area' => 'Area', 'branch' => 'Branch', 'micro_cluster' => 'Micro Cluster'];
+        $scopeField = null;
+        $scopeValue = '';
+        foreach (array_keys($scopeFieldLabelMap) as $candidateField) {
+            $candidateValue = trim((string) $request->query($candidateField, ''));
+            if ($candidateValue !== '') {
+                $scopeField = $candidateField;
+                $scopeValue = $candidateValue;
+                break;
+            }
+        }
+
+        // Divisi asal drill-down (HOR/HOS/BSM/CSE), dipakai tombol "Kembali" untuk balik ke
+        // tabel rekap yang benar (bukan selalu CSE).
+        $fromDivision = strtoupper(trim((string) $request->query('from_division', '')));
+
         // Statistik "Terdaftar/Selesai/Berjalan" di card atas selalu dihitung sebagai
         // pecahan dari total DSE dalam scope viewer (bukan dari daftar peserta yang sedang
         // ditampilkan), jadi angkanya konsisten di semua tampilan (rekap maupun per-divisi).
-        $dseStats = $this->buildDseCourseStats($user, $courseId);
+        // Kalau ada scope filter, statistiknya ikut dipersempit ke region/area/branch/micro
+        // cluster itu saja.
+        $dseStats = $this->buildDseCourseStats($user, $courseId, $scopeField, $scopeValue !== '' ? $scopeValue : null);
 
         // HOR/HOS/BSM/CSE: bukan daftar peserta satu per satu, tapi rekap per region/area/branch/micro-cluster
         // (jumlah DSE di scope tsb + berapa yang sudah selesai course ini), diambil langsung dari data user.
@@ -272,6 +294,7 @@ class StudentController extends Controller
                 'division_filter'        => $divisionFilter,
                 'aggregated'             => true,
                 'aggregated_group_label' => $agg['group_label'],
+                'aggregated_group_field' => $agg['group_field'],
                 'aggregated_rows'        => $agg['rows'],
             ]);
         }
@@ -291,6 +314,9 @@ class StudentController extends Controller
                 $this->applyPeerScope($dseQuery, $user);
             }
             $dseQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
+            if ($scopeField && $scopeValue !== '') {
+                $dseQuery->whereRaw('LOWER(TRIM(' . $scopeField . ')) = ?', [strtolower($scopeValue)]);
+            }
 
             $dseUsers = $dseQuery
                 ->get(['id', 'name', 'username', 'email', 'avatar', 'division', 'region', 'area', 'branch', 'micro_cluster', 'circle', 'brand'])
@@ -404,6 +430,12 @@ class StudentController extends Controller
             'scope_label'        => $this->scopeLabelForDivision($user->division ?? ''),
             'scope_value'        => $user->{$this->groupFieldForDivision($user->division ?? '')} ?? '-',
             'division_filter'    => $divisionFilter !== '' ? $divisionFilter : null,
+            'scope_filter'       => $scopeField ? [
+                'field' => $scopeField,
+                'label' => $scopeFieldLabelMap[$scopeField] ?? ucfirst($scopeField),
+                'value' => $scopeValue,
+            ] : null,
+            'from_division'      => $fromDivision !== '' ? $fromDivision : null,
             'aggregated'         => false,
         ]);
     }
@@ -419,13 +451,16 @@ class StudentController extends Controller
      * Selalu dihitung dari total populasi DSE dalam scope viewer (bukan dari daftar
      * peserta yang lagi difilter), supaya angkanya konsisten di semua card divisi.
      */
-    private function buildDseCourseStats($user, $courseId): array
+    private function buildDseCourseStats($user, $courseId, ?string $scopeField = null, ?string $scopeValue = null): array
     {
         $dseQuery = User::query();
         if ($user->role !== 'admin') {
             $this->applyPeerScope($dseQuery, $user);
         }
         $dseQuery->whereRaw('UPPER(TRIM(division)) = ?', ['DSE']);
+        if ($scopeField !== null && $scopeValue !== null && $scopeValue !== '') {
+            $dseQuery->whereRaw('LOWER(TRIM(' . $scopeField . ')) = ?', [strtolower($scopeValue)]);
+        }
         $dseUserIds = $dseQuery->pluck('id');
 
         $totalDse = $dseUserIds->count();
@@ -454,7 +489,7 @@ class StudentController extends Controller
         $groupLabel = $groupLabelMap[$divisionFilter] ?? 'Group';
 
         if (!$groupField) {
-            return ['group_label' => $groupLabel, 'rows' => []];
+            return ['group_label' => $groupLabel, 'group_field' => null, 'rows' => []];
         }
 
         // Ambil daftar region/area/branch yang unik dari peer divisi ini (HOR/HOS/BSM),
@@ -500,7 +535,7 @@ class StudentController extends Controller
             ];
         })->values();
 
-        return ['group_label' => $groupLabel, 'rows' => $rows];
+        return ['group_label' => $groupLabel, 'group_field' => $groupField, 'rows' => $rows];
     }
 
    
@@ -615,6 +650,23 @@ class StudentController extends Controller
             ->unique()
             ->values();
 
+        // Journey yang judulnya sama dengan divisi milik viewer sendiri (mis. "E-Learning DSE"
+        // untuk viewer divisi DSE) adalah journey milik viewer sendiri, bukan journey tim yang
+        // sedang dipantau -> sudah tersedia di My Activity, jadi disembunyikan dari My Team
+        // supaya tidak muncul dobel.
+        if ($journeyIds->isNotEmpty()) {
+            $ownJourneyTitles = DB::table('journeys')
+                ->whereIn('id', $journeyIds)
+                ->get(['id', 'title'])
+                ->keyBy('id');
+
+            $journeyIds = $journeyIds->reject(function ($journeyId) use ($ownJourneyTitles, $ownDivisionUpper) {
+                $title = $ownJourneyTitles->get($journeyId)?->title ?? '';
+                $normalized = strtoupper(trim(preg_replace('/^e[-\s]?learning\s*/i', '', $title)));
+                return $normalized === $ownDivisionUpper;
+            })->values();
+        }
+
         if ($journeyIds->isEmpty()) {
             return ['journeys' => []];
         }
@@ -641,13 +693,26 @@ class StudentController extends Controller
         $peerUsersQuery = User::query();
         $this->applyPeerScope($peerUsersQuery, $user);
         $peerUsersQuery->whereIn(DB::raw('UPPER(TRIM(division))'), $visibleDivisions);
-        $peerUsers = $peerUsersQuery->get(['id', 'division']);
+        $peerUsers = $peerUsersQuery->get(['id', 'division', 'brand']);
         $peerUserIds = $peerUsers->pluck('id');
         $divisionByUserId = $peerUsers->keyBy('id');
 
         // Populasi total DSE dalam scope viewer (bukan cuma yang sudah enroll), dipakai untuk
         // progress bar "X dari Y DSE selesai" di card course pada My Team.
         $dsePopulationCount = $peerUsers->filter(fn($u) => strtoupper(trim($u->division ?? '')) === 'DSE')->count();
+
+        // Rincian brand IOH (3ID / IM3) per journey, ditaruh di card journey (di bawah "modul
+        // tersedia" & "materi training tersedia"). Hanya relevan buat viewer lintas-brand
+        // (brand kosong / "IOH", mis. level HOC) -> viewer yang sudah terkunci ke 1 brand
+        // spesifik tidak perlu breakdown ini.
+        $viewerBrandUpper = strtoupper(trim((string) ($user->brand ?? '')));
+        $brandCodes = ($viewerBrandUpper === '' || $viewerBrandUpper === 'IOH') ? ['3ID', 'IM3'] : [];
+        $dseTotalByBrand = collect($brandCodes)->mapWithKeys(function ($brand) use ($peerUsers) {
+            $count = $peerUsers
+                ->filter(fn($u) => strtoupper(trim($u->division ?? '')) === 'DSE' && strtoupper(trim($u->brand ?? '')) === $brand)
+                ->count();
+            return [$brand => $count];
+        });
 
         
         $ownDivision = strtoupper(trim($user->division ?? ''));
@@ -708,6 +773,10 @@ class StudentController extends Controller
                 // Populasi total DSE dalam scope (bukan hanya yang enroll), untuk progress bar
                 // "X dari Y DSE selesai" pada card DSE di My Team.
                 'dse_population'          => $dsePopulationCount,
+                // Jumlah DSE dalam scope yang sudah menyelesaikan course ini. Dihitung langsung
+                // di sini (bukan diturunkan dari by_division) supaya tetap tersedia untuk viewer
+                // manapun yang membawahi DSE (mis. BSM), bukan cuma saat viewer-nya persis CSE.
+                'dse_completed'           => $dseCourseEnrollments->whereNotNull('completed_at')->count(),
                 // Jumlah user DSE yang sudah menyelesaikan minimal 1 modul pembelajaran di course ini.
                 'training_progress_count' => $trainingProgressCount,
             ];
@@ -719,14 +788,47 @@ class StudentController extends Controller
             ->keyBy('id');
 
         $courseCardsByJourney = $courseCards->groupBy('journey_id');
+        $courseIdsByJourney = $courses->groupBy('journey_id')->map(fn($rows) => $rows->pluck('id'));
 
         $journeyPositionById = $courseCardsByJourney
             ->map(fn($rows) => $rows->min(fn($c) => $positionByCourseId->get($c['course_id']) ?? PHP_INT_MAX));
 
         
         $journeys = $journeyIds
-            ->map(function ($journeyId) use ($journeyTitleById, $divisionsByJourneyId, $courseCardsByJourney, $user) {
+            ->map(function ($journeyId) use (
+                $journeyTitleById,
+                $divisionsByJourneyId,
+                $courseCardsByJourney,
+                $user,
+                $brandCodes,
+                $courseIdsByJourney,
+                $allEnrollments,
+                $divisionByUserId,
+                $dseTotalByBrand
+            ) {
                 $rows = $courseCardsByJourney->get($journeyId, collect())->values();
+
+                // Modul selesai per brand, dihitung dari enrollment yang sudah completed pada
+                // course-course DI DALAM journey ini saja (bukan total keseluruhan course
+                // di scope viewer).
+                $courseIdsInJourney = $courseIdsByJourney->get($journeyId, collect());
+                $journeyEnrollments = $allEnrollments->whereIn('course_id', $courseIdsInJourney);
+
+                $brandSummary = collect($brandCodes)->map(function ($brand) use ($journeyEnrollments, $divisionByUserId, $dseTotalByBrand) {
+                    $modulSelesai = $journeyEnrollments->filter(function ($e) use ($divisionByUserId, $brand) {
+                        $peer = $divisionByUserId->get($e->user_id);
+                        return $peer
+                            && $e->completed_at !== null
+                            && strtoupper(trim($peer->division ?? '')) === 'DSE'
+                            && strtoupper(trim($peer->brand ?? '')) === $brand;
+                    })->count();
+
+                    return [
+                        'brand'         => $brand,
+                        'total_dse'     => $dseTotalByBrand->get($brand, 0),
+                        'modul_selesai' => $modulSelesai,
+                    ];
+                })->values();
 
                 return [
                     'journey_id'      => (int) $journeyId,
@@ -739,6 +841,7 @@ class StudentController extends Controller
                     'divisions'       => $divisionsByJourneyId->get((int) $journeyId, collect())->values(),
                     'active_users'    => $this->dseActiveUserIdsForJourney($user, $journeyId)->count(),
                     'courses'         => $rows,
+                    'brand_summary'   => $brandSummary,
                 ];
             })
             ->sortBy(fn($j) => $journeyPositionById->get((string) $j['journey_id']) ?? PHP_INT_MAX)
