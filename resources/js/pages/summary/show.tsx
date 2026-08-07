@@ -735,97 +735,116 @@ export default function StudentsShow({
                             </div>
                         </div>
 
-                        {filteredAggregatedRows.length > 0 && (
-                            <div className="hidden gap-4 border-b border-gray-100 bg-gray-50/50 px-5 py-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center dark:border-gray-700 dark:bg-gray-900/20">
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    No
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    {groupLabel}
-                                </span>
-                                <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Jumlah DSE
-                                </span>
-                                <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Modul Selesai
-                                </span>
-                                <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Persentase
-                                </span>
-                            </div>
-                        )}
+                        <div className="sm:max-lg:overflow-x-auto">
+                            <div className="sm:max-lg:min-w-[48rem]">
+                                {filteredAggregatedRows.length > 0 && (
+                                    <div className="hidden gap-4 border-b border-gray-100 bg-gray-50/50 px-5 py-2 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center dark:border-gray-700 dark:bg-gray-900/20">
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            No
+                                        </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            {groupLabel}
+                                        </span>
+                                        <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Jumlah DSE
+                                        </span>
+                                        <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Modul Selesai
+                                        </span>
+                                        <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Persentase
+                                        </span>
+                                    </div>
+                                )}
 
-                        <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                            {filteredAggregatedRows.length === 0 ? (
-                                <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
-                                    {search
-                                        ? 'Tidak ada hasil yang cocok.'
-                                        : `Belum ada ${groupLabel.toLowerCase()} dalam cakupan.`}
-                                </p>
-                            ) : (
-                                paginatedAggregatedRows.map((r, idx) => {
-                                    // Baris rekap di level manapun (HOR/HOS/BSM/CSE) bisa di-drill ke
-                                    // daftar peserta DSE untuk region/area/branch/micro cluster tsb
-                                    // (mirip gambar 5), selama backend mengirim group_field-nya.
-                                    const isDrillable =
-                                        !!aggregated_group_field;
+                                <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                                    {filteredAggregatedRows.length === 0 ? (
+                                        <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                            {search
+                                                ? 'Tidak ada hasil yang cocok.'
+                                                : `Belum ada ${groupLabel.toLowerCase()} dalam cakupan.`}
+                                        </p>
+                                    ) : (
+                                        paginatedAggregatedRows.map(
+                                            (r, idx) => {
+                                                // Baris rekap di level manapun (HOR/HOS/BSM/CSE) bisa di-drill ke
+                                                // daftar peserta DSE untuk region/area/branch/micro cluster tsb
+                                                // (mirip gambar 5), selama backend mengirim group_field-nya.
+                                                const isDrillable =
+                                                    !!aggregated_group_field;
 
-                                    const rowContent = (
-                                        <>
-                                            <span className="w-full shrink-0 text-xs text-gray-300 sm:w-auto">
-                                                {(aggCurrentPage - 1) *
-                                                    PAGE_SIZE +
-                                                    idx +
-                                                    1}
-                                            </span>
+                                                const rowContent = (
+                                                    <>
+                                                        <span className="w-full shrink-0 text-xs text-gray-300 sm:w-auto">
+                                                            {(aggCurrentPage -
+                                                                1) *
+                                                                PAGE_SIZE +
+                                                                idx +
+                                                                1}
+                                                        </span>
 
-                                            <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
-                                                {r.group_value}
-                                            </p>
+                                                        <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
+                                                            {r.group_value}
+                                                        </p>
 
-                                            <p className="text-sm text-gray-600 sm:text-center dark:text-gray-300">
-                                                {r.total_dse}
-                                            </p>
+                                                        <p className="flex items-center justify-between text-sm text-gray-600 sm:block sm:text-center dark:text-gray-300">
+                                                            <span>
+                                                                {r.total_dse}
+                                                            </span>
+                                                            <span className="text-xs text-gray-400 sm:hidden">
+                                                                Jumlah DSE
+                                                            </span>
+                                                        </p>
 
-                                            <p className="text-sm text-gray-600 sm:text-center dark:text-gray-300">
-                                                {r.completed_count}
-                                            </p>
+                                                        <p className="flex items-center justify-between text-sm text-gray-600 sm:block sm:text-center dark:text-gray-300">
+                                                            <span>
+                                                                {
+                                                                    r.completed_count
+                                                                }
+                                                            </span>
+                                                            <span className="text-xs text-gray-400 sm:hidden">
+                                                                Modul Selesai
+                                                            </span>
+                                                        </p>
 
-                                            <div className="sm:flex sm:justify-center">
-                                                <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
-                                                    {r.percentage}%
-                                                </span>
-                                            </div>
-                                        </>
-                                    );
+                                                        <div className="sm:flex sm:justify-center">
+                                                            <span className="inline-flex items-center justify-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                                                {r.percentage}%
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                );
 
-                                    if (isDrillable) {
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={r.group_value}
-                                                onClick={() =>
-                                                    router.visit(
-                                                        `${summary_url}/${course.id}?division=DSE&journey=${course.journey_id ?? ''}&${aggregated_group_field}=${encodeURIComponent(r.group_value)}&from_division=${division_filter ?? ''}`,
-                                                    )
+                                                if (isDrillable) {
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={r.group_value}
+                                                            onClick={() =>
+                                                                router.visit(
+                                                                    `${summary_url}/${course.id}?division=DSE&journey=${course.journey_id ?? ''}&${aggregated_group_field}=${encodeURIComponent(r.group_value)}&from_division=${division_filter ?? ''}`,
+                                                                )
+                                                            }
+                                                            className="flex w-full flex-col gap-2 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 dark:hover:bg-gray-700/20"
+                                                        >
+                                                            {rowContent}
+                                                        </button>
+                                                    );
                                                 }
-                                                className="flex w-full flex-col gap-2 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4 dark:hover:bg-gray-700/20"
-                                            >
-                                                {rowContent}
-                                            </button>
-                                        );
-                                    }
 
-                                    return (
-                                        <div
-                                            key={r.group_value}
-                                            className="flex flex-col gap-2 px-5 py-3 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4"
-                                        >
-                                            {rowContent}
-                                        </div>
-                                    );
-                                })
-                            )}
+                                                return (
+                                                    <div
+                                                        key={r.group_value}
+                                                        className="flex flex-col gap-2 px-5 py-3 sm:grid sm:grid-cols-[3rem_minmax(0,1fr)_9rem_9rem_9rem] sm:items-center sm:gap-4"
+                                                    >
+                                                        {rowContent}
+                                                    </div>
+                                                );
+                                            },
+                                        )
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {filteredAggregatedRows.length > PAGE_SIZE && (
