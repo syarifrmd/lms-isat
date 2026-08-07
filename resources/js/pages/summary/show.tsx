@@ -910,128 +910,141 @@ export default function StudentsShow({
                             </div>
                         </div>
 
-                        {/* Header kolom (hanya tampil di desktop, mengikuti grid template yang sama dengan baris data) */}
-                        {filteredStudents.length > 0 && (
-                            <div className="hidden gap-4 border-b border-gray-100 bg-gray-50/50 px-5 py-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_11rem_5rem_7rem_4rem_7rem_5.5rem] sm:items-center dark:border-gray-700 dark:bg-gray-900/20">
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    No
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Peserta
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Lokasi
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Divisi
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Progress
-                                </span>
-                                <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Gagal
-                                </span>
-                                <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Status
-                                </span>
-                                <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-                                    Tanggal
-                                </span>
-                            </div>
-                        )}
-
-                        <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                            {filteredStudents.length === 0 ? (
-                                <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
-                                    {search
-                                        ? 'Tidak ada hasil yang cocok.'
-                                        : 'Belum ada peserta yang terdaftar.'}
-                                </p>
-                            ) : (
-                                paginatedStudents.map((s, idx) => (
-                                    <button
-                                        type="button"
-                                        key={
-                                            s.enrollment_id ?? `u-${s.user_id}`
-                                        }
-                                        onClick={() => openProfile(s)}
-                                        className="flex w-full flex-col gap-2 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_11rem_5rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 dark:hover:bg-gray-700/20"
-                                    >
-                                        <span className="w-full shrink-0 text-xs text-gray-300 sm:w-auto">
-                                            {(currentPage - 1) * PAGE_SIZE +
-                                                idx +
-                                                1}
+                        <div className="sm:max-xl:overflow-x-auto">
+                            <div className="sm:max-xl:min-w-[58rem]">
+                                {/* Header kolom (hanya tampil di desktop, mengikuti grid template yang sama dengan baris data) */}
+                                {filteredStudents.length > 0 && (
+                                    <div className="hidden gap-4 border-b border-gray-100 bg-gray-50/50 px-5 py-2 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_11rem_5rem_7rem_4rem_7rem_5.5rem] sm:items-center dark:border-gray-700 dark:bg-gray-900/20">
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            No
                                         </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Peserta
+                                        </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Lokasi
+                                        </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Divisi
+                                        </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Progress
+                                        </span>
+                                        <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Gagal
+                                        </span>
+                                        <span className="text-center text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Status
+                                        </span>
+                                        <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                                            Tanggal
+                                        </span>
+                                    </div>
+                                )}
 
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
-                                                {s.name}
-                                            </p>
-                                            <p className="truncate text-[11px] text-gray-400">
-                                                {s.employee_id} &bull; {s.email}
-                                            </p>
-                                        </div>
-
-                                        <div
-                                            className="min-w-0 text-xs leading-snug break-words text-gray-400"
-                                            title={s.location ?? '-'}
-                                        >
-                                            {s.location ?? '-'}
-                                        </div>
-
-                                        <div
-                                            className="min-w-0 truncate text-xs text-gray-400"
-                                            title={s.division ?? '-'}
-                                        >
-                                            {s.division ?? '-'}
-                                        </div>
-
-                                        <div className="min-w-0">
-                                            <ProgressBar
-                                                value={s.progress_percentage}
-                                            />
-                                            <p className="mt-1 text-[10px] text-gray-400">
-                                                {s.progress_percentage}%
-                                            </p>
-                                        </div>
-
-                                        <div className="sm:text-center">
-                                            {s.score_failed_count > 0 ? (
-                                                <span className="text-[11px] text-red-500">
-                                                    &#8855;{' '}
-                                                    {s.score_failed_count}x
-                                                </span>
-                                            ) : (
-                                                <span className="text-[11px] text-gray-300 dark:text-gray-600">
-                                                    &mdash;
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="sm:flex sm:justify-center">
-                                            <span
-                                                className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap ${
-                                                    s.completed_at
-                                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                        : s.enrollment_id
-                                                          ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
-                                                          : 'bg-gray-100 text-gray-500 dark:bg-gray-700/40 dark:text-gray-400'
-                                                }`}
+                                <div className="divide-y divide-gray-50 dark:divide-gray-700">
+                                    {filteredStudents.length === 0 ? (
+                                        <p className="px-5 py-16 text-center text-sm text-gray-400 dark:text-gray-500">
+                                            {search
+                                                ? 'Tidak ada hasil yang cocok.'
+                                                : 'Belum ada peserta yang terdaftar.'}
+                                        </p>
+                                    ) : (
+                                        paginatedStudents.map((s, idx) => (
+                                            <button
+                                                type="button"
+                                                key={
+                                                    s.enrollment_id ??
+                                                    `u-${s.user_id}`
+                                                }
+                                                onClick={() => openProfile(s)}
+                                                className="flex w-full flex-col gap-2 px-5 py-3 text-left transition-colors hover:bg-gray-50/60 sm:grid sm:grid-cols-[2rem_minmax(0,1fr)_11rem_5rem_7rem_4rem_7rem_5.5rem] sm:items-center sm:gap-4 dark:hover:bg-gray-700/20"
                                             >
-                                                {s.completed_at
-                                                    ? 'Selesai'
-                                                    : s.enrollment_id
-                                                      ? 'Dalam Proses'
-                                                      : 'Belum Terdaftar'}
-                                            </span>
-                                        </div>
+                                                <span className="w-full shrink-0 text-xs text-gray-300 sm:w-auto">
+                                                    {(currentPage - 1) *
+                                                        PAGE_SIZE +
+                                                        idx +
+                                                        1}
+                                                </span>
 
-                                        <span className="text-[11px] text-gray-400">
-                                            {s.enrollment_at ?? '-'}
-                                        </span>
-                                    </button>
-                                ))
-                            )}
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
+                                                        {s.name}
+                                                    </p>
+                                                    <p className="truncate text-[11px] text-gray-400">
+                                                        {s.employee_id} &bull;{' '}
+                                                        {s.email}
+                                                    </p>
+                                                </div>
+
+                                                <div
+                                                    className="min-w-0 text-xs leading-snug break-words text-gray-400"
+                                                    title={s.location ?? '-'}
+                                                >
+                                                    {s.location ?? '-'}
+                                                </div>
+
+                                                <div
+                                                    className="min-w-0 truncate text-xs text-gray-400"
+                                                    title={s.division ?? '-'}
+                                                >
+                                                    {s.division ?? '-'}
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <ProgressBar
+                                                        value={
+                                                            s.progress_percentage
+                                                        }
+                                                    />
+                                                    <p className="mt-1 text-[10px] text-gray-400">
+                                                        {s.progress_percentage}%
+                                                    </p>
+                                                </div>
+
+                                                <div className="sm:text-center">
+                                                    {s.score_failed_count >
+                                                    0 ? (
+                                                        <span className="text-[11px] text-red-500">
+                                                            &#8855;{' '}
+                                                            {
+                                                                s.score_failed_count
+                                                            }
+                                                            x
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[11px] text-gray-300 dark:text-gray-600">
+                                                            &mdash;
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="sm:flex sm:justify-center">
+                                                    <span
+                                                        className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-[11px] font-medium whitespace-nowrap ${
+                                                            s.completed_at
+                                                                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                                : s.enrollment_id
+                                                                  ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400'
+                                                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-700/40 dark:text-gray-400'
+                                                        }`}
+                                                    >
+                                                        {s.completed_at
+                                                            ? 'Selesai'
+                                                            : s.enrollment_id
+                                                              ? 'Dalam Proses'
+                                                              : 'Belum Terdaftar'}
+                                                    </span>
+                                                </div>
+
+                                                <span className="text-[11px] text-gray-400">
+                                                    {s.enrollment_at ?? '-'}
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {filteredStudents.length > PAGE_SIZE && (
